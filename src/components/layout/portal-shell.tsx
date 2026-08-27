@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarPlus, CalendarClock, User, LogOut, Scissors } from "lucide-react";
+import { LayoutDashboard, CalendarPlus, CalendarClock, User, LogOut } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 import { logoutCustomerAction } from "@/actions/customer-auth";
 
@@ -19,11 +20,8 @@ export function PortalShell({ children, customerName }: { children: React.ReactN
   return (
     <div className="flex min-h-screen flex-col pb-20 md:pb-0">
       <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between px-4 md:px-6">
-        <Link href="/portal/dashboard" className="flex items-center gap-2 text-base font-semibold text-foreground">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-secondary-light to-secondary-dark text-white">
-            <Scissors className="h-4 w-4" />
-          </span>
-          Barber<span className="text-secondary-light">Pro</span>
+        <Link href="/portal/dashboard">
+          <BrandLogo height={22} />
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
           {NAV.map((item) => {

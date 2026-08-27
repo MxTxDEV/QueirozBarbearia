@@ -19,7 +19,7 @@ export function BarberComparisonChart({ data }: { data: { name: string; revenue:
           }}
           formatter={(value) => formatCurrency(Number(value))}
         />
-        <Bar dataKey="revenue" fill="#c81e2c" radius={[8, 8, 0, 0]} />
+        <Bar dataKey="revenue" fill="#b62835" radius={[8, 8, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

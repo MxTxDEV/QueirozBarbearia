@@ -1,18 +1,14 @@
 import Link from "next/link";
-import { Scissors, CalendarClock, Wallet, MessageCircle } from "lucide-react";
+import { CalendarClock, Wallet, MessageCircle } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16">
-      <div className="mb-6 flex items-center gap-3">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-secondary-light to-secondary-dark text-white shadow-[0_8px_28px_rgba(200,30,44,0.4)]">
-          <Scissors className="h-7 w-7" />
-        </span>
-        <h1 className="text-4xl font-bold tracking-tight text-foreground">
-          Barber<span className="text-secondary-light">Pro</span>
-        </h1>
+      <div className="mb-6">
+        <BrandLogo height={64} />
       </div>
       <p className="mb-10 max-w-xl text-center text-foreground-muted">
         Agendamento online, gestão financeira e comunicação por WhatsApp em um só lugar,

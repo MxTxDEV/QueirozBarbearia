@@ -27,7 +27,7 @@ export function SidebarNav({ sections }: { sections: NavSection[] }) {
                     className={cn(
                       "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all",
                       active
-                        ? "bg-gradient-to-r from-secondary to-secondary-dark text-white shadow-[0_4px_16px_rgba(200,30,44,0.3)]"
+                        ? "bg-gradient-to-r from-secondary to-secondary-dark text-white shadow-[0_4px_16px_rgba(182,40,53,0.3)]"
                         : "text-foreground-muted hover:bg-white/5 hover:text-foreground"
                     )}
                   >

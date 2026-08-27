@@ -13,7 +13,7 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(180deg, #e2394a, #941521)",
+          background: "linear-gradient(180deg, #d84d5a, #841d26)",
           borderRadius: 7,
           color: "white",
           fontSize: 20,
@@ -21,7 +21,7 @@ export default function Icon() {
           fontFamily: "sans-serif",
         }}
       >
-        B
+        Q
       </div>
     ),
     size

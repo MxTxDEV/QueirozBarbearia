@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
 /*
-  Paleta extraída da logo "Queiroz Barbearia": grafite/preto na palavra
-  principal e vermelho vibrante em "BARBEARIA". O sistema usa essas duas cores
-  como base (primária = grafite premium, destaque = vermelho) e adiciona um
-  dourado sutil como acento secundário para reforçar a sensação premium.
+  Paleta extraída pixel a pixel da logo oficial da Queiroz Barbearia
+  (public/logo-queiroz.png): grafite escuro #283337 na palavra "Queiroz" e
+  vermelho #b62835 em "BARBEARIA". O sistema usa essas duas cores extraídas
+  como base (primária = grafite da logo, destaque = vermelho da logo) e
+  adiciona um dourado sutil como acento secundário para reforçar a sensação
+  premium em badges e detalhes.
 */
 :root {
   --background: #0b0c0e;
@@ -12,13 +14,13 @@
   --foreground: #f4f3f1;
   --foreground-muted: #a8a9ad;
 
-  --primary: #2b2d31;
-  --primary-light: #45484e;
-  --primary-dark: #17181a;
+  --primary: #283337;
+  --primary-light: #46595f;
+  --primary-dark: #171d1f;
 
-  --secondary: #c81e2c;
-  --secondary-light: #e2394a;
-  --secondary-dark: #941521;
+  --secondary: #b62835;
+  --secondary-light: #d84d5a;
+  --secondary-dark: #841d26;
 
   --accent: #c9a227;
   --accent-light: #e0bc4d;

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Barber Pro | Gestão de Barbearia",
-  description: "Agendamento online, gestão financeira e comunicação por WhatsApp para barbearias.",
+  title: "Queiroz Barbearia | Agendamento online",
+  description: "Agende seu horário na Queiroz Barbearia. Gestão completa com Barber Pro.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, LogOut, Scissors } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { ADMIN_NAV_SECTIONS } from "./nav-config";
 import { NotificationsBell, type BellNotification } from "./notifications-bell";
@@ -27,13 +28,8 @@ export function AdminShell({
     <div className="flex min-h-screen">
       {/* Sidebar - desktop */}
       <aside className="glass hidden w-64 shrink-0 md:flex md:flex-col">
-        <div className="flex h-16 items-center gap-2 border-b border-white/10 px-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-secondary-light to-secondary-dark text-white shadow-[0_4px_16px_rgba(200,30,44,0.35)]">
-            <Scissors className="h-4 w-4" />
-          </span>
-          <span className="text-base font-semibold text-foreground">
-            Barber<span className="text-secondary-light">Pro</span>
-          </span>
+        <div className="flex h-16 items-center border-b border-white/10 px-5">
+          <BrandLogo height={26} />
         </div>
         <SidebarNav sections={ADMIN_NAV_SECTIONS} />
         <div className="border-t border-white/10 p-3">
@@ -47,9 +43,7 @@ export function AdminShell({
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
           <aside className="glass-strong absolute left-0 top-0 flex h-full w-64 flex-col">
             <div className="flex h-16 items-center justify-between border-b border-white/10 px-5">
-              <span className="text-base font-semibold text-foreground">
-                Barber<span className="text-secondary-light">Pro</span>
-              </span>
+              <BrandLogo height={24} />
               <button onClick={() => setMobileOpen(false)} aria-label="Fechar menu" className="text-foreground-muted">
                 <X className="h-5 w-5" />
               </button>
@@ -97,8 +91,8 @@ export function AdminShell({
 
 export function BrandLink() {
   return (
-    <Link href="/admin/dashboard" className="text-base font-semibold text-foreground">
-      Barber<span className="text-secondary-light">Pro</span>
+    <Link href="/admin/dashboard">
+      <BrandLogo height={24} />
     </Link>
   );
 }
