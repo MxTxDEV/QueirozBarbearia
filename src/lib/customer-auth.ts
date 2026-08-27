@@ -121,6 +121,7 @@ export type CurrentCustomer = {
   fullName: string;
   whatsapp: string;
   email: string | null;
+  birthDate: Date | null;
 };
 
 export async function getCurrentCustomer(): Promise<CurrentCustomer | null> {
@@ -144,6 +145,7 @@ export async function getCurrentCustomer(): Promise<CurrentCustomer | null> {
       fullName: customer.fullName,
       whatsapp: customer.whatsapp,
       email: customer.email,
+      birthDate: customer.birthDate,
     };
   } catch {
     return null;

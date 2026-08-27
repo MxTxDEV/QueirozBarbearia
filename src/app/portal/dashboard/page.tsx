@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarPlus } from "lucide-react";
-import { requireCustomerContext } from "@/lib/require-customer";
+import { requireCompleteCustomerProfile } from "@/lib/require-customer";
 import { getCustomerNextAppointment } from "@/lib/data/portal";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
 
 export default async function PortalDashboardPage() {
-  const customer = await requireCustomerContext();
+  const customer = await requireCompleteCustomerProfile();
   const next = await getCustomerNextAppointment(customer.id);
 
   return (

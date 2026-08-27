@@ -8,8 +8,8 @@ import { actionError, actionSuccess, type ActionResult } from "@/lib/action-help
 
 const profileSchema = z.object({
   fullName: z.string().min(2, "Informe seu nome completo."),
-  email: z.string().email("E-mail inválido.").optional().or(z.literal("")),
-  birthDate: z.string().optional().or(z.literal("")),
+  email: z.string().min(1, "Informe seu e-mail.").email("E-mail inválido."),
+  birthDate: z.string().min(1, "Informe sua data de nascimento."),
 });
 
 export async function updateCustomerProfileAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
@@ -25,8 +25,8 @@ export async function updateCustomerProfileAction(_prev: ActionResult | undefine
       where: { id: customer.id },
       data: {
         fullName: data.fullName,
-        email: data.email || null,
-        birthDate: data.birthDate ? new Date(data.birthDate) : null,
+        email: data.email,
+        birthDate: new Date(data.birthDate),
       },
     });
   } catch (error) {
@@ -34,5 +34,6 @@ export async function updateCustomerProfileAction(_prev: ActionResult | undefine
   }
 
   revalidatePath("/portal/profile");
+  revalidatePath("/portal/dashboard");
   return actionSuccess();
 }

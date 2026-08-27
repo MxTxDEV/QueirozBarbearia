@@ -1,10 +1,10 @@
-import { requireCustomerContext } from "@/lib/require-customer";
+import { requireCompleteCustomerProfile } from "@/lib/require-customer";
 import { listActiveBarbersWithServices } from "@/lib/data/barbers";
 import { toNumber } from "@/lib/serialize";
 import { BookingWizard } from "./booking-wizard";
 
 export default async function BookPage() {
-  await requireCustomerContext();
+  await requireCompleteCustomerProfile();
   const barbers = await listActiveBarbersWithServices();
 
   const data = barbers.map((b) => ({
