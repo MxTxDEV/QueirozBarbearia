@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { AppointmentRowActions } from "./row-actions";
 import type { AppointmentStatus } from "@prisma/client";
 
@@ -40,6 +41,7 @@ export default async function AppointmentsPage({
 
   return (
     <div className="space-y-6">
+      <AutoRefresh />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Agendamentos</h1>

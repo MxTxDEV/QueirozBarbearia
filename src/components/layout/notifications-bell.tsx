@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { cn, formatDate, formatTime } from "@/lib/utils";
+import { getNotificationsSnapshotAction } from "@/actions/notifications";
+
+const POLL_INTERVAL_MS = 15000;
 
 export type BellNotification = {
   id: string;
@@ -14,13 +17,30 @@ export type BellNotification = {
 };
 
 export function NotificationsBell({
-  notifications,
-  unreadCount,
+  notifications: initialNotifications,
+  unreadCount: initialUnreadCount,
 }: {
   notifications: BellNotification[];
   unreadCount: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState(initialNotifications);
+  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+
+  // Atualiza sozinho em segundo plano — o admin vê novos alertas (ex: novo
+  // agendamento) sem precisar recarregar a página.
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const snapshot = await getNotificationsSnapshotAction();
+        setNotifications(snapshot.notifications);
+        setUnreadCount(snapshot.unreadCount);
+      } catch {
+        // sessão pode ter expirado; ignora e tenta de novo no próximo ciclo
+      }
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="relative">

@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { BarberComparisonChart } from "@/components/charts/barber-comparison-chart";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export default async function DashboardPage() {
   const [today, month, barberComparison, upcoming, alerts] = await Promise.all([
@@ -40,6 +41,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <AutoRefresh />
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
         <p className="text-sm text-foreground-muted">Resumo de hoje e do mês.</p>
