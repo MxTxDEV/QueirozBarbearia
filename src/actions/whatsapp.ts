@@ -6,7 +6,7 @@ import { getEvolutionConfig, getEvolutionConnectionState, getEvolutionQrCode, lo
 
 function requireEvolutionConfig() {
   const config = getEvolutionConfig();
-  if (!config) throw new Error("Evolution API não está configurado nas variáveis de ambiente.");
+  if (!config) throw new Error("Integração do WhatsApp não está configurada nas variáveis de ambiente.");
   return config;
 }
 

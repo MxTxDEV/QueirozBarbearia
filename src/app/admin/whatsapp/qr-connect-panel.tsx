@@ -62,7 +62,7 @@ export function WhatsappQrConnectPanel({ connected: initialConnected }: { connec
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Conexão do WhatsApp (Evolution API)</CardTitle>
+        <CardTitle>Conexão do WhatsApp</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Badge variant={connected ? "success" : "warning"}>{connected ? "Conectado" : "Desconectado"}</Badge>

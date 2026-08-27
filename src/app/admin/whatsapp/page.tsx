@@ -32,7 +32,7 @@ export default async function WhatsappSettingsPage() {
               {status.connected
                 ? "Conectado (API real)"
                 : status.configuredKind === "evolution"
-                  ? "Aguardando conexão (Evolution API)"
+                  ? "Aguardando conexão"
                   : "Modo de desenvolvimento (mock)"}
             </Badge>
           </CardContent>

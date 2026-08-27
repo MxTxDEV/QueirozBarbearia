@@ -12,7 +12,7 @@ export type EvolutionConfig = {
  * Isso desenrola essa causa para uma mensagem que dá pra diagnosticar.
  */
 export function describeFetchError(error: unknown): string {
-  if (!(error instanceof Error)) return "Erro desconhecido ao contatar o Evolution API.";
+  if (!(error instanceof Error)) return "Erro desconhecido ao contatar o serviço de WhatsApp.";
   const cause = (error as Error & { cause?: unknown }).cause;
   if (cause instanceof Error) {
     const code = (cause as NodeJS.ErrnoException).code;
