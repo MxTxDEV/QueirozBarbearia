@@ -4,9 +4,10 @@ import { formatDate, formatTime } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { WhatsappQrConnectPanel } from "./qr-connect-panel";
 
 export default async function WhatsappSettingsPage() {
-  const status = whatsappConnectionStatus();
+  const status = await whatsappConnectionStatus();
   const [messages, sentCount, failedCount, lastMessage] = await Promise.all([
     prisma.whatsappMessage.findMany({ orderBy: { createdAt: "desc" }, take: 30, include: { customer: true } }),
     prisma.whatsappMessage.count({ where: { status: "SENT" } }),
@@ -28,7 +29,11 @@ export default async function WhatsappSettingsPage() {
           </CardHeader>
           <CardContent>
             <Badge variant={status.connected ? "success" : "warning"}>
-              {status.connected ? "Conectado (API real)" : "Modo de desenvolvimento (mock)"}
+              {status.connected
+                ? "Conectado (API real)"
+                : status.configuredKind === "evolution"
+                  ? "Aguardando conexão (Evolution API)"
+                  : "Modo de desenvolvimento (mock)"}
             </Badge>
           </CardContent>
         </Card>
@@ -60,15 +65,16 @@ export default async function WhatsappSettingsPage() {
         </Card>
       </div>
 
-      {!status.connected && (
+      {status.configuredKind === "evolution" && <WhatsappQrConnectPanel connected={status.connected} />}
+
+      {status.configuredKind !== "evolution" && !status.connected && (
         <Card>
           <CardContent className="text-sm text-foreground-muted">
             Nenhum provedor real de WhatsApp está configurado. Defina{" "}
-            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_PROVIDER=cloud_api</code>,{" "}
-            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_API_URL</code>,{" "}
-            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_API_KEY</code> e{" "}
-            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_PHONE_NUMBER_ID</code> nas variáveis de ambiente para
-            ativar o envio real. Enquanto isso, todas as mensagens são simuladas e registradas normalmente abaixo.
+            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_PROVIDER=evolution</code> (ou{" "}
+            <code className="rounded bg-[var(--surface-subtle)] px-1">cloud_api</code>) e as credenciais
+            correspondentes nas variáveis de ambiente para ativar o envio real. Enquanto isso, todas as mensagens são
+            simuladas e registradas normalmente abaixo.
           </CardContent>
         </Card>
       )}

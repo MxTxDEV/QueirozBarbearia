@@ -2,6 +2,8 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { MockWhatsAppProvider } from "./mock-provider";
 import { CloudApiWhatsAppProvider } from "./cloud-api-provider";
+import { EvolutionApiWhatsAppProvider } from "./evolution-provider";
+import { getEvolutionConfig, getEvolutionConnectionState } from "./evolution-client";
 import type { WhatsAppProvider, AppointmentMessageData } from "./types";
 import {
   appointmentCancellationTemplate,
@@ -21,25 +23,53 @@ function getProvider(): WhatsAppProvider {
   if (cachedProvider) return cachedProvider;
 
   const kind = process.env.WHATSAPP_PROVIDER ?? "mock";
-  const apiUrl = process.env.WHATSAPP_API_URL;
-  const apiKey = process.env.WHATSAPP_API_KEY;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-  if (kind === "cloud_api" && apiUrl && apiKey && phoneNumberId) {
-    cachedProvider = new CloudApiWhatsAppProvider(apiUrl, apiKey, phoneNumberId);
-  } else {
-    cachedProvider = new MockWhatsAppProvider();
+  if (kind === "cloud_api") {
+    const apiUrl = process.env.WHATSAPP_API_URL;
+    const apiKey = process.env.WHATSAPP_API_KEY;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    if (apiUrl && apiKey && phoneNumberId) {
+      cachedProvider = new CloudApiWhatsAppProvider(apiUrl, apiKey, phoneNumberId);
+      return cachedProvider;
+    }
   }
+
+  if (kind === "evolution") {
+    const config = getEvolutionConfig();
+    if (config) {
+      cachedProvider = new EvolutionApiWhatsAppProvider(config.apiUrl, config.apiKey, config.instanceName);
+      return cachedProvider;
+    }
+  }
+
+  cachedProvider = new MockWhatsAppProvider();
   return cachedProvider;
 }
 
-export function whatsappConnectionStatus() {
-  const kind = process.env.WHATSAPP_PROVIDER ?? "mock";
-  const configured = kind === "cloud_api" && !!process.env.WHATSAPP_API_URL && !!process.env.WHATSAPP_API_KEY && !!process.env.WHATSAPP_PHONE_NUMBER_ID;
-  return {
-    mode: configured ? "cloud_api" : "mock",
-    connected: configured,
-  } as const;
+export type WhatsappStatus = {
+  /** Provedor selecionado via WHATSAPP_PROVIDER, mesmo que ainda mal configurado. */
+  configuredKind: "mock" | "cloud_api" | "evolution";
+  /** Provedor efetivamente em uso (cai para "mock" se a configuração estiver incompleta). */
+  mode: "mock" | "cloud_api" | "evolution";
+  connected: boolean;
+};
+
+export async function whatsappConnectionStatus(): Promise<WhatsappStatus> {
+  const configuredKind = (process.env.WHATSAPP_PROVIDER as WhatsappStatus["configuredKind"] | undefined) ?? "mock";
+
+  if (configuredKind === "cloud_api") {
+    const configured = !!process.env.WHATSAPP_API_URL && !!process.env.WHATSAPP_API_KEY && !!process.env.WHATSAPP_PHONE_NUMBER_ID;
+    return { configuredKind, mode: configured ? "cloud_api" : "mock", connected: configured };
+  }
+
+  if (configuredKind === "evolution") {
+    const config = getEvolutionConfig();
+    if (!config) return { configuredKind, mode: "mock", connected: false };
+    const state = await getEvolutionConnectionState(config);
+    return { configuredKind, mode: "evolution", connected: state === "open" };
+  }
+
+  return { configuredKind: "mock", mode: "mock", connected: false };
 }
 
 /**

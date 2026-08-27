@@ -3,8 +3,9 @@ import type { WhatsAppProvider, WhatsappSendResult } from "./types";
 /**
  * Adapter para a Meta WhatsApp Cloud API. Requer WHATSAPP_API_URL,
  * WHATSAPP_API_KEY e WHATSAPP_PHONE_NUMBER_ID configurados via variáveis de
- * ambiente — nunca hardcoded. Outros provedores (Twilio, Evolution API) devem
- * implementar a mesma interface `WhatsAppProvider` em um arquivo próprio.
+ * ambiente — nunca hardcoded. Outros provedores (Twilio, Evolution API — ver
+ * `evolution-provider.ts`) devem implementar a mesma interface
+ * `WhatsAppProvider` em um arquivo próprio.
  */
 export class CloudApiWhatsAppProvider implements WhatsAppProvider {
   constructor(
