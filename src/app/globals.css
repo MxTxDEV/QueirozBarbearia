@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+/*
+  Paleta extraída da logo "Queiroz Barbearia": grafite/preto na palavra
+  principal e vermelho vibrante em "BARBEARIA". O sistema usa essas duas cores
+  como base (primária = grafite premium, destaque = vermelho) e adiciona um
+  dourado sutil como acento secundário para reforçar a sensação premium.
+*/
+:root {
+  --background: #0b0c0e;
+  --background-elevated: #131417;
+  --foreground: #f4f3f1;
+  --foreground-muted: #a8a9ad;
+
+  --primary: #2b2d31;
+  --primary-light: #45484e;
+  --primary-dark: #17181a;
+
+  --secondary: #c81e2c;
+  --secondary-light: #e2394a;
+  --secondary-dark: #941521;
+
+  --accent: #c9a227;
+  --accent-light: #e0bc4d;
+
+  --surface-glass: rgba(255, 255, 255, 0.045);
+  --surface-glass-hover: rgba(255, 255, 255, 0.08);
+  --border-glass: rgba(255, 255, 255, 0.1);
+
+  --text-primary: #f4f3f1;
+  --text-secondary: #a8a9ad;
+
+  --success: #2fae6c;
+  --warning: #d99a2b;
+  --danger: #e2394a;
+
+  --radius: 1rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-elevated: var(--background-elevated);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-light: var(--secondary-light);
+  --color-secondary-dark: var(--secondary-dark);
+
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border-glass);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100dvh;
+  position: relative;
+}
+
+/* Camada 1 + 2: fundo com gradientes/luzes ambientais derivadas da marca */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.app-backdrop::before,
+.app-backdrop::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(120px);
+  opacity: 0.28;
+}
+
+.app-backdrop::before {
+  width: 620px;
+  height: 620px;
+  top: -220px;
+  right: -160px;
+  background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+}
+
+.app-backdrop::after {
+  width: 560px;
+  height: 560px;
+  bottom: -220px;
+  left: -160px;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  opacity: 0.16;
+}
+
+/* Camada 3: cards e componentes de vidro translúcido */
+.glass {
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+}
+
+.glass-hover {
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.glass-hover:hover {
+  background: var(--surface-glass-hover);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.glass-strong {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

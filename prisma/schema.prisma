@@ -1,0 +1,464 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  BARBER
+  CUSTOMER
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentMethod {
+  PIX
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  OTHER
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum RecurrenceType {
+  NONE
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum GoalType {
+  REVENUE
+  APPOINTMENTS
+  BARBER_REVENUE
+}
+
+enum GoalStatus {
+  ACTIVE
+  ACHIEVED
+  AT_RISK
+  EXPIRED
+}
+
+enum NotificationType {
+  NEW_APPOINTMENT
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  AWAITING_CONFIRMATION
+  GOAL_ACHIEVED
+  GOAL_AT_RISK
+  EXPENSE_OVERDUE
+  EXPENSE_ABOVE_BUDGET
+  PAYMENT_RECEIVED
+}
+
+enum WhatsappDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum WhatsappStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+/// Usuários internos (administradores e barbeiros) que fazem login no painel.
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String?
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(BARBER)
+  avatarUrl    String?  @map("avatar_url")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  sessions      Session[]
+  barber        Barber?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+/// Sessão de acesso do cliente ao portal (login por WhatsApp + código).
+model CustomerSession {
+  id         String    @id @default(cuid())
+  customerId String    @map("customer_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_sessions")
+}
+
+/// Código de verificação (OTP) enviado por WhatsApp para login do cliente.
+model CustomerOtp {
+  id         String    @id @default(cuid())
+  customerId String    @map("customer_id")
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_otps")
+}
+
+// ---------------------------------------------------------------------------
+// Customers
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id        String    @id @default(cuid())
+  fullName  String    @map("full_name")
+  whatsapp  String    @unique
+  email     String?
+  birthDate DateTime? @map("birth_date")
+  notes     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  appointments        Appointment[]
+  payments             Payment[]
+  financialTransactions FinancialTransaction[]
+  whatsappMessages     WhatsappMessage[]
+  sessions             CustomerSession[]
+  otps                 CustomerOtp[]
+
+  @@map("customers")
+}
+
+// ---------------------------------------------------------------------------
+// Barbers & services
+// ---------------------------------------------------------------------------
+
+model Barber {
+  id           String   @id @default(cuid())
+  userId       String?  @unique @map("user_id")
+  name         String
+  photoUrl     String?  @map("photo_url")
+  phone        String?
+  specialties  String[] @default([])
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user          User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workingHours  BarberWorkingHour[]
+  timeOffs      BarberTimeOff[]
+  services      BarberService[]
+  appointments  Appointment[]
+  goals         FinancialGoal[]
+
+  @@map("barbers")
+}
+
+/// Janela de trabalho recorrente por dia da semana (0 = domingo ... 6 = sábado).
+model BarberWorkingHour {
+  id         String @id @default(cuid())
+  barberId   String @map("barber_id")
+  weekday    Int
+  startTime  String @map("start_time") // "09:00"
+  endTime    String @map("end_time") // "19:00"
+  breakStart String? @map("break_start")
+  breakEnd   String? @map("break_end")
+
+  barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@unique([barberId, weekday])
+  @@map("barber_working_hours")
+}
+
+/// Folgas, férias e bloqueios pontuais de agenda.
+model BarberTimeOff {
+  id        String   @id @default(cuid())
+  barberId  String   @map("barber_id")
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@map("barber_time_offs")
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  price           Decimal  @db.Decimal(10, 2)
+  durationMinutes Int      @map("duration_minutes")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  barbers              BarberService[]
+  appointmentServices  AppointmentService[]
+
+  @@map("services")
+}
+
+/// Quais serviços cada barbeiro realiza.
+model BarberService {
+  id        String @id @default(cuid())
+  barberId  String @map("barber_id")
+  serviceId String @map("service_id")
+
+  barber  Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([barberId, serviceId])
+  @@map("barber_services")
+}
+
+// ---------------------------------------------------------------------------
+// Appointments
+// ---------------------------------------------------------------------------
+
+model Appointment {
+  id                String            @id @default(cuid())
+  customerId        String            @map("customer_id")
+  barberId          String            @map("barber_id")
+  appointmentDate   DateTime          @map("appointment_date") @db.Date
+  startTime         DateTime          @map("start_time")
+  endTime           DateTime          @map("end_time")
+  totalPrice        Decimal           @map("total_price") @db.Decimal(10, 2)
+  totalDurationMin  Int               @map("total_duration_min")
+  status            AppointmentStatus @default(PENDING)
+  notes             String?
+  confirmedAt       DateTime?         @map("confirmed_at")
+  cancelledAt       DateTime?         @map("cancelled_at")
+  completedAt       DateTime?         @map("completed_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  customer Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  barber   Barber                @relation(fields: [barberId], references: [id], onDelete: Restrict)
+  services AppointmentService[]
+  payments Payment[]
+  financialTransactions FinancialTransaction[]
+  auditLogs AuditLog[]
+
+  @@index([barberId, appointmentDate])
+  @@index([customerId])
+  @@index([status])
+  @@map("appointments")
+}
+
+/// Serviços de um agendamento, com preço e duração congelados no momento da reserva.
+model AppointmentService {
+  id                 String   @id @default(cuid())
+  appointmentId      String   @map("appointment_id")
+  serviceId          String   @map("service_id")
+  serviceName        String   @map("service_name")
+  priceAtBooking     Decimal  @map("price_at_booking") @db.Decimal(10, 2)
+  durationAtBooking  Int      @map("duration_at_booking")
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@map("appointment_services")
+}
+
+// ---------------------------------------------------------------------------
+// Payments & financial
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id            String        @id @default(cuid())
+  appointmentId String?       @map("appointment_id")
+  customerId    String        @map("customer_id")
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod @map("payment_method")
+  paidAt        DateTime      @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@map("payments")
+}
+
+/// Livro-razão financeiro unificado (receitas manuais + receitas de pagamentos + despesas pagas).
+model FinancialTransaction {
+  id              String            @id @default(cuid())
+  type            TransactionType
+  category        String
+  description     String
+  amount          Decimal           @db.Decimal(10, 2)
+  transactionDate DateTime          @map("transaction_date")
+  paymentMethod   PaymentMethod?    @map("payment_method")
+  appointmentId   String?           @map("appointment_id")
+  customerId      String?           @map("customer_id")
+  expenseId       String?           @map("expense_id")
+  status          TransactionStatus @default(PAID)
+  notes           String?
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  expense     Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([type, transactionDate])
+  @@map("financial_transactions")
+}
+
+model Expense {
+  id             String            @id @default(cuid())
+  description    String
+  category       String
+  amount         Decimal           @db.Decimal(10, 2)
+  dueDate        DateTime          @map("due_date")
+  paidDate       DateTime?         @map("paid_date")
+  status         TransactionStatus @default(PENDING)
+  paymentMethod  PaymentMethod?    @map("payment_method")
+  recurring      Boolean           @default(false)
+  recurrenceType RecurrenceType    @default(NONE) @map("recurrence_type")
+  notes          String?
+  parentExpenseId String?          @map("parent_expense_id")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  transactions FinancialTransaction[]
+  parentExpense Expense? @relation("ExpenseRecurrence", fields: [parentExpenseId], references: [id], onDelete: SetNull)
+  childExpenses Expense[] @relation("ExpenseRecurrence")
+
+  @@index([status, dueDate])
+  @@map("expenses")
+}
+
+model FinancialGoal {
+  id           String     @id @default(cuid())
+  title        String
+  type         GoalType
+  targetValue  Decimal    @map("target_value") @db.Decimal(12, 2)
+  currentValue Decimal    @default(0) @map("current_value") @db.Decimal(12, 2)
+  startDate    DateTime   @map("start_date")
+  endDate      DateTime   @map("end_date")
+  barberId     String?    @map("barber_id")
+  status       GoalStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  barber Barber? @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@map("financial_goals")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications, WhatsApp & audit
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id                String           @id @default(cuid())
+  userId            String?          @map("user_id")
+  title             String
+  message           String
+  type              NotificationType
+  read              Boolean          @default(false)
+  relatedEntityType String?          @map("related_entity_type")
+  relatedEntityId   String?          @map("related_entity_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model WhatsappMessage {
+  id                String            @id @default(cuid())
+  customerId        String?           @map("customer_id")
+  phone             String
+  message           String
+  direction         WhatsappDirection @default(OUTBOUND)
+  status            WhatsappStatus    @default(PENDING)
+  providerMessageId String?           @map("provider_message_id")
+  errorMessage      String?           @map("error_message")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@map("whatsapp_messages")
+}
+
+/// Registro de auditoria para eventos críticos do sistema.
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?  @map("user_id")
+  action        String
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  appointmentId String?  @map("appointment_id")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// System settings
+// ---------------------------------------------------------------------------
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}

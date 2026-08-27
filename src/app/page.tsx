@@ -1,0 +1,60 @@
+import Link from "next/link";
+import { Scissors, CalendarClock, Wallet, MessageCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
+export default function LandingPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16">
+      <div className="mb-6 flex items-center gap-3">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-secondary-light to-secondary-dark text-white shadow-[0_8px_28px_rgba(200,30,44,0.4)]">
+          <Scissors className="h-7 w-7" />
+        </span>
+        <h1 className="text-4xl font-bold tracking-tight text-foreground">
+          Barber<span className="text-secondary-light">Pro</span>
+        </h1>
+      </div>
+      <p className="mb-10 max-w-xl text-center text-foreground-muted">
+        Agendamento online, gestão financeira e comunicação por WhatsApp em um só lugar,
+        para barbearias que querem crescer com organização.
+      </p>
+
+      <div className="mb-12 flex flex-col gap-3 sm:flex-row">
+        <Link href="/portal/login">
+          <Button size="lg" className="w-full sm:w-auto">
+            Agendar meu horário
+          </Button>
+        </Link>
+        <Link href="/login">
+          <Button size="lg" variant="secondary" className="w-full sm:w-auto">
+            Painel administrativo
+          </Button>
+        </Link>
+      </div>
+
+      <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-3">
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 text-center">
+            <CalendarClock className="h-6 w-6 text-secondary-light" />
+            <p className="text-sm font-medium text-foreground">Agendamento inteligente</p>
+            <p className="text-xs text-foreground-muted">Sem conflitos de horário, com confirmação automática.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 text-center">
+            <Wallet className="h-6 w-6 text-accent-light" />
+            <p className="text-sm font-medium text-foreground">Financeiro completo</p>
+            <p className="text-xs text-foreground-muted">Receitas, despesas, metas e fluxo de caixa em tempo real.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 text-center">
+            <MessageCircle className="h-6 w-6 text-secondary-light" />
+            <p className="text-sm font-medium text-foreground">WhatsApp integrado</p>
+            <p className="text-xs text-foreground-muted">Confirmações, lembretes e cancelamentos automáticos.</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
