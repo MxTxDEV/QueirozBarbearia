@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsForm } from "./settings-form";
+import { ChangePasswordForm } from "./change-password-form";
 
 export default async function SettingsPage() {
   const user = await requireAdminContext();
@@ -30,6 +31,15 @@ export default async function SettingsPage() {
           <p className="text-foreground">{user.name}</p>
           <p className="text-foreground-muted">{user.email}</p>
           <p className="text-foreground-muted">{user.role === "ADMIN" ? "Administrador" : "Barbeiro"}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Alterar senha</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
         </CardContent>
       </Card>
     </div>
