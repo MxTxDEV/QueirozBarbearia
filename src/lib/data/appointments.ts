@@ -55,7 +55,7 @@ export async function listAppointments(filters: {
   return prisma.appointment.findMany({
     where,
     orderBy: { startTime: "asc" },
-    include: { customer: true, barber: true, services: true },
+    include: { customer: true, barber: true, services: true, payments: true },
   });
 }
 

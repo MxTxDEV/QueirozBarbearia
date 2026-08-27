@@ -6,6 +6,8 @@ import {
   Scissors,
   UserCog,
   Wallet,
+  TrendingUp,
+  TrendingDown,
   Target,
   FileBarChart,
   Bell,
@@ -31,6 +33,8 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     title: "Financeiro",
     items: [
       { label: "Visão geral", href: "/admin/financial", icon: Wallet },
+      { label: "Receitas", href: "/admin/financial/income", icon: TrendingUp },
+      { label: "Despesas", href: "/admin/financial/expenses", icon: TrendingDown },
       { label: "Metas", href: "/admin/goals", icon: Target },
       { label: "Relatórios", href: "/admin/reports", icon: FileBarChart },
     ],

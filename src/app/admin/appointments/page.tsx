@@ -125,7 +125,7 @@ export default async function AppointmentsPage({
                   <Badge variant={APPOINTMENT_STATUS_VARIANT[appt.status]}>{APPOINTMENT_STATUS_LABEL[appt.status]}</Badge>
                 </TableCell>
                 <TableCell>
-                  <AppointmentRowActions id={appt.id} status={appt.status} />
+                  <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} />
                 </TableCell>
               </TableRow>
             ))}
