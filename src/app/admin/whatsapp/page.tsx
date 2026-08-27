@@ -6,6 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WhatsappQrConnectPanel } from "./qr-connect-panel";
 
+/**
+ * Sempre dinâmica: a página consulta o estado da conexão do WhatsApp em
+ * tempo real. Sem isso, o Next tenta pré-renderizar a rota durante o build,
+ * a chamada `no-store` dispara um DynamicServerError para forçar o bailout,
+ * e esse erro de controle acaba capturado pelo try/catch do cliente HTTP —
+ * poluindo o log do build com uma falha que não existe.
+ */
+export const dynamic = "force-dynamic";
+
 export default async function WhatsappSettingsPage() {
   const status = await whatsappConnectionStatus();
   const [messages, sentCount, failedCount, lastMessage] = await Promise.all([
