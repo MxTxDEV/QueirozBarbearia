@@ -28,11 +28,11 @@ export function AdminShell({
     <div className="flex min-h-screen">
       {/* Sidebar - desktop */}
       <aside className="glass hidden w-64 shrink-0 md:flex md:flex-col">
-        <div className="flex h-16 items-center border-b border-black/10 px-5">
+        <div className="flex h-16 items-center border-b px-5">
           <BrandLogo height={26} />
         </div>
         <SidebarNav sections={ADMIN_NAV_SECTIONS} />
-        <div className="border-t border-black/10 p-3">
+        <div className="border-t p-3">
           <p className="truncate px-3 text-xs text-foreground-muted/70">{roleLabel}</p>
         </div>
       </aside>
@@ -42,7 +42,7 @@ export function AdminShell({
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
           <aside className="glass-strong absolute left-0 top-0 flex h-full w-64 flex-col">
-            <div className="flex h-16 items-center justify-between border-b border-black/10 px-5">
+            <div className="flex h-16 items-center justify-between border-b px-5">
               <BrandLogo height={24} />
               <button onClick={() => setMobileOpen(false)} aria-label="Fechar menu" className="text-foreground-muted">
                 <X className="h-5 w-5" />
@@ -56,7 +56,7 @@ export function AdminShell({
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between px-4 md:px-6">
           <button
-            className="rounded-xl p-2 text-foreground-muted hover:bg-black/5 md:hidden"
+            className="rounded-xl p-2 text-foreground-muted hover:bg-[var(--surface-subtle-hover)] md:hidden"
             onClick={() => setMobileOpen(true)}
             aria-label="Abrir menu"
           >
@@ -74,7 +74,7 @@ export function AdminShell({
             <form action={logoutAction}>
               <button
                 type="submit"
-                className="rounded-xl p-2 text-foreground-muted hover:bg-black/5"
+                className="rounded-xl p-2 text-foreground-muted hover:bg-[var(--surface-subtle-hover)]"
                 aria-label="Sair"
                 title="Sair"
               >

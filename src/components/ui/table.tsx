@@ -2,13 +2,13 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Table = ({ className, ...props }: React.HTMLAttributes<HTMLTableElement>) => (
-  <div className="w-full overflow-x-auto rounded-2xl border border-black/10">
+  <div className="w-full overflow-x-auto rounded-2xl border">
     <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
   </div>
 );
 
 const TableHeader = ({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => (
-  <thead className={cn("bg-black/[0.02] [&_tr]:border-b [&_tr]:border-black/10", className)} {...props} />
+  <thead className={cn("bg-[var(--surface-subtle)] [&_tr]:border-b", className)} {...props} />
 );
 
 const TableBody = ({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => (
@@ -18,7 +18,7 @@ const TableBody = ({ className, ...props }: React.HTMLAttributes<HTMLTableSectio
 const TableRow = ({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => (
   <tr
     className={cn(
-      "border-b border-black/5 transition-colors hover:bg-black/[0.02]",
+      "border-b transition-colors hover:bg-[var(--surface-subtle-hover)]",
       className
     )}
     {...props}

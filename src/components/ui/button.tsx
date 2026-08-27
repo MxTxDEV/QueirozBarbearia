@@ -14,10 +14,10 @@ const buttonVariants = cva(
         secondary:
           "glass glass-hover text-foreground border-glass",
         outline:
-          "border border-black/15 bg-transparent text-foreground hover:bg-black/5",
-        ghost: "text-foreground-muted hover:bg-black/5 hover:text-foreground",
+          "border bg-transparent text-foreground hover:bg-[var(--surface-subtle-hover)]",
+        ghost: "text-foreground-muted hover:bg-[var(--surface-subtle-hover)] hover:text-foreground",
         destructive: "bg-danger text-white hover:brightness-110",
-        link: "text-secondary-dark underline-offset-4 hover:underline",
+        link: "text-secondary-light underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",

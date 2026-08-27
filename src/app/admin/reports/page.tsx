@@ -67,7 +67,7 @@ export default async function ReportsPage({
               <CardTitle>Lucro</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardValue className={financial.profit >= 0 ? "text-accent" : "text-danger"}>
+              <CardValue className={financial.profit >= 0 ? "text-accent-light" : "text-danger"}>
                 {formatCurrency(financial.profit)}
               </CardValue>
             </CardContent>
@@ -141,7 +141,7 @@ export default async function ReportsPage({
                       #{i + 1} {t.customer.fullName}
                     </TableCell>
                     <TableCell className="text-foreground-muted">{formatWhatsappDisplay(t.customer.whatsapp)}</TableCell>
-                    <TableCell className="text-secondary-dark">{formatCurrency(t.total)}</TableCell>
+                    <TableCell className="text-secondary-light">{formatCurrency(t.total)}</TableCell>
                   </TableRow>
                 ) : null
               )}

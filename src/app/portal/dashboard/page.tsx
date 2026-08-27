@@ -46,7 +46,7 @@ export default async function PortalDashboardPage() {
               <p className="text-sm text-foreground-muted">
                 Serviços: {next.services.map((s) => s.serviceName).join(", ")}
               </p>
-              <p className="text-sm font-medium text-secondary-dark">{formatCurrency(next.totalPrice.toString())}</p>
+              <p className="text-sm font-medium text-secondary-light">{formatCurrency(next.totalPrice.toString())}</p>
             </div>
           )}
         </CardContent>

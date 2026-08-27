@@ -1,37 +1,45 @@
 @import "tailwindcss";
 
 /*
-  Paleta clara: fundo branco, tipografia em preto/grafite e azul claro
-  como cor de destaque (botões, menu ativo, gráficos), a pedido do
-  cliente. A logo da Queiroz Barbearia (grafite + vermelho) permanece
-  intocada — só a identidade visual do restante do app usa esta paleta.
+  Dark Luxury: preto rico como base, branco para tipografia e azul claro
+  como cor de destaque (a mesma paleta pedida antes — branco, azul claro,
+  preto — agora aplicada em um tema escuro premium). Estilo visual:
+  glassmorphism + minimalismo + bento grid.
+
+  Variáveis de superfície (--surface-*, --border-glass) são a única fonte
+  de verdade para bordas e preenchimentos sutis — os componentes usam
+  `border` puro (cor herdada da regra `* { border-color }` abaixo) e
+  `bg-[var(--surface-subtle)]` em vez de opacidades de branco/preto
+  fixas, para que trocar de tema exija editar só este arquivo.
 */
 :root {
-  --background: #ffffff;
-  --background-elevated: #f8fafc;
-  --foreground: #0f172a;
-  --foreground-muted: #64748b;
+  --background: #08090b;
+  --background-elevated: #101114;
+  --foreground: #f7f8fa;
+  --foreground-muted: #9aa1ac;
 
-  --primary: #0f172a;
-  --primary-light: #334155;
-  --primary-dark: #020617;
+  --primary: #f7f8fa;
+  --primary-light: #ffffff;
+  --primary-dark: #c7cbd1;
 
   --secondary: #0ea5e9;
   --secondary-light: #38bdf8;
   --secondary-dark: #0369a1;
 
-  --accent: #1d4ed8;
-  --accent-light: #3b82f6;
+  --accent: #3b82f6;
+  --accent-light: #60a5fa;
 
-  --surface-glass: rgba(255, 255, 255, 0.7);
-  --surface-glass-hover: rgba(255, 255, 255, 0.9);
-  --border-glass: rgba(15, 23, 42, 0.09);
+  --surface-glass: rgba(255, 255, 255, 0.045);
+  --surface-glass-hover: rgba(255, 255, 255, 0.08);
+  --surface-subtle: rgba(255, 255, 255, 0.035);
+  --surface-subtle-hover: rgba(255, 255, 255, 0.07);
+  --border-glass: rgba(255, 255, 255, 0.1);
 
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
 
-  --radius: 1rem;
+  --radius: 1.25rem;
 }
 
 @theme inline {
@@ -64,7 +72,7 @@
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
@@ -74,7 +82,7 @@ body {
   position: relative;
 }
 
-/* Camada 1 + 2: fundo com manchas suaves de azul claro */
+/* Camada 1 + 2: fundo preto profundo com luzes azuis difusas (dark luxury) */
 .app-backdrop {
   position: fixed;
   inset: 0;
@@ -88,25 +96,25 @@ body {
   content: "";
   position: absolute;
   border-radius: 999px;
-  filter: blur(120px);
+  filter: blur(140px);
   opacity: 0.16;
 }
 
 .app-backdrop::before {
-  width: 620px;
-  height: 620px;
-  top: -220px;
-  right: -160px;
+  width: 640px;
+  height: 640px;
+  top: -240px;
+  right: -180px;
   background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
 }
 
 .app-backdrop::after {
-  width: 560px;
-  height: 560px;
+  width: 580px;
+  height: 580px;
   bottom: -220px;
-  left: -160px;
+  left: -180px;
   background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
-  opacity: 0.1;
+  opacity: 0.11;
 }
 
 /* Camada 3: cards e componentes de vidro translúcido */
@@ -115,7 +123,7 @@ body {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-glass);
-  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 .glass-hover {
@@ -124,16 +132,16 @@ body {
 
 .glass-hover:hover {
   background: var(--surface-glass-hover);
-  border-color: rgba(15, 23, 42, 0.16);
+  border-color: rgba(255, 255, 255, 0.18);
   transform: translateY(-1px);
 }
 
 .glass-strong {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.86));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-glass);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
 ::-webkit-scrollbar {
@@ -141,7 +149,7 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(15, 23, 42, 0.15);
+  background-color: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-track {

@@ -22,12 +22,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col">
         <div className="app-backdrop" aria-hidden />
         {children}
-        <Toaster richColors position="top-right" theme="light" />
+        <Toaster richColors position="top-right" theme="dark" />
       </body>
     </html>
   );

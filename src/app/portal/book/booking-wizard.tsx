@@ -85,7 +85,7 @@ export function BookingWizard({ barbers }: { barbers: Barber[] }) {
           <div key={label} className="flex min-w-0 items-center gap-1 sm:gap-2">
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
-                i <= step ? "bg-secondary text-white" : "bg-black/[0.05] text-foreground-muted"
+                i <= step ? "bg-secondary text-white" : "bg-[var(--surface-subtle)] text-foreground-muted"
               }`}
             >
               {i + 1}
@@ -115,7 +115,7 @@ export function BookingWizard({ barbers }: { barbers: Barber[] }) {
                   <p className="font-medium text-foreground">{b.name}</p>
                   <p className="text-xs text-foreground-muted">{b.specialties.join(", ") || "Barbeiro"}</p>
                 </div>
-                {barberId === b.id && <Check className="ml-auto h-5 w-5 text-secondary" />}
+                {barberId === b.id && <Check className="ml-auto h-5 w-5 text-secondary-light" />}
               </CardContent>
             </Card>
           ))}
@@ -142,7 +142,7 @@ export function BookingWizard({ barbers }: { barbers: Barber[] }) {
                 >
                   <CardContent className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Scissors className="h-4 w-4 text-secondary" />
+                      <Scissors className="h-4 w-4 text-secondary-light" />
                       <div>
                         <p className="text-sm font-medium text-foreground">{s.name}</p>
                         <p className="text-xs text-foreground-muted">{formatDuration(s.durationMinutes)}</p>
@@ -150,7 +150,7 @@ export function BookingWizard({ barbers }: { barbers: Barber[] }) {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-foreground">{formatCurrency(s.price)}</span>
-                      {checked && <Check className="h-4 w-4 text-secondary" />}
+                      {checked && <Check className="h-4 w-4 text-secondary-light" />}
                     </div>
                   </CardContent>
                 </Card>
@@ -202,7 +202,7 @@ export function BookingWizard({ barbers }: { barbers: Barber[] }) {
                 className={`rounded-xl border px-4 py-2 text-sm transition-colors ${
                   selectedSlot?.iso === slot.iso
                     ? "border-secondary bg-secondary/20 text-foreground"
-                    : "border-black/10 bg-black/[0.02] text-foreground-muted hover:bg-black/[0.05]"
+                    : "border bg-[var(--surface-subtle)] text-foreground-muted hover:bg-[var(--surface-subtle-hover)]"
                 }`}
               >
                 {slot.label}
@@ -244,9 +244,9 @@ export function BookingWizard({ barbers }: { barbers: Barber[] }) {
                 <dt className="text-foreground-muted">Horário</dt>
                 <dd className="font-medium text-foreground">{selectedSlot.label}</dd>
               </div>
-              <div className="flex justify-between border-t border-black/10 pt-2">
+              <div className="flex justify-between border-t pt-2">
                 <dt className="text-foreground-muted">Valor total</dt>
-                <dd className="text-base font-semibold text-secondary-dark">{formatCurrency(totalPrice)}</dd>
+                <dd className="text-base font-semibold text-secondary-light">{formatCurrency(totalPrice)}</dd>
               </div>
             </dl>
             {submitError && <p className="text-sm text-danger">{submitError}</p>}

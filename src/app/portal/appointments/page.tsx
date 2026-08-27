@@ -36,7 +36,7 @@ export default async function PortalAppointmentsPage() {
                   {appt.services.map((s) => s.serviceName).join(", ")}
                 </p>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-secondary-dark">
+                  <span className="text-sm font-medium text-secondary-light">
                     {formatCurrency(appt.totalPrice.toString())}
                   </span>
                   {cancellable && <CancelButton appointmentId={appt.id} />}

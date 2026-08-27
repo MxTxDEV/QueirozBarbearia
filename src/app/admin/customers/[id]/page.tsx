@@ -73,7 +73,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
                 <p className="text-sm text-foreground-muted">Nenhum agendamento ainda.</p>
               )}
               {customer.appointments.map((appt) => (
-                <div key={appt.id} className="flex items-center justify-between rounded-xl border border-black/10 p-3">
+                <div key={appt.id} className="flex items-center justify-between rounded-xl border p-3">
                   <div>
                     <p className="text-sm font-medium text-foreground">
                       {formatDate(appt.appointmentDate)} — {appt.barber.name}
@@ -111,7 +111,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
                 ))}
               </ul>
               {customer.notes && (
-                <p className="mt-2 rounded-lg bg-black/[0.03] p-2 text-xs text-foreground-muted">{customer.notes}</p>
+                <p className="mt-2 rounded-lg bg-[var(--surface-subtle)] p-2 text-xs text-foreground-muted">{customer.notes}</p>
               )}
             </CardContent>
           </Card>

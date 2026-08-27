@@ -41,7 +41,7 @@ export default async function ServicesPage() {
                     <Badge variant={s.active ? "success" : "muted"}>{s.active ? "Ativo" : "Inativo"}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Link href={`/admin/services/${s.id}/edit`} className="text-sm text-secondary-dark hover:underline">
+                    <Link href={`/admin/services/${s.id}/edit`} className="text-sm text-secondary-light hover:underline">
                       Editar
                     </Link>
                   </TableCell>

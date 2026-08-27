@@ -64,7 +64,7 @@ export default async function BarberDetailPage({ params }: { params: Promise<{ i
                 <form
                   key={weekday}
                   action={action}
-                  className="flex flex-wrap items-end gap-2 rounded-xl border border-black/10 p-3"
+                  className="flex flex-wrap items-end gap-2 rounded-xl border p-3"
                 >
                   <input type="hidden" name="weekday" value={weekday} />
                   <span className="w-24 shrink-0 pb-2 text-sm font-medium text-foreground">{weekdayName(weekday)}</span>
@@ -115,7 +115,7 @@ export default async function BarberDetailPage({ params }: { params: Promise<{ i
                   <form
                     key={s.id}
                     action={toggleBarberServiceAction.bind(null, id, s.id, !enabled)}
-                    className="flex items-center justify-between rounded-xl border border-black/10 p-2.5"
+                    className="flex items-center justify-between rounded-xl border p-2.5"
                   >
                     <span className="text-sm text-foreground">{s.name}</span>
                     <Button type="submit" size="sm" variant={enabled ? "secondary" : "outline"}>
@@ -149,7 +149,7 @@ export default async function BarberDetailPage({ params }: { params: Promise<{ i
               <div className="space-y-2">
                 {barber.timeOffs.length === 0 && <p className="text-sm text-foreground-muted">Nenhuma folga cadastrada.</p>}
                 {barber.timeOffs.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between rounded-xl border border-black/10 p-2.5 text-sm">
+                  <div key={t.id} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
                     <span className="text-foreground-muted">
                       {formatDate(t.startDate)} — {formatDate(t.endDate)} {t.reason ? `(${t.reason})` : ""}
                     </span>

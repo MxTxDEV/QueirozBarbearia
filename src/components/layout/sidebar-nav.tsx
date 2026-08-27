@@ -28,7 +28,7 @@ export function SidebarNav({ sections }: { sections: NavSection[] }) {
                       "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all",
                       active
                         ? "bg-gradient-to-r from-secondary to-secondary-dark text-white shadow-[0_4px_16px_rgba(14,165,233,0.3)]"
-                        : "text-foreground-muted hover:bg-black/5 hover:text-foreground"
+                        : "text-foreground-muted hover:bg-[var(--surface-subtle-hover)] hover:text-foreground"
                     )}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
