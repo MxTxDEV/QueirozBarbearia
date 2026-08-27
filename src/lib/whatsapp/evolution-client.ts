@@ -106,8 +106,18 @@ export async function logoutEvolutionInstance(config: EvolutionConfig): Promise<
       method: "DELETE",
       headers: { apikey: config.apiKey },
     });
-    if (!res.ok) return { error: `HTTP ${res.status}: ${await res.text()}` };
-    return { ok: true };
+    if (res.ok) return { ok: true };
+
+    const body = await res.text();
+
+    // O Evolution API pode responder 500 aqui por um bug interno dele ao
+    // tentar persistir o evento de exclusão de mensagem gerado pelo logout,
+    // mesmo que a sessão já tenha sido desconectada de fato. Confirma o
+    // estado real antes de reportar falha para o usuário.
+    const state = await getEvolutionConnectionState(config);
+    if (state !== "open") return { ok: true };
+
+    return { error: `HTTP ${res.status}: ${body}` };
   } catch (error) {
     const message = describeFetchError(error);
     console.error("[WhatsApp/Evolution] Falha ao desconectar:", message);
