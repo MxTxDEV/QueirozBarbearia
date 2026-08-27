@@ -12,6 +12,51 @@ export type GridAppointment = {
   day: Date;
 };
 
+type PositionedAppointment = GridAppointment & { lane: number; lanes: number };
+
+/**
+ * Distribui em colunas lado a lado os agendamentos que se sobrepõem no
+ * tempo — barbeiros diferentes atendem no mesmo horário, e sem isso os
+ * blocos se empilhariam um sobre o outro, ilegíveis.
+ *
+ * Agrupa os que colidem em "clusters" e, dentro de cada um, encaixa cada
+ * agendamento na primeira coluna livre. A largura é dividida pelo número
+ * de colunas que aquele cluster precisou.
+ */
+function assignLanes(items: GridAppointment[]): PositionedAppointment[] {
+  const sorted = [...items].sort(
+    (a, b) => a.startTime.getTime() - b.startTime.getTime() || a.endTime.getTime() - b.endTime.getTime()
+  );
+
+  const positioned: PositionedAppointment[] = [];
+  let cluster: (GridAppointment & { lane: number })[] = [];
+  let clusterEnd = 0;
+
+  const flush = () => {
+    if (cluster.length === 0) return;
+    const laneCount = Math.max(...cluster.map((c) => c.lane)) + 1;
+    for (const item of cluster) positioned.push({ ...item, lanes: laneCount });
+    cluster = [];
+    clusterEnd = 0;
+  };
+
+  for (const item of sorted) {
+    if (cluster.length > 0 && item.startTime.getTime() >= clusterEnd) flush();
+
+    const laneEnds: number[] = [];
+    for (const c of cluster) laneEnds[c.lane] = Math.max(laneEnds[c.lane] ?? 0, c.endTime.getTime());
+
+    let lane = laneEnds.findIndex((end) => end <= item.startTime.getTime());
+    if (lane === -1) lane = laneEnds.length === 0 ? 0 : laneEnds.length;
+
+    cluster.push({ ...item, lane });
+    clusterEnd = Math.max(clusterEnd, item.endTime.getTime());
+  }
+  flush();
+
+  return positioned;
+}
+
 /**
  * Grade de horários usada pelas visões de Semana e Dia: colunas de dias,
  * linhas de horas, e cada agendamento posicionado/dimensionado pela
@@ -72,7 +117,7 @@ export function TimeGrid({
           </div>
 
           {days.map((day) => {
-            const dayAppointments = appointments.filter((a) => isSameDay(a.day, day));
+            const dayAppointments = assignLanes(appointments.filter((a) => isSameDay(a.day, day)));
             return (
               <div key={day.toISOString()} className="relative flex-1 border-l">
                 {hours.map((h) => (
@@ -84,14 +129,21 @@ export function TimeGrid({
                   const rawHeight =
                     ((minutesFromMidnight(appt.endTime) - minutesFromMidnight(appt.startTime)) / 60) * HOUR_HEIGHT;
                   const height = Math.max(22, rawHeight - 2);
+                  const laneWidth = 100 / appt.lanes;
                   return (
                     <AppointmentBlock
                       key={appt.block.id}
                       data={appt.block}
                       actions={appt.actions}
                       // Abaixo de ~38px não cabem as duas linhas sem cortar texto.
-                      dense={height < 38}
-                      style={{ top: Math.max(0, top), height, left: 4, right: 4 }}
+                      // Em coluna estreita (3+ simultâneos) também só cabe uma.
+                      dense={height < 38 || appt.lanes > 2}
+                      style={{
+                        top: Math.max(0, top),
+                        height,
+                        left: `calc(${appt.lane * laneWidth}% + 3px)`,
+                        width: `calc(${laneWidth}% - 6px)`,
+                      }}
                     />
                   );
                 })}
