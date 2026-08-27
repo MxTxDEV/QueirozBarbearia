@@ -5,8 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 
 export async function markNotificationReadAction(id: string) {
-  await requireAdminContext();
-  await prisma.notification.update({ where: { id }, data: { read: true } });
+  const user = await requireAdminContext();
+  // updateMany (não update) para não lançar quando a notificação pertence a
+  // outro usuário — apenas não faz nada, sem vazar/alterar dado de terceiros.
+  await prisma.notification.updateMany({
+    where: { id, OR: [{ userId: user.id }, { userId: null }] },
+    data: { read: true },
+  });
   revalidatePath("/admin/notifications");
 }
 
