@@ -1,10 +1,11 @@
 "use server";
 
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireAdminContext } from "@/lib/require-admin";
+import { requireAdminContext, requireAdminOnly } from "@/lib/require-admin";
 import { normalizeWhatsapp } from "@/lib/utils";
 import { sendWhatsapp } from "@/lib/whatsapp";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
@@ -91,6 +92,27 @@ export async function updateCustomerAction(
   revalidatePath("/admin/customers");
   revalidatePath(`/admin/customers/${id}`);
   return actionSuccess();
+}
+
+export async function deleteCustomerAction(id: string): Promise<ActionResult> {
+  try {
+    await requireAdminOnly();
+
+    const customer = await prisma.customer.findUnique({ where: { id } });
+    if (!customer) return actionError(new Error("Cliente não encontrado."));
+
+    await prisma.customer.delete({ where: { id } });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      return actionError(
+        new Error("Não é possível excluir: este cliente possui agendamentos ou pagamentos registrados.")
+      );
+    }
+    return actionError(error);
+  }
+
+  revalidatePath("/admin/customers");
+  redirect("/admin/customers");
 }
 
 const messageSchema = z.object({ message: z.string().min(1, "Digite uma mensagem.") });
