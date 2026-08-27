@@ -6,6 +6,21 @@ export type EvolutionConfig = {
   instanceName: string;
 };
 
+/**
+ * `fetch` do Node só relata "fetch failed" para qualquer falha de rede,
+ * escondendo o motivo real (DNS, timeout, conexão recusada) em `error.cause`.
+ * Isso desenrola essa causa para uma mensagem que dá pra diagnosticar.
+ */
+export function describeFetchError(error: unknown): string {
+  if (!(error instanceof Error)) return "Erro desconhecido ao contatar o Evolution API.";
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (cause instanceof Error) {
+    const code = (cause as NodeJS.ErrnoException).code;
+    return code ? `${error.message}: ${cause.message} (${code})` : `${error.message}: ${cause.message}`;
+  }
+  return error.message;
+}
+
 /** Lê a configuração do Evolution API das variáveis de ambiente. */
 export function getEvolutionConfig(): EvolutionConfig | null {
   const apiUrl = process.env.EVOLUTION_API_URL;
@@ -28,7 +43,8 @@ export async function getEvolutionConnectionState(config: EvolutionConfig): Prom
     const state = json.instance?.state;
     if (state === "open" || state === "connecting" || state === "close") return state;
     return "unknown";
-  } catch {
+  } catch (error) {
+    console.error("[WhatsApp/Evolution] Falha ao consultar connectionState:", describeFetchError(error));
     return "unknown";
   }
 }
@@ -78,7 +94,9 @@ export async function getEvolutionQrCode(config: EvolutionConfig): Promise<{ bas
 
     return { error: `HTTP ${connectRes.status}: ${await connectRes.text()}` };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Erro desconhecido ao contatar o Evolution API." };
+    const message = describeFetchError(error);
+    console.error("[WhatsApp/Evolution] Falha ao buscar QR code:", message);
+    return { error: message };
   }
 }
 
@@ -91,6 +109,8 @@ export async function logoutEvolutionInstance(config: EvolutionConfig): Promise<
     if (!res.ok) return { error: `HTTP ${res.status}: ${await res.text()}` };
     return { ok: true };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Erro desconhecido ao contatar o Evolution API." };
+    const message = describeFetchError(error);
+    console.error("[WhatsApp/Evolution] Falha ao desconectar:", message);
+    return { error: message };
   }
 }

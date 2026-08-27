@@ -1,4 +1,5 @@
 import type { WhatsAppProvider, WhatsappSendResult } from "./types";
+import { describeFetchError } from "./evolution-client";
 
 /**
  * Adapter para o Evolution API (self-hosted, baseado em Baileys). Requer
@@ -35,7 +36,9 @@ export class EvolutionApiWhatsAppProvider implements WhatsAppProvider {
       const json = (await res.json()) as { key?: { id?: string } };
       return { ok: true, providerMessageId: json.key?.id };
     } catch (error) {
-      return { ok: false, errorMessage: error instanceof Error ? error.message : "Erro desconhecido" };
+      const message = describeFetchError(error);
+      console.error("[WhatsApp/Evolution] Falha ao enviar mensagem:", message);
+      return { ok: false, errorMessage: message };
     }
   }
 }
