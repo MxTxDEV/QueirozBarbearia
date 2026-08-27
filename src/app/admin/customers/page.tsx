@@ -51,7 +51,7 @@ export default async function CustomersPage({
                 <TableCell className="text-foreground-muted">{formatWhatsappDisplay(c.whatsapp)}</TableCell>
                 <TableCell className="text-foreground-muted">{c._count.appointments}</TableCell>
                 <TableCell className="text-right">
-                  <Link href={`/admin/customers/${c.id}`} className="text-sm text-secondary-light hover:underline">
+                  <Link href={`/admin/customers/${c.id}`} className="text-sm text-secondary-dark hover:underline">
                     Ver perfil
                   </Link>
                 </TableCell>

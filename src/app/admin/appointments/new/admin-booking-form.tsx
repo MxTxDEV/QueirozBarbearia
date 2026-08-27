@@ -124,7 +124,7 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
                         refreshSlots(barberId, date, dur);
                       }}
                       className={`flex items-center justify-between rounded-xl border p-3 text-left text-sm transition-colors ${
-                        checked ? "border-secondary bg-secondary/15" : "border-white/10 bg-white/[0.03]"
+                        checked ? "border-secondary bg-secondary/15" : "border-black/10 bg-black/[0.02]"
                       }`}
                     >
                       <span>
@@ -132,7 +132,7 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
                       </span>
                       <span className="flex items-center gap-2">
                         {formatCurrency(s.price)}
-                        {checked && <Check className="h-4 w-4 text-secondary-light" />}
+                        {checked && <Check className="h-4 w-4 text-secondary" />}
                       </span>
                     </button>
                   );
@@ -167,7 +167,7 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
                     className={`rounded-xl border px-4 py-2 text-sm transition-colors ${
                       selectedSlot?.iso === slot.iso
                         ? "border-secondary bg-secondary/20 text-foreground"
-                        : "border-white/10 bg-white/[0.03] text-foreground-muted hover:bg-white/[0.06]"
+                        : "border-black/10 bg-black/[0.02] text-foreground-muted hover:bg-black/[0.05]"
                     }`}
                   >
                     {slot.label}
@@ -189,7 +189,7 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
           <p className="text-sm font-medium text-foreground">Resumo</p>
           <p className="text-sm text-foreground-muted">Serviços: {selectedServices.map((s) => s.name).join(", ") || "—"}</p>
           <p className="text-sm text-foreground-muted">Duração total: {formatDuration(totalDuration)}</p>
-          <p className="text-base font-semibold text-secondary-light">{formatCurrency(totalPrice)}</p>
+          <p className="text-base font-semibold text-secondary-dark">{formatCurrency(totalPrice)}</p>
         </CardContent>
       </Card>
     </div>

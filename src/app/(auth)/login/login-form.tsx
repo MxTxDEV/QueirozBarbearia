@@ -27,7 +27,7 @@ export function LoginForm() {
       </SubmitButton>
       <p className="text-center text-sm text-foreground-muted">
         É cliente da barbearia?{" "}
-        <Link href="/portal/login" className="font-medium text-secondary-light hover:underline">
+        <Link href="/portal/login" className="font-medium text-secondary-dark hover:underline">
           Acesse o portal do cliente
         </Link>
       </p>

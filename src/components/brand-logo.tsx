@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * uso sobre fundos claros/brancos.
  */
 export function BrandLogo({
-  variant = "light",
+  variant = "dark",
   height = 28,
   className,
 }: {

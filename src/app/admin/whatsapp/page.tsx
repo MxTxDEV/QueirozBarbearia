@@ -64,10 +64,10 @@ export default async function WhatsappSettingsPage() {
         <Card>
           <CardContent className="text-sm text-foreground-muted">
             Nenhum provedor real de WhatsApp está configurado. Defina{" "}
-            <code className="rounded bg-white/10 px-1">WHATSAPP_PROVIDER=cloud_api</code>,{" "}
-            <code className="rounded bg-white/10 px-1">WHATSAPP_API_URL</code>,{" "}
-            <code className="rounded bg-white/10 px-1">WHATSAPP_API_KEY</code> e{" "}
-            <code className="rounded bg-white/10 px-1">WHATSAPP_PHONE_NUMBER_ID</code> nas variáveis de ambiente para
+            <code className="rounded bg-black/[0.05] px-1">WHATSAPP_PROVIDER=cloud_api</code>,{" "}
+            <code className="rounded bg-black/[0.05] px-1">WHATSAPP_API_URL</code>,{" "}
+            <code className="rounded bg-black/[0.05] px-1">WHATSAPP_API_KEY</code> e{" "}
+            <code className="rounded bg-black/[0.05] px-1">WHATSAPP_PHONE_NUMBER_ID</code> nas variáveis de ambiente para
             ativar o envio real. Enquanto isso, todas as mensagens são simuladas e registradas normalmente abaixo.
           </CardContent>
         </Card>

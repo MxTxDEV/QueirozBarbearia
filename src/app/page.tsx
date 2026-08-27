@@ -31,21 +31,21 @@ export default function LandingPage() {
       <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="flex flex-col items-center gap-2 text-center">
-            <CalendarClock className="h-6 w-6 text-secondary-light" />
+            <CalendarClock className="h-6 w-6 text-secondary" />
             <p className="text-sm font-medium text-foreground">Agendamento inteligente</p>
             <p className="text-xs text-foreground-muted">Sem conflitos de horário, com confirmação automática.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col items-center gap-2 text-center">
-            <Wallet className="h-6 w-6 text-accent-light" />
+            <Wallet className="h-6 w-6 text-accent" />
             <p className="text-sm font-medium text-foreground">Financeiro completo</p>
             <p className="text-xs text-foreground-muted">Receitas, despesas, metas e fluxo de caixa em tempo real.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col items-center gap-2 text-center">
-            <MessageCircle className="h-6 w-6 text-secondary-light" />
+            <MessageCircle className="h-6 w-6 text-secondary" />
             <p className="text-sm font-medium text-foreground">WhatsApp integrado</p>
             <p className="text-xs text-foreground-muted">Confirmações, lembretes e cancelamentos automáticos.</p>
           </CardContent>

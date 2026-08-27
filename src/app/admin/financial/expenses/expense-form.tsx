@@ -38,7 +38,7 @@ export function ExpenseForm() {
         <Input id="dueDate" name="dueDate" type="date" required />
       </div>
       <div className="flex items-center gap-2">
-        <input id="recurring" name="recurring" type="checkbox" className="h-4 w-4 rounded border-white/20" />
+        <input id="recurring" name="recurring" type="checkbox" className="h-4 w-4 rounded border-black/20" />
         <Label htmlFor="recurring">Despesa recorrente</Label>
       </div>
       <div className="space-y-1.5">

@@ -73,7 +73,7 @@ export default async function FinancialOverviewPage({
             <CardTitle>Saldo</CardTitle>
           </CardHeader>
           <CardContent>
-            <CardValue className={cashFlow.balance >= 0 ? "text-accent-light" : "text-danger"}>
+            <CardValue className={cashFlow.balance >= 0 ? "text-accent" : "text-danger"}>
               {formatCurrency(cashFlow.balance)}
             </CardValue>
           </CardContent>

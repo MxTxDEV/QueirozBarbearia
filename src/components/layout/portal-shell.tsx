@@ -32,7 +32,7 @@ export function PortalShell({ children, customerName }: { children: React.ReactN
                 href={item.href}
                 className={cn(
                   "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                  active ? "bg-white/10 text-foreground" : "text-foreground-muted hover:text-foreground"
+                  active ? "bg-black/5 text-foreground" : "text-foreground-muted hover:text-foreground"
                 )}
               >
                 <item.icon className="h-4 w-4" /> {item.label}
@@ -43,7 +43,7 @@ export function PortalShell({ children, customerName }: { children: React.ReactN
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-foreground-muted sm:block">{customerName}</span>
           <form action={logoutCustomerAction}>
-            <button type="submit" className="rounded-xl p-2 text-foreground-muted hover:bg-white/5" aria-label="Sair">
+            <button type="submit" className="rounded-xl p-2 text-foreground-muted hover:bg-black/5" aria-label="Sair">
               <LogOut className="h-5 w-5" />
             </button>
           </form>
@@ -61,7 +61,7 @@ export function PortalShell({ children, customerName }: { children: React.ReactN
               href={item.href}
               className={cn(
                 "flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[11px] font-medium transition-colors",
-                active ? "text-secondary-light" : "text-foreground-muted"
+                active ? "text-secondary-dark" : "text-foreground-muted"
               )}
             >
               <item.icon className="h-5 w-5" />

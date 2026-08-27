@@ -7,19 +7,20 @@ export function BarberComparisonChart({ data }: { data: { name: string; revenue:
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
-        <XAxis dataKey="name" stroke="rgba(168,169,173,0.8)" fontSize={12} tickLine={false} axisLine={false} />
-        <YAxis stroke="rgba(168,169,173,0.8)" fontSize={12} tickLine={false} axisLine={false} width={40} />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.08)" vertical={false} />
+        <XAxis dataKey="name" stroke="rgba(100,116,139,0.9)" fontSize={12} tickLine={false} axisLine={false} />
+        <YAxis stroke="rgba(100,116,139,0.9)" fontSize={12} tickLine={false} axisLine={false} width={40} />
         <Tooltip
           contentStyle={{
-            background: "#17181a",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: "#ffffff",
+            border: "1px solid rgba(15,23,42,0.1)",
             borderRadius: 12,
-            color: "#f4f3f1",
+            color: "#0f172a",
+            boxShadow: "0 8px 24px rgba(15,23,42,0.12)",
           }}
           formatter={(value) => formatCurrency(Number(value))}
         />
-        <Bar dataKey="revenue" fill="#b62835" radius={[8, 8, 0, 0]} />
+        <Bar dataKey="revenue" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

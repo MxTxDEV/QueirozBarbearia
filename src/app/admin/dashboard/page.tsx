@@ -69,7 +69,7 @@ export default async function DashboardPage() {
               <CardTitle>Saldo do dia</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardValue className={today.balance >= 0 ? "text-accent-light" : "text-danger"}>
+              <CardValue className={today.balance >= 0 ? "text-accent" : "text-danger"}>
                 {formatCurrency(today.balance)}
               </CardValue>
               <p className="mt-1 text-xs text-foreground-muted">Ticket médio: {formatCurrency(today.ticketMedio)}</p>
@@ -102,7 +102,7 @@ export default async function DashboardPage() {
               <CardTitle>Lucro operacional</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardValue className={month.profit >= 0 ? "text-accent-light" : "text-danger"}>
+              <CardValue className={month.profit >= 0 ? "text-accent" : "text-danger"}>
                 {formatCurrency(month.profit)}
               </CardValue>
             </CardContent>
@@ -134,7 +134,7 @@ export default async function DashboardPage() {
             <BarberComparisonChart data={barberComparison.map((b) => ({ name: b.name, revenue: b.revenue }))} />
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {barberComparison.map((b) => (
-                <div key={b.id} className="rounded-xl border border-white/10 p-3 text-sm">
+                <div key={b.id} className="rounded-xl border border-black/10 p-3 text-sm">
                   <p className="font-medium text-foreground">{b.name}</p>
                   <p className="text-foreground-muted">
                     {b.completed} atendimentos · {formatCurrency(b.revenue)} · ticket {formatCurrency(b.avgTicket)}
@@ -188,7 +188,7 @@ export default async function DashboardPage() {
           <CardContent className="space-y-2">
             {upcoming.length === 0 && <p className="text-sm text-foreground-muted">Nenhum agendamento futuro.</p>}
             {upcoming.map((appt) => (
-              <div key={appt.id} className="flex items-center justify-between rounded-xl border border-white/10 p-3">
+              <div key={appt.id} className="flex items-center justify-between rounded-xl border border-black/10 p-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">
                     {formatDate(appt.appointmentDate)} às {formatTime(appt.startTime)} — {appt.customer.fullName}
