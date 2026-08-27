@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { MockWhatsAppProvider } from "./mock-provider";
 import { CloudApiWhatsAppProvider } from "./cloud-api-provider";
 import { EvolutionApiWhatsAppProvider } from "./evolution-provider";
-import { getEvolutionConfig, getEvolutionConnectionState } from "./evolution-client";
+import { getEvolutionConfig, getEvolutionConnectionState, getEvolutionConnectedNumber } from "./evolution-client";
 import type { WhatsAppProvider, AppointmentMessageData } from "./types";
 import {
   appointmentCancellationTemplate,
@@ -52,6 +52,8 @@ export type WhatsappStatus = {
   /** Provedor efetivamente em uso (cai para "mock" se a configuração estiver incompleta). */
   mode: "mock" | "cloud_api" | "evolution";
   connected: boolean;
+  /** Número de WhatsApp realmente conectado à instância (só quando `connected` é true). */
+  connectedNumber?: string;
 };
 
 export async function whatsappConnectionStatus(): Promise<WhatsappStatus> {
@@ -66,7 +68,9 @@ export async function whatsappConnectionStatus(): Promise<WhatsappStatus> {
     const config = getEvolutionConfig();
     if (!config) return { configuredKind, mode: "mock", connected: false };
     const state = await getEvolutionConnectionState(config);
-    return { configuredKind, mode: "evolution", connected: state === "open" };
+    const connected = state === "open";
+    const connectedNumber = connected ? await getEvolutionConnectedNumber(config) : null;
+    return { configuredKind, mode: "evolution", connected, connectedNumber: connectedNumber ?? undefined };
   }
 
   return { configuredKind: "mock", mode: "mock", connected: false };
@@ -100,8 +104,25 @@ export async function sendWhatsapp(params: {
   return result;
 }
 
-function barbershopNumber() {
-  return process.env.BARBERSHOP_WHATSAPP_NUMBER ?? "+5531995797674";
+/**
+ * Número da barbearia para alertas internos. Prioriza o número realmente
+ * conectado na instância do Evolution API (o que foi pareado escaneando o
+ * QR code em /admin/whatsapp) — nunca um valor fixo no código. Cai para
+ * BARBERSHOP_WHATSAPP_NUMBER apenas quando não há instância evolution
+ * conectada (ex: provedor cloud_api, ou instância ainda não pareada).
+ */
+async function barbershopNumber(): Promise<string | null> {
+  const configuredKind = process.env.WHATSAPP_PROVIDER ?? "mock";
+
+  if (configuredKind === "evolution") {
+    const config = getEvolutionConfig();
+    if (config) {
+      const connectedNumber = await getEvolutionConnectedNumber(config);
+      if (connectedNumber) return connectedNumber;
+    }
+  }
+
+  return process.env.BARBERSHOP_WHATSAPP_NUMBER ?? null;
 }
 
 export async function sendAppointmentConfirmation(phone: string, customerId: string, data: AppointmentMessageData) {
@@ -122,7 +143,14 @@ export async function sendAppointmentCancellation(
 
 /** Notifica o WhatsApp da barbearia sobre um novo agendamento recebido. */
 export async function sendNewAppointmentAlertToShop(data: AppointmentMessageData & { status?: string }) {
-  return sendWhatsapp({ phone: barbershopNumber(), message: newAppointmentInternalTemplate(data) });
+  const phone = await barbershopNumber();
+  if (!phone) {
+    console.warn(
+      "[WhatsApp] Número da barbearia indisponível (instância não conectada e BARBERSHOP_WHATSAPP_NUMBER não definido) — alerta não enviado."
+    );
+    return { ok: false as const, errorMessage: "Número da barbearia não configurado nem conectado." };
+  }
+  return sendWhatsapp({ phone, message: newAppointmentInternalTemplate(data) });
 }
 
 export async function sendCustomerOtp(phone: string, customerId: string, code: string) {

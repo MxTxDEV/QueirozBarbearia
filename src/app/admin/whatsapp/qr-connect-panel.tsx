@@ -8,8 +8,15 @@ import { Badge } from "@/components/ui/badge";
 
 const POLL_INTERVAL_MS = 3000;
 
-export function WhatsappQrConnectPanel({ connected: initialConnected }: { connected: boolean }) {
+export function WhatsappQrConnectPanel({
+  connected: initialConnected,
+  connectedNumber: initialConnectedNumber,
+}: {
+  connected: boolean;
+  connectedNumber?: string;
+}) {
   const [connected, setConnected] = useState(initialConnected);
+  const [connectedNumber, setConnectedNumber] = useState<string | null>(initialConnectedNumber ?? null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -39,6 +46,7 @@ export function WhatsappQrConnectPanel({ connected: initialConnected }: { connec
         const state = await getWhatsappConnectionStateAction();
         if (state.ok && state.data?.connected) {
           setConnected(true);
+          setConnectedNumber(state.data.phone ?? null);
           setQrCode(null);
           stopPolling();
         }
@@ -55,6 +63,7 @@ export function WhatsappQrConnectPanel({ connected: initialConnected }: { connec
         return;
       }
       setConnected(false);
+      setConnectedNumber(null);
       setQrCode(null);
     });
   }
@@ -65,7 +74,10 @@ export function WhatsappQrConnectPanel({ connected: initialConnected }: { connec
         <CardTitle>Conexão do WhatsApp</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Badge variant={connected ? "success" : "warning"}>{connected ? "Conectado" : "Desconectado"}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={connected ? "success" : "warning"}>{connected ? "Conectado" : "Desconectado"}</Badge>
+          {connected && connectedNumber && <span className="text-sm text-foreground-muted">{connectedNumber}</span>}
+        </div>
 
         {!connected && (
           <div className="space-y-3">

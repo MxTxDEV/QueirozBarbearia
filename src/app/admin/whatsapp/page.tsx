@@ -65,7 +65,9 @@ export default async function WhatsappSettingsPage() {
         </Card>
       </div>
 
-      {status.configuredKind === "evolution" && <WhatsappQrConnectPanel connected={status.connected} />}
+      {status.configuredKind === "evolution" && (
+        <WhatsappQrConnectPanel connected={status.connected} connectedNumber={status.connectedNumber} />
+      )}
 
       {status.configuredKind !== "evolution" && !status.connected && (
         <Card>

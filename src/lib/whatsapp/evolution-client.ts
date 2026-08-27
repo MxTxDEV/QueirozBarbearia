@@ -100,6 +100,47 @@ export async function getEvolutionQrCode(config: EvolutionConfig): Promise<{ bas
   }
 }
 
+function extractOwnerNumber(entry: unknown): string | null {
+  if (!entry || typeof entry !== "object") return null;
+  const obj = entry as Record<string, unknown>;
+  const nested = obj.instance as Record<string, unknown> | undefined;
+  const owner = obj.owner ?? obj.ownerJid ?? nested?.owner ?? nested?.ownerJid;
+  if (typeof owner !== "string" || owner.length === 0) return null;
+  const digits = owner.split("@")[0].replace(/\D/g, "");
+  return digits.length > 0 ? `+${digits}` : null;
+}
+
+function matchesInstance(entry: unknown, instanceName: string): boolean {
+  if (!entry || typeof entry !== "object") return false;
+  const obj = entry as Record<string, unknown>;
+  const nested = obj.instance as Record<string, unknown> | undefined;
+  const name = obj.instanceName ?? obj.name ?? nested?.instanceName;
+  return name === instanceName;
+}
+
+/**
+ * Busca o número de WhatsApp atualmente conectado à instância (o número real
+ * que foi pareado escaneando o QR code), para nunca depender de um número
+ * fixo cadastrado manualmente.
+ */
+export async function getEvolutionConnectedNumber(config: EvolutionConfig): Promise<string | null> {
+  try {
+    const res = await fetch(`${config.apiUrl}/instance/fetchInstances?instanceName=${encodeURIComponent(config.instanceName)}`, {
+      headers: { apikey: config.apiKey },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+
+    const json = (await res.json()) as unknown;
+    const list = Array.isArray(json) ? json : [json];
+    const match = list.find((entry) => matchesInstance(entry, config.instanceName)) ?? list[0];
+    return extractOwnerNumber(match);
+  } catch (error) {
+    console.error("[WhatsApp/Evolution] Falha ao buscar número conectado:", describeFetchError(error));
+    return null;
+  }
+}
+
 export async function logoutEvolutionInstance(config: EvolutionConfig): Promise<{ ok: true } | { error: string }> {
   try {
     const res = await fetch(`${config.apiUrl}/instance/logout/${config.instanceName}`, {

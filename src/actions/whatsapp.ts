@@ -2,7 +2,13 @@
 
 import { requireAdminOnly } from "@/lib/require-admin";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
-import { getEvolutionConfig, getEvolutionConnectionState, getEvolutionQrCode, logoutEvolutionInstance } from "@/lib/whatsapp/evolution-client";
+import {
+  getEvolutionConfig,
+  getEvolutionConnectionState,
+  getEvolutionConnectedNumber,
+  getEvolutionQrCode,
+  logoutEvolutionInstance,
+} from "@/lib/whatsapp/evolution-client";
 
 function requireEvolutionConfig() {
   const config = getEvolutionConfig();
@@ -23,13 +29,15 @@ export async function getWhatsappQrCodeAction(): Promise<ActionResult<{ base64: 
   }
 }
 
-export async function getWhatsappConnectionStateAction(): Promise<ActionResult<{ connected: boolean }>> {
+export async function getWhatsappConnectionStateAction(): Promise<ActionResult<{ connected: boolean; phone?: string }>> {
   try {
     await requireAdminOnly();
     const config = requireEvolutionConfig();
 
     const state = await getEvolutionConnectionState(config);
-    return actionSuccess({ connected: state === "open" });
+    const connected = state === "open";
+    const phone = connected ? await getEvolutionConnectedNumber(config) : null;
+    return actionSuccess({ connected, phone: phone ?? undefined });
   } catch (error) {
     return actionError(error);
   }
