@@ -47,6 +47,7 @@ export function ServiceForm({
         </div>
       </div>
       {state && !state.ok && <p className="text-sm text-danger">{state.error}</p>}
+      {state && state.ok && <p className="text-sm text-success">Serviço salvo!</p>}
       <SubmitButton pendingText="Salvando...">Salvar serviço</SubmitButton>
     </form>
   );

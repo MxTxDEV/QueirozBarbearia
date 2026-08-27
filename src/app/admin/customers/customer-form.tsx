@@ -43,6 +43,7 @@ export function CustomerForm({
         <Textarea id="notes" name="notes" defaultValue={defaults?.notes} />
       </div>
       {state && !state.ok && <p className="text-sm text-danger">{state.error}</p>}
+      {state && state.ok && <p className="text-sm text-success">Cliente salvo!</p>}
       <SubmitButton pendingText="Salvando...">Salvar cliente</SubmitButton>
     </form>
   );

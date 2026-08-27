@@ -36,6 +36,7 @@ export function BarberForm({
         <Input id="specialties" name="specialties" defaultValue={defaults?.specialties} placeholder="Corte, Barba, Degradê" />
       </div>
       {state && !state.ok && <p className="text-sm text-danger">{state.error}</p>}
+      {state && state.ok && <p className="text-sm text-success">Barbeiro salvo!</p>}
       <SubmitButton pendingText="Salvando...">Salvar barbeiro</SubmitButton>
     </form>
   );

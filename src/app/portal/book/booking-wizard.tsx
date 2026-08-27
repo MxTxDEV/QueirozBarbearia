@@ -80,18 +80,18 @@ export function BookingWizard({ barbers }: { barbers: Barber[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs text-foreground-muted">
+      <div className="flex items-center gap-1 text-xs text-foreground-muted sm:gap-2">
         {STEPS.map((label, i) => (
-          <div key={label} className="flex items-center gap-2">
+          <div key={label} className="flex min-w-0 items-center gap-1 sm:gap-2">
             <span
-              className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
                 i <= step ? "bg-secondary text-white" : "bg-white/10 text-foreground-muted"
               }`}
             >
               {i + 1}
             </span>
-            <span className={i === step ? "text-foreground" : ""}>{label}</span>
-            {i < STEPS.length - 1 && <span className="mx-1 h-px w-6 bg-white/15" />}
+            <span className={`hidden truncate sm:inline ${i === step ? "text-foreground" : ""}`}>{label}</span>
+            {i < STEPS.length - 1 && <span className="h-px w-3 shrink-0 bg-white/15 sm:mx-1 sm:w-6" />}
           </div>
         ))}
       </div>

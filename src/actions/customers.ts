@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { normalizeWhatsapp } from "@/lib/utils";
@@ -17,6 +18,7 @@ const customerSchema = z.object({
 });
 
 export async function createCustomerAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  let newCustomerId: string;
   try {
     await requireAdminContext();
     const parsed = customerSchema.parse({
@@ -33,7 +35,7 @@ export async function createCustomerAction(_prev: ActionResult | undefined, form
     const existing = await prisma.customer.findUnique({ where: { whatsapp } });
     if (existing) return actionError(new Error("Já existe um cliente cadastrado com este WhatsApp."));
 
-    await prisma.customer.create({
+    const created = await prisma.customer.create({
       data: {
         fullName: parsed.fullName,
         whatsapp,
@@ -42,12 +44,13 @@ export async function createCustomerAction(_prev: ActionResult | undefined, form
         notes: parsed.notes || undefined,
       },
     });
+    newCustomerId = created.id;
   } catch (error) {
     return actionError(error);
   }
 
   revalidatePath("/admin/customers");
-  return actionSuccess();
+  redirect(`/admin/customers/${newCustomerId}`);
 }
 
 export async function updateCustomerAction(

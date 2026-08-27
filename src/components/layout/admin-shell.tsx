@@ -59,7 +59,7 @@ export function AdminShell({
         </div>
       )}
 
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between px-4 md:px-6">
           <button
             className="rounded-xl p-2 text-foreground-muted hover:bg-white/5 md:hidden"
@@ -89,7 +89,7 @@ export function AdminShell({
             </form>
           </div>
         </header>
-        <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
+        <main className="min-w-0 flex-1 px-4 py-6 md:px-6">{children}</main>
       </div>
     </div>
   );

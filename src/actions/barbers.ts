@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
@@ -14,6 +15,7 @@ const barberSchema = z.object({
 });
 
 export async function createBarberAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  let newBarberId: string;
   try {
     await requireAdminContext();
     const data = barberSchema.parse({
@@ -23,7 +25,7 @@ export async function createBarberAction(_prev: ActionResult | undefined, formDa
       specialties: formData.get("specialties"),
     });
 
-    await prisma.barber.create({
+    const created = await prisma.barber.create({
       data: {
         name: data.name,
         phone: data.phone || undefined,
@@ -31,12 +33,13 @@ export async function createBarberAction(_prev: ActionResult | undefined, formDa
         specialties: data.specialties ? data.specialties.split(",").map((s) => s.trim()).filter(Boolean) : [],
       },
     });
+    newBarberId = created.id;
   } catch (error) {
     return actionError(error);
   }
 
   revalidatePath("/admin/barbers");
-  return actionSuccess();
+  redirect(`/admin/barbers/${newBarberId}`);
 }
 
 export async function updateBarberAction(

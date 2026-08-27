@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
@@ -31,7 +32,7 @@ export async function createServiceAction(_prev: ActionResult | undefined, formD
   }
 
   revalidatePath("/admin/services");
-  return actionSuccess();
+  redirect("/admin/services");
 }
 
 export async function updateServiceAction(
