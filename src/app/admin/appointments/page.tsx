@@ -29,7 +29,7 @@ export default async function AppointmentsPage({
   searchParams: Promise<{ range?: string; barberId?: string; status?: string; q?: string }>;
 }) {
   const sp = await searchParams;
-  const range = (sp.range as AppointmentRangeFilter) ?? "today";
+  const range = (sp.range as AppointmentRangeFilter) ?? "week";
   const barberId = sp.barberId || undefined;
   const status = (sp.status as AppointmentStatus) || undefined;
 
