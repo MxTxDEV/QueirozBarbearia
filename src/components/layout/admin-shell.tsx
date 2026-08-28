@@ -8,6 +8,7 @@ import { CompanyLogo } from "@/components/company-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { ADMIN_NAV_SECTIONS } from "./nav-config";
 import { NotificationsBell, type BellNotification } from "./notifications-bell";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { logoutAction } from "@/actions/auth";
 import { stopImpersonationAction } from "@/actions/superadmin";
 
@@ -68,7 +69,7 @@ export function AdminShell({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <SidebarNav sections={ADMIN_NAV_SECTIONS} />
+            <SidebarNav sections={ADMIN_NAV_SECTIONS} onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
@@ -84,6 +85,7 @@ export function AdminShell({
           </button>
           <div className="hidden flex-1 md:block" />
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <NotificationsBell notifications={notifications} unreadCount={unreadCount} />
             <div className="hidden items-center gap-2 sm:flex">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent-light to-accent text-xs font-semibold text-white">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X, LogOut, ShieldCheck } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
 import { SUPERADMIN_NAV_SECTIONS } from "./nav-config";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { logoutAction } from "@/actions/auth";
 
 export function SuperAdminShell({ children, userName }: { children: React.ReactNode; userName: string }) {
@@ -35,7 +36,7 @@ export function SuperAdminShell({ children, userName }: { children: React.ReactN
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <SidebarNav sections={SUPERADMIN_NAV_SECTIONS} />
+            <SidebarNav sections={SUPERADMIN_NAV_SECTIONS} onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
@@ -51,6 +52,7 @@ export function SuperAdminShell({ children, userName }: { children: React.ReactN
           </button>
           <div className="hidden flex-1 md:block" />
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link href="/" className="hidden text-sm text-foreground-muted hover:text-foreground sm:block">
               Ver site
             </Link>

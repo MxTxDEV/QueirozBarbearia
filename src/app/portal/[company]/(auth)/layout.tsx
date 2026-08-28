@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { resolvePortalCompany } from "@/lib/require-customer";
 import { CompanyLogo } from "@/components/company-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function PortalAuthLayout({
   children,
@@ -13,7 +14,10 @@ export default async function PortalAuthLayout({
   const company = await resolvePortalCompany(slug);
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center px-4">
+    <div className="relative flex min-h-screen w-full items-center justify-center px-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center justify-center">
           <Link href="/">

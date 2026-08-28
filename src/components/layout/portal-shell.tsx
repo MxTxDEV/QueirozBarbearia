@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, CalendarPlus, CalendarClock, User, LogOut } from "lucide-react";
 import { CompanyLogo } from "@/components/company-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import { logoutCustomerAction } from "@/actions/customer-auth";
 
@@ -53,6 +54,7 @@ export function PortalShell({
           })}
         </nav>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <span className="hidden text-sm text-foreground-muted sm:block">{customerName}</span>
           <form action={logoutCustomerAction.bind(null, companySlug)}>
             <button type="submit" className="rounded-xl p-2 text-foreground-muted hover:bg-[var(--surface-subtle-hover)]" aria-label="Sair">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, Wallet, MessageCircle } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,10 @@ export default async function LandingPage() {
   const company = await prisma.company.findFirst({ orderBy: { createdAt: "asc" }, select: { slug: true } });
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16">
+    <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-16">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="mb-6">
         <BrandLogo height={64} />
       </div>

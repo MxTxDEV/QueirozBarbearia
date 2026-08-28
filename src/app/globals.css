@@ -42,6 +42,42 @@
   --radius: 1.25rem;
 }
 
+/*
+  Modo claro — ativado via [data-theme="light"] no <html> (alternado pelo
+  ThemeToggle, persistido em localStorage; ver theme-provider.tsx). Não
+  segue prefers-color-scheme automaticamente: o padrão do produto é o
+  "Dark Luxury" acima, claro é uma escolha explícita do usuário.
+
+  --secondary-light, --accent-light, --success, --warning e --danger são
+  reescritos aqui (não só o fundo/superfícies) porque são usados como COR
+  DE TEXTO em várias telas (links, badges, mensagens de erro/sucesso) —
+  os tons vívidos do tema escuro não têm contraste suficiente sobre fundo
+  claro; aqui usamos tons mais saturados/escuros da mesma família de cor.
+*/
+:root[data-theme="light"] {
+  --background: #f4f5f7;
+  --background-elevated: #ffffff;
+  --foreground: #14161a;
+  --foreground-muted: #5b6472;
+
+  --primary: #14161a;
+  --primary-light: #1f2229;
+  --primary-dark: #05060a;
+
+  --secondary-light: #0284c7;
+  --accent-light: #2563eb;
+
+  --surface-glass: rgba(15, 23, 42, 0.035);
+  --surface-glass-hover: rgba(15, 23, 42, 0.06);
+  --surface-subtle: rgba(15, 23, 42, 0.028);
+  --surface-subtle-hover: rgba(15, 23, 42, 0.055);
+  --border-glass: rgba(15, 23, 42, 0.1);
+
+  --success: #059669;
+  --warning: #b45309;
+  --danger: #dc2626;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-background-elevated: var(--background-elevated);
@@ -73,6 +109,10 @@
 
 html {
   color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
@@ -117,6 +157,17 @@ body {
   opacity: 0.11;
 }
 
+/* No claro os mesmos brilhos ficam bem mais discretos — sobre fundo
+   escuro eles dão profundidade; sobre fundo claro, opacidade alta vira
+   mancha colorida em vez de textura sutil. */
+[data-theme="light"] .app-backdrop::before {
+  opacity: 0.08;
+}
+
+[data-theme="light"] .app-backdrop::after {
+  opacity: 0.06;
+}
+
 /* Camada 3: cards e componentes de vidro translúcido */
 .glass {
   background: var(--surface-glass);
@@ -144,6 +195,22 @@ body {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
+/* Sombras e realces do vidro são pensados para flutuar sobre um fundo
+   escuro — sobre fundo claro precisam de bem menos peso/opacidade, senão
+   viram uma mancha cinza pesada em vez de um card sutil. */
+[data-theme="light"] .glass {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .glass-hover:hover {
+  border-color: rgba(15, 23, 42, 0.16);
+}
+
+[data-theme="light"] .glass-strong {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -151,6 +218,9 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background-color: rgba(15, 23, 42, 0.18);
 }
 ::-webkit-scrollbar-track {
   background: transparent;

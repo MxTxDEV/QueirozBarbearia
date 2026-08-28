@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { NavSection } from "./nav-config";
 
-export function SidebarNav({ sections }: { sections: NavSection[] }) {
+export function SidebarNav({ sections, onNavigate }: { sections: NavSection[]; onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -24,6 +24,7 @@ export function SidebarNav({ sections }: { sections: NavSection[] }) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    onClick={onNavigate}
                     className={cn(
                       "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all",
                       active
