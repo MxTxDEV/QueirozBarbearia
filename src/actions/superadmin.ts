@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/require-admin";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, createImpersonationSession, endImpersonation, getCurrentUser } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
@@ -218,4 +218,46 @@ export async function toggleUserActiveAction(userId: string, active: boolean) {
   });
   revalidatePath("/superadmin/users");
   if (user.companyId) revalidatePath(`/superadmin/companies/${user.companyId}`);
+}
+
+/**
+ * SUPERADMIN entra no painel de uma empresa como um dos usuários dela
+ * (ADMIN ou BARBER), sem nunca aceitar o alvo como um SUPERADMIN — isso
+ * elevaria privilégio por engano. A sessão original do SUPERADMIN não é
+ * afetada (fica em cookie separado); tudo fica registrado na auditoria.
+ */
+export async function impersonateUserAction(userId: string) {
+  const superAdmin = await requireSuperAdmin();
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target || !target.active || !target.companyId) throw new Error("Usuário não encontrado ou inativo.");
+  if (target.role !== "ADMIN" && target.role !== "BARBER") throw new Error("Só é possível simular usuários de empresa.");
+
+  await createImpersonationSession(target.id, superAdmin.id);
+  await logAudit({
+    companyId: target.companyId,
+    userId: superAdmin.id,
+    action: "impersonation_started",
+    entityType: "user",
+    entityId: target.id,
+    metadata: { targetEmail: target.email, targetRole: target.role },
+  });
+
+  redirect("/admin/dashboard");
+}
+
+/** Encerra a impersonação ativa e volta para o painel do SUPERADMIN. */
+export async function stopImpersonationAction() {
+  const user = await getCurrentUser();
+  if (user?.impersonatedBy) {
+    await logAudit({
+      companyId: user.companyId,
+      userId: user.impersonatedBy.id,
+      action: "impersonation_ended",
+      entityType: "user",
+      entityId: user.id,
+    });
+  }
+  await endImpersonation();
+  redirect("/superadmin/companies");
 }

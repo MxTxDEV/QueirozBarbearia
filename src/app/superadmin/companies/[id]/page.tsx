@@ -8,6 +8,7 @@ import { CompanyForm } from "./company-form";
 import { CompanyStatusActions } from "./company-status-actions";
 import { NewUserForm } from "./new-user-form";
 import { UserActiveToggle } from "./user-active-toggle";
+import { ImpersonateButton } from "./impersonate-button";
 
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "Ativa", SUSPENDED: "Suspensa", BLOCKED: "Bloqueada" };
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger"> = {
@@ -22,6 +23,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
   const result = await getCompanyDetail(id);
   if (!result) notFound();
   const { company, totalRevenue } = result;
+  const primaryAdmin = company.users.find((u) => u.role === "ADMIN" && u.active);
 
   return (
     <div className="space-y-6">
@@ -30,7 +32,12 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           <h1 className="text-2xl font-semibold text-foreground">{company.name}</h1>
           <p className="text-sm text-foreground-muted">/{company.slug}</p>
         </div>
-        <Badge variant={STATUS_VARIANT[company.status]}>{STATUS_LABEL[company.status]}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={STATUS_VARIANT[company.status]}>{STATUS_LABEL[company.status]}</Badge>
+          {primaryAdmin && (
+            <ImpersonateButton userId={primaryAdmin.id} active={primaryAdmin.active} label="Entrar como admin" variant="secondary" />
+          )}
+        </div>
       </div>
 
       <CompanyStatusActions companyId={company.id} status={company.status} />
@@ -124,7 +131,10 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
                   <Badge variant={u.active ? "success" : "muted"}>{u.active ? "Ativo" : "Bloqueado"}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <UserActiveToggle userId={u.id} active={u.active} />
+                  <div className="flex items-center justify-end gap-1">
+                    {u.role !== "SUPERADMIN" && <ImpersonateButton userId={u.id} active={u.active} />}
+                    <UserActiveToggle userId={u.id} active={u.active} />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

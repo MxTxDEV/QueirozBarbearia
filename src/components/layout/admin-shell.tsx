@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, LogOut } from "lucide-react";
+import { Menu, X, LogOut, ShieldAlert } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { ADMIN_NAV_SECTIONS } from "./nav-config";
 import { NotificationsBell, type BellNotification } from "./notifications-bell";
 import { logoutAction } from "@/actions/auth";
+import { stopImpersonationAction } from "@/actions/superadmin";
 
 export function AdminShell({
   children,
@@ -15,19 +16,33 @@ export function AdminShell({
   roleLabel,
   notifications,
   unreadCount,
+  impersonatedBy,
 }: {
   children: React.ReactNode;
   userName: string;
   roleLabel: string;
   notifications: BellNotification[];
   unreadCount: number;
+  impersonatedBy?: { id: string; name: string } | null;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col">
+      {impersonatedBy && (
+        <div className="flex flex-wrap items-center justify-center gap-2 bg-warning/90 px-4 py-2 text-center text-sm font-medium text-black">
+          <ShieldAlert className="h-4 w-4" />
+          {impersonatedBy.name} está acessando este painel como {userName}.
+          <form action={stopImpersonationAction}>
+            <button type="submit" className="ml-1 underline underline-offset-2 hover:no-underline">
+              Voltar ao SuperAdmin
+            </button>
+          </form>
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1">
       {/* Sidebar - desktop (fixa: acompanha a rolagem da página) */}
-      <aside className="glass sticky top-0 hidden h-screen w-64 shrink-0 md:flex md:flex-col">
+      <aside className="glass sticky top-0 hidden h-full w-64 shrink-0 md:flex md:flex-col">
         <div className="flex h-16 items-center border-b px-5">
           <BrandLogo height={26} />
         </div>
@@ -53,7 +68,7 @@ export function AdminShell({
         </div>
       )}
 
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+      <div className="flex min-h-full min-w-0 flex-1 flex-col">
         <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between px-4 md:px-6">
           <button
             className="rounded-xl p-2 text-foreground-muted hover:bg-[var(--surface-subtle-hover)] md:hidden"
@@ -84,6 +99,7 @@ export function AdminShell({
           </div>
         </header>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-6">{children}</main>
+      </div>
       </div>
     </div>
   );
