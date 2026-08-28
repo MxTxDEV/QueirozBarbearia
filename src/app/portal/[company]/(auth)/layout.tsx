@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 
-export default function PortalAuthLayout({ children }: LayoutProps<"/">) {
+export default function PortalAuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen w-full items-center justify-center px-4">
       <div className="w-full max-w-md">

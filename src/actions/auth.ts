@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { createUserSession, destroySession, verifyPassword } from "@/lib/auth";
+import { createUserSession, destroySession, verifyPassword, getCurrentUser } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 import { actionError, type ActionResult } from "@/lib/action-helpers";
 
 const loginSchema = z.object({
@@ -27,6 +28,7 @@ export async function loginAction(_prev: ActionResult | undefined, formData: For
 
     await createUserSession(user.id);
     isSuperAdmin = user.role === "SUPERADMIN";
+    await logAudit({ companyId: user.companyId, userId: user.id, action: "login", entityType: "user", entityId: user.id });
   } catch (error) {
     return actionError(error);
   }
@@ -35,6 +37,10 @@ export async function loginAction(_prev: ActionResult | undefined, formData: For
 }
 
 export async function logoutAction() {
+  const user = await getCurrentUser();
+  if (user) {
+    await logAudit({ companyId: user.companyId, userId: user.id, action: "logout", entityType: "user", entityId: user.id });
+  }
   await destroySession();
   redirect("/login");
 }

@@ -7,8 +7,9 @@ import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labe
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CancelButton } from "./cancel-button";
 
-export default async function PortalAppointmentsPage() {
-  const customer = await requireCompleteCustomerProfile();
+export default async function PortalAppointmentsPage({ params }: { params: Promise<{ company: string }> }) {
+  const { company: slug } = await params;
+  const customer = await requireCompleteCustomerProfile(slug);
   const appointments = await listCustomerAppointments(customer.id, customer.companyId);
 
   return (

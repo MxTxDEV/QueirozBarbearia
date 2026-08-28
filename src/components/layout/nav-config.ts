@@ -13,6 +13,8 @@ import {
   Bell,
   MessageCircle,
   Settings,
+  Building2,
+  ShieldCheck,
 } from "lucide-react";
 
 export type NavItem = { label: string; href: string; icon: LucideIcon };
@@ -45,6 +47,18 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
       { label: "Notificações", href: "/admin/notifications", icon: Bell },
       { label: "WhatsApp", href: "/admin/whatsapp", icon: MessageCircle },
       { label: "Configurações", href: "/admin/settings", icon: Settings },
+    ],
+  },
+];
+
+export const SUPERADMIN_NAV_SECTIONS: NavSection[] = [
+  { items: [{ label: "Dashboard", href: "/superadmin/dashboard", icon: LayoutDashboard }] },
+  {
+    title: "Plataforma",
+    items: [
+      { label: "Empresas", href: "/superadmin/companies", icon: Building2 },
+      { label: "Usuários", href: "/superadmin/users", icon: Users },
+      { label: "Auditoria", href: "/superadmin/audit", icon: ShieldCheck },
     ],
   },
 ];

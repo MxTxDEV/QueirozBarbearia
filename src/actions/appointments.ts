@@ -107,6 +107,7 @@ async function createAppointmentCore(
     );
 
     await logAudit({
+      companyId,
       action: "appointment_created",
       entityType: "appointment",
       entityId: appointment.id,
@@ -134,8 +135,7 @@ async function createAppointmentCore(
     });
 
     revalidatePath("/admin/appointments");
-    revalidatePath("/portal/dashboard");
-    revalidatePath("/portal/appointments");
+    revalidatePath("/portal/[company]", "layout");
 
     return actionSuccess({ id: appointment.id });
   } catch (error) {
@@ -181,7 +181,7 @@ export async function confirmAppointmentAction(appointmentId: string) {
     data: { status: "CONFIRMED", confirmedAt: new Date() },
   });
 
-  await logAudit({ userId: user.id, action: "appointment_confirmed", entityType: "appointment", entityId: appointmentId, appointmentId });
+  await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_confirmed", entityType: "appointment", entityId: appointmentId, appointmentId });
 
   await createNotification({
     companyId: user.companyId,
@@ -202,8 +202,7 @@ export async function confirmAppointmentAction(appointmentId: string) {
   });
 
   revalidatePath("/admin/appointments");
-  revalidatePath("/portal/dashboard");
-  revalidatePath("/portal/appointments");
+  revalidatePath("/portal/[company]", "layout");
 }
 
 export async function cancelAppointmentAdminAction(appointmentId: string, formData?: FormData) {
@@ -237,7 +236,7 @@ async function cancelAppointmentCore(appointmentId: string, companyId: string, b
     data: { status: "CANCELLED", cancelledAt: new Date() },
   });
 
-  await logAudit({ userId: byUserId, action: "appointment_cancelled", entityType: "appointment", entityId: appointmentId, appointmentId });
+  await logAudit({ companyId, userId: byUserId, action: "appointment_cancelled", entityType: "appointment", entityId: appointmentId, appointmentId });
 
   await createNotification({
     companyId,
@@ -255,8 +254,7 @@ async function cancelAppointmentCore(appointmentId: string, companyId: string, b
   });
 
   revalidatePath("/admin/appointments");
-  revalidatePath("/portal/dashboard");
-  revalidatePath("/portal/appointments");
+  revalidatePath("/portal/[company]", "layout");
 }
 
 export async function completeAppointmentAction(appointmentId: string) {
@@ -266,7 +264,7 @@ export async function completeAppointmentAction(appointmentId: string) {
     data: { status: "COMPLETED", completedAt: new Date() },
   });
   if (result.count === 0) throw new Error("Agendamento não encontrado.");
-  await logAudit({ userId: user.id, action: "appointment_completed", entityType: "appointment", entityId: appointmentId, appointmentId });
+  await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_completed", entityType: "appointment", entityId: appointmentId, appointmentId });
   revalidatePath("/admin/appointments");
 }
 
@@ -277,6 +275,6 @@ export async function markNoShowAction(appointmentId: string) {
     data: { status: "NO_SHOW" },
   });
   if (result.count === 0) throw new Error("Agendamento não encontrado.");
-  await logAudit({ userId: user.id, action: "appointment_no_show", entityType: "appointment", entityId: appointmentId, appointmentId });
+  await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_no_show", entityType: "appointment", entityId: appointmentId, appointmentId });
   revalidatePath("/admin/appointments");
 }

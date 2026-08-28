@@ -33,7 +33,6 @@ export async function updateCustomerProfileAction(_prev: ActionResult | undefine
     return actionError(error);
   }
 
-  revalidatePath("/portal/profile");
-  revalidatePath("/portal/dashboard");
+  revalidatePath("/portal/[company]", "layout");
   return actionSuccess();
 }

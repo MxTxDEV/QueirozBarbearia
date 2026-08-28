@@ -7,20 +7,28 @@ import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 import { logoutCustomerAction } from "@/actions/customer-auth";
 
-const NAV = [
-  { label: "Início", href: "/portal/dashboard", icon: LayoutDashboard },
-  { label: "Agendar", href: "/portal/book", icon: CalendarPlus },
-  { label: "Meus horários", href: "/portal/appointments", icon: CalendarClock },
-  { label: "Perfil", href: "/portal/profile", icon: User },
-];
-
-export function PortalShell({ children, customerName }: { children: React.ReactNode; customerName: string }) {
+export function PortalShell({
+  children,
+  customerName,
+  companySlug,
+}: {
+  children: React.ReactNode;
+  customerName: string;
+  companySlug: string;
+}) {
   const pathname = usePathname();
+  const base = `/portal/${companySlug}`;
+  const NAV = [
+    { label: "Início", href: `${base}/dashboard`, icon: LayoutDashboard },
+    { label: "Agendar", href: `${base}/book`, icon: CalendarPlus },
+    { label: "Meus horários", href: `${base}/appointments`, icon: CalendarClock },
+    { label: "Perfil", href: `${base}/profile`, icon: User },
+  ];
 
   return (
     <div className="flex min-h-screen flex-col pb-20 md:pb-0">
       <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between px-4 md:px-6">
-        <Link href="/portal/dashboard">
+        <Link href={`${base}/dashboard`}>
           <BrandLogo height={22} />
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
@@ -42,7 +50,7 @@ export function PortalShell({ children, customerName }: { children: React.ReactN
         </nav>
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-foreground-muted sm:block">{customerName}</span>
-          <form action={logoutCustomerAction}>
+          <form action={logoutCustomerAction.bind(null, companySlug)}>
             <button type="submit" className="rounded-xl p-2 text-foreground-muted hover:bg-[var(--surface-subtle-hover)]" aria-label="Sair">
               <LogOut className="h-5 w-5" />
             </button>

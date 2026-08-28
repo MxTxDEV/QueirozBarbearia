@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-export function PortalLoginForm() {
+export function PortalLoginForm({ companySlug }: { companySlug: string }) {
   const [requestState, requestAction] = useActionState<
     ActionResult<{ customerId: string; whatsapp: string }> | undefined,
     FormData
@@ -27,6 +27,7 @@ export function PortalLoginForm() {
         }}
         className="space-y-4"
       >
+        <input type="hidden" name="companySlug" value={companySlug} />
         <div className="space-y-1.5">
           <Label htmlFor="whatsapp">Seu WhatsApp</Label>
           <Input id="whatsapp" name="whatsapp" placeholder="(31) 99999-9999" required autoFocus />
@@ -42,6 +43,7 @@ export function PortalLoginForm() {
   return (
     <form action={verifyAction} className="space-y-4">
       <input type="hidden" name="customerId" value={customerId} />
+      <input type="hidden" name="companySlug" value={companySlug} />
       <p className="text-sm text-foreground-muted">
         Enviamos um código de acesso para <span className="font-medium text-foreground">{whatsapp}</span>.
       </p>

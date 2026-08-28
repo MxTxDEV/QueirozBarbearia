@@ -72,6 +72,7 @@ export async function registerPaymentAction(
     ]);
 
     await logAudit({
+      companyId: user.companyId,
       userId: user.id,
       action: "payment_registered",
       entityType: "appointment",

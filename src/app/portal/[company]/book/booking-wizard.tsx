@@ -20,7 +20,7 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function BookingWizard({ barbers }: { barbers: Barber[] }) {
+export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; companySlug: string }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [barberId, setBarberId] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export function BookingWizard({ barbers }: { barbers: Barber[] }) {
         setSubmitError(result.error);
         return;
       }
-      router.push("/portal/appointments?success=1");
+      router.push(`/portal/${companySlug}/appointments?success=1`);
     });
   }
 

@@ -3,8 +3,9 @@ import { listActiveBarbersWithServices } from "@/lib/data/barbers";
 import { toNumber } from "@/lib/serialize";
 import { BookingWizard } from "./booking-wizard";
 
-export default async function BookPage() {
-  const customer = await requireCompleteCustomerProfile();
+export default async function BookPage({ params }: { params: Promise<{ company: string }> }) {
+  const { company: slug } = await params;
+  const customer = await requireCompleteCustomerProfile(slug);
   const barbers = await listActiveBarbersWithServices(customer.companyId);
 
   const data = barbers.map((b) => ({
@@ -26,7 +27,7 @@ export default async function BookPage() {
         <h1 className="text-2xl font-semibold text-foreground">Agendar horário</h1>
         <p className="text-sm text-foreground-muted">Escolha o barbeiro, os serviços e o melhor horário para você.</p>
       </div>
-      <BookingWizard barbers={data} />
+      <BookingWizard barbers={data} companySlug={slug} />
     </div>
   );
 }

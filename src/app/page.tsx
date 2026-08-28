@@ -3,8 +3,15 @@ import { CalendarClock, Wallet, MessageCircle } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { prisma } from "@/lib/prisma";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Página de marketing da plataforma: o botão "Agendar meu horário" aponta
+  // para o portal da empresa mais antiga cadastrada (ambiente com uma única
+  // barbearia em produção). Cada barbearia real deve divulgar diretamente o
+  // link do seu próprio portal (/portal/[slug]/login).
+  const company = await prisma.company.findFirst({ orderBy: { createdAt: "asc" }, select: { slug: true } });
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16">
       <div className="mb-6">
@@ -16,7 +23,7 @@ export default function LandingPage() {
       </p>
 
       <div className="mb-12 flex flex-col gap-3 sm:flex-row">
-        <Link href="/portal/login">
+        <Link href={company ? `/portal/${company.slug}/login` : "/portal"}>
           <Button size="lg" className="w-full sm:w-auto">
             Agendar meu horário
           </Button>

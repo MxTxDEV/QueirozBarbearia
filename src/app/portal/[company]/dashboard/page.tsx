@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
 
-export default async function PortalDashboardPage() {
-  const customer = await requireCompleteCustomerProfile();
+export default async function PortalDashboardPage({ params }: { params: Promise<{ company: string }> }) {
+  const { company: slug } = await params;
+  const customer = await requireCompleteCustomerProfile(slug);
   const next = await getCustomerNextAppointment(customer.id, customer.companyId);
 
   return (
@@ -27,7 +28,7 @@ export default async function PortalDashboardPage() {
           {!next && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <p className="text-sm text-foreground-muted">Você ainda não tem nenhum horário agendado.</p>
-              <Link href="/portal/book">
+              <Link href={`/portal/${slug}/book`}>
                 <Button>
                   <CalendarPlus className="h-4 w-4" /> Agendar agora
                 </Button>
@@ -52,7 +53,7 @@ export default async function PortalDashboardPage() {
         </CardContent>
       </Card>
 
-      <Link href="/portal/book">
+      <Link href={`/portal/${slug}/book`}>
         <Button className="w-full" size="lg">
           <CalendarPlus className="h-4 w-4" /> Novo agendamento
         </Button>

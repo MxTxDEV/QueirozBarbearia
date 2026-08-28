@@ -3,8 +3,9 @@ import { formatWhatsappDisplay } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileForm } from "./profile-form";
 
-export default async function PortalProfilePage() {
-  const customer = await requireCustomerContext();
+export default async function PortalProfilePage({ params }: { params: Promise<{ company: string }> }) {
+  const { company: slug } = await params;
+  const customer = await requireCustomerContext(slug);
   const incomplete = isCustomerProfileIncomplete(customer);
 
   return (
