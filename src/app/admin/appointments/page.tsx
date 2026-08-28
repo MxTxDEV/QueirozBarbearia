@@ -15,7 +15,7 @@ import { AppointmentRowActions } from "./row-actions";
 import { CalendarToolbar } from "./calendar/calendar-toolbar";
 import { TimeGrid, type GridAppointment } from "./calendar/time-grid";
 import { MonthGrid, type MonthAppointment } from "./calendar/month-grid";
-import { MobileDayAgenda, type DayAgendaItem } from "./calendar/mobile-day-agenda";
+import { MobileDayAgenda, MobileWeekAgenda, type DayAgendaItem, type WeekDaySection } from "./calendar/mobile-day-agenda";
 import {
   addDays,
   dateOnlyUTC,
@@ -113,7 +113,7 @@ export default async function AppointmentsPage({
       ? listAppointmentsInRange(user.companyId, { from, to, barberId, status, customerQuery: sp.q })
       : listAppointments(user.companyId, { range, barberId, status, customerQuery: sp.q }),
     prisma.barber.findMany({ where: { companyId: user.companyId }, orderBy: { name: "asc" } }),
-    isCalendar
+    isCalendar && calendarView === "day"
       ? listAppointmentsInRange(user.companyId, { from: mobileDay, to: addDays(mobileDay, 1), barberId, status, customerQuery: sp.q })
       : Promise.resolve([]),
   ]);
@@ -137,6 +137,25 @@ export default async function AppointmentsPage({
   const renderActions = (appt: (typeof appointments)[number]) => (
     <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} />
   );
+
+  // Visões de Semana e Mês no celular: um carrossel por dia, empilhados.
+  // No mês, dias sem agendamento são omitidos (senão seriam ~30 seções a
+  // rolar verticalmente, a maioria vazia).
+  const daySections: WeekDaySection[] = days
+    .map((day) => ({
+      day,
+      dayLabel: periodLabel("day", day),
+      isToday: isSameDay(day, today),
+      items: appointments
+        .filter((appt) => isSameDay(appt.appointmentDate, day))
+        .map<DayAgendaItem>((appt) => ({
+          block: toBlock(appt),
+          actions: renderActions(appt),
+          startTime: appt.startTime,
+          endTime: appt.endTime,
+        })),
+    }))
+    .filter((section) => calendarView !== "month" || section.items.length > 0);
 
   return (
     <div className="space-y-6">
@@ -215,19 +234,23 @@ export default async function AppointmentsPage({
         <div className="space-y-4">
           <CalendarToolbar view={calendarView} anchor={anchor} buildHref={buildHref} />
 
-          <MobileDayAgenda
-            dayLabel={periodLabel("day", mobileDay)}
-            isToday={isSameDay(mobileDay, today)}
-            prevHref={buildMobileDayHref(addDays(mobileDay, -1))}
-            nextHref={buildMobileDayHref(addDays(mobileDay, 1))}
-            todayHref={buildMobileDayHref(today)}
-            items={mobileDayAppointments.map<DayAgendaItem>((appt) => ({
-              block: toBlock(appt),
-              actions: renderActions(appt),
-              startTime: appt.startTime,
-              endTime: appt.endTime,
-            }))}
-          />
+          {calendarView === "day" ? (
+            <MobileDayAgenda
+              dayLabel={periodLabel("day", mobileDay)}
+              isToday={isSameDay(mobileDay, today)}
+              prevHref={buildMobileDayHref(addDays(mobileDay, -1))}
+              nextHref={buildMobileDayHref(addDays(mobileDay, 1))}
+              todayHref={buildMobileDayHref(today)}
+              items={mobileDayAppointments.map<DayAgendaItem>((appt) => ({
+                block: toBlock(appt),
+                actions: renderActions(appt),
+                startTime: appt.startTime,
+                endTime: appt.endTime,
+              }))}
+            />
+          ) : (
+            <MobileWeekAgenda days={daySections} />
+          )}
 
           <Card className="hidden p-4 md:block">
             {calendarView === "month" ? (

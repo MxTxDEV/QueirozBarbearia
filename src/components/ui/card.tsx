@@ -15,7 +15,21 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 function Card({ className, variant = "glass", ...props }: CardProps) {
-  return <div className={cn(variant === "glass" ? "glass glass-hover" : "glass-solid", "rounded-2xl", className)} {...props} />;
+  return (
+    <div
+      className={cn(
+        variant === "glass" ? "glass glass-hover" : "glass-solid",
+        // min-w-0: sem isso, um Card dentro de um grid/flex (ex: a coluna da
+        // tabela em Serviços/Receitas/Despesas) nunca encolhe abaixo da
+        // largura do conteúdo — uma Table larga "estoura" o card pra fora da
+        // tela em vez de rolar só por dentro dela (comportamento padrão,
+        // meio contra-intuitivo, de itens de grid/flex).
+        "min-w-0 rounded-2xl",
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
 function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

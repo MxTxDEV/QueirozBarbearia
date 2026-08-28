@@ -44,7 +44,7 @@ export function TeamSection({
         )}
       </div>
 
-      <div className="glass rounded-3xl p-6 lg:col-span-2">
+      <div className="glass min-w-0 rounded-3xl p-6 lg:col-span-2">
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-muted">Desempenho da equipe</p>
         {performance.length === 0 ? (
           <p className="mt-8 text-center text-sm text-foreground-muted">Nenhum barbeiro ativo cadastrado.</p>

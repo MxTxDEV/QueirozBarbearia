@@ -14,7 +14,7 @@ export function RevenueSection({
 }) {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      <div className="glass rounded-3xl p-6 lg:col-span-2">
+      <div className="glass min-w-0 rounded-3xl p-6 lg:col-span-2">
         <div className="flex items-baseline justify-between">
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-muted">Evolução do faturamento</p>
           <p className="text-lg font-semibold text-foreground">{formatCurrency(revenue)}</p>
