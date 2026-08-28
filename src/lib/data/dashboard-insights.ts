@@ -67,9 +67,14 @@ function percentChange(current: number, previous: number): number | null {
   return ((current - previous) / previous) * 100;
 }
 
-async function revenueForRange(companyId: string, from: Date, to: Date) {
+async function revenueForRange(companyId: string, from: Date, to: Date, barberId?: string) {
   const agg = await prisma.financialTransaction.aggregate({
-    where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to } },
+    where: {
+      companyId,
+      type: "INCOME",
+      transactionDate: { gte: from, lt: to },
+      ...(barberId ? { appointment: { barberId } } : {}),
+    },
     _sum: { amount: true },
   });
   return toNumber(agg._sum.amount);
@@ -87,8 +92,13 @@ export type DashboardOverview = {
   ticketMedio: number;
 };
 
-export async function getDashboardOverview(companyId: string, period: DashboardPeriod): Promise<DashboardOverview> {
+export async function getDashboardOverview(
+  companyId: string,
+  period: DashboardPeriod,
+  barberId?: string
+): Promise<DashboardOverview> {
   const { from, to, prevFrom, prevTo } = resolveDashboardRange(period);
+  const barberFilter = barberId ? { barberId } : {};
 
   const [
     revenue,
@@ -100,14 +110,14 @@ export async function getDashboardOverview(companyId: string, period: DashboardP
     cancelledCount,
     noShowCount,
   ] = await Promise.all([
-    revenueForRange(companyId, from, to),
-    revenueForRange(companyId, prevFrom, prevTo),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to } } }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "COMPLETED" } }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "PENDING" } }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CONFIRMED" } }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "NO_SHOW" } }),
+    revenueForRange(companyId, from, to, barberId),
+    revenueForRange(companyId, prevFrom, prevTo, barberId),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, ...barberFilter } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "COMPLETED", ...barberFilter } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "PENDING", ...barberFilter } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CONFIRMED", ...barberFilter } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CANCELLED", ...barberFilter } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "NO_SHOW", ...barberFilter } }),
   ]);
 
   return {
@@ -126,10 +136,15 @@ export async function getDashboardOverview(companyId: string, period: DashboardP
 export type RevenuePoint = { label: string; amount: number };
 
 /** Série do faturamento no período — acumulado por hora em "hoje", por dia nos demais. */
-export async function getRevenueTimeSeries(companyId: string, period: DashboardPeriod): Promise<RevenuePoint[]> {
+export async function getRevenueTimeSeries(companyId: string, period: DashboardPeriod, barberId?: string): Promise<RevenuePoint[]> {
   const { from, to } = resolveDashboardRange(period);
   const rows = await prisma.financialTransaction.findMany({
-    where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to } },
+    where: {
+      companyId,
+      type: "INCOME",
+      transactionDate: { gte: from, lt: to },
+      ...(barberId ? { appointment: { barberId } } : {}),
+    },
     select: { transactionDate: true, amount: true },
   });
 
@@ -166,10 +181,17 @@ export async function getRevenueTimeSeries(companyId: string, period: DashboardP
 export type ServiceBreakdownItem = { name: string; revenue: number; count: number };
 
 /** Receita e quantidade por serviço, no período — só considera atendimentos concluídos. */
-export async function getServiceBreakdown(companyId: string, period: DashboardPeriod): Promise<ServiceBreakdownItem[]> {
+export async function getServiceBreakdown(companyId: string, period: DashboardPeriod, barberId?: string): Promise<ServiceBreakdownItem[]> {
   const { from, to } = resolveDashboardRange(period);
   const rows = await prisma.appointmentService.findMany({
-    where: { appointment: { companyId, status: "COMPLETED", appointmentDate: { gte: from, lt: to } } },
+    where: {
+      appointment: {
+        companyId,
+        status: "COMPLETED",
+        appointmentDate: { gte: from, lt: to },
+        ...(barberId ? { barberId } : {}),
+      },
+    },
     select: { serviceName: true, priceAtBooking: true },
   });
 
@@ -184,19 +206,24 @@ export async function getServiceBreakdown(companyId: string, period: DashboardPe
 }
 
 /** Agenda completa de hoje (todos os status), para a visão do dia. */
-export async function getTodayAgenda(companyId: string) {
+export async function getTodayAgenda(companyId: string, barberId?: string) {
   const today = dateOnlyUTC(new Date());
   return prisma.appointment.findMany({
-    where: { companyId, appointmentDate: today },
+    where: { companyId, appointmentDate: today, ...(barberId ? { barberId } : {}) },
     orderBy: { startTime: "asc" },
     include: { customer: true, barber: true, services: true },
   });
 }
 
 /** O próximo atendimento a partir de agora (pendente ou confirmado). */
-export async function getNextAppointment(companyId: string) {
+export async function getNextAppointment(companyId: string, barberId?: string) {
   return prisma.appointment.findFirst({
-    where: { companyId, status: { in: ["PENDING", "CONFIRMED"] }, startTime: { gte: new Date() } },
+    where: {
+      companyId,
+      status: { in: ["PENDING", "CONFIRMED"] },
+      startTime: { gte: new Date() },
+      ...(barberId ? { barberId } : {}),
+    },
     orderBy: { startTime: "asc" },
     include: { customer: true, barber: true, services: true },
   });
@@ -210,10 +237,16 @@ export type BarberOccupancy = {
 };
 
 /** Ocupação de hoje: minutos de agenda ocupados vs. minutos disponíveis no expediente. */
-export async function getOccupancyToday(companyId: string): Promise<{ overallPercent: number; perBarber: BarberOccupancy[] }> {
+export async function getOccupancyToday(
+  companyId: string,
+  barberId?: string
+): Promise<{ overallPercent: number; perBarber: BarberOccupancy[] }> {
   const today = dateOnlyUTC(new Date());
   const weekday = today.getUTCDay();
-  const barbers = await prisma.barber.findMany({ where: { companyId, active: true }, orderBy: { name: "asc" } });
+  const barbers = await prisma.barber.findMany({
+    where: { companyId, active: true, ...(barberId ? { id: barberId } : {}) },
+    orderBy: { name: "asc" },
+  });
 
   const toMinutes = (hhmm: string) => {
     const [h, m] = hhmm.split(":").map(Number);
@@ -303,7 +336,7 @@ export type CustomerInsights = {
 };
 
 /** Base de clientes: total, novos no período, e quantos atendidos no período já eram clientes antigos. */
-export async function getCustomerInsights(companyId: string, period: DashboardPeriod): Promise<CustomerInsights> {
+export async function getCustomerInsights(companyId: string, period: DashboardPeriod, barberId?: string): Promise<CustomerInsights> {
   const { from, to, prevFrom, prevTo } = resolveDashboardRange(period);
 
   const [totalCustomers, newCustomers, prevNewCustomers, servedDistinct] = await Promise.all([
@@ -311,7 +344,7 @@ export async function getCustomerInsights(companyId: string, period: DashboardPe
     prisma.customer.count({ where: { companyId, createdAt: { gte: from, lt: to } } }),
     prisma.customer.count({ where: { companyId, createdAt: { gte: prevFrom, lt: prevTo } } }),
     prisma.appointment.findMany({
-      where: { companyId, status: "COMPLETED", appointmentDate: { gte: from, lt: to } },
+      where: { companyId, status: "COMPLETED", appointmentDate: { gte: from, lt: to }, ...(barberId ? { barberId } : {}) },
       select: { customerId: true },
       distinct: ["customerId"],
     }),
@@ -348,17 +381,29 @@ export type ActivityItem = {
 };
 
 /** Timeline de atividade recente, combinando pagamentos, agendamentos e novos clientes. */
-export async function getRecentActivity(companyId: string, limit = 8): Promise<ActivityItem[]> {
+export async function getRecentActivity(companyId: string, limit = 8, barberId?: string): Promise<ActivityItem[]> {
   const [payments, created, completed, customers] = await Promise.all([
-    prisma.payment.findMany({ where: { companyId }, orderBy: { createdAt: "desc" }, take: limit, include: { customer: true } }),
-    prisma.appointment.findMany({ where: { companyId }, orderBy: { createdAt: "desc" }, take: limit, include: { customer: true } }),
+    prisma.payment.findMany({
+      where: { companyId, ...(barberId ? { appointment: { barberId } } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: { customer: true },
+    }),
     prisma.appointment.findMany({
-      where: { companyId, status: "COMPLETED", completedAt: { not: null } },
+      where: { companyId, ...(barberId ? { barberId } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: { customer: true },
+    }),
+    prisma.appointment.findMany({
+      where: { companyId, status: "COMPLETED", completedAt: { not: null }, ...(barberId ? { barberId } : {}) },
       orderBy: { completedAt: "desc" },
       take: limit,
       include: { customer: true },
     }),
-    prisma.customer.findMany({ where: { companyId }, orderBy: { createdAt: "desc" }, take: limit }),
+    // Novo cliente na base não é atribuível a um barbeiro específico —
+    // omitido da atividade quando a visão já está restrita a um barbeiro.
+    barberId ? Promise.resolve([]) : prisma.customer.findMany({ where: { companyId }, orderBy: { createdAt: "desc" }, take: limit }),
   ]);
 
   const items: ActivityItem[] = [

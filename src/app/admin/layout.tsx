@@ -13,6 +13,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/">) {
     <AdminShell
       userName={user.name}
       roleLabel={user.role === "ADMIN" ? "Administrador" : "Barbeiro"}
+      isAdmin={user.role === "ADMIN"}
       unreadCount={unreadCount}
       impersonatedBy={user.impersonatedBy}
       companyName={user.companyName ?? "Barber Pro"}

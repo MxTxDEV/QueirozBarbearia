@@ -106,14 +106,15 @@ export async function getUpcomingAppointments(companyId: string, limit = 8) {
   });
 }
 
-export async function getDashboardAlerts(companyId: string) {
+export async function getDashboardAlerts(companyId: string, barberId?: string) {
   const today = dateOnlyUTC(new Date());
 
   const [pendingConfirmation, overdueExpenses, goalsAtRiskCount, unpaidCompleted] = await Promise.all([
-    prisma.appointment.count({ where: { companyId, status: "PENDING" } }),
-    prisma.expense.count({ where: { companyId, status: { in: ["PENDING", "OVERDUE"] }, dueDate: { lt: today } } }),
-    prisma.financialGoal.count({ where: { companyId, status: "AT_RISK" } }),
-    prisma.appointment.count({ where: { companyId, status: "COMPLETED", payments: { none: {} } } }),
+    prisma.appointment.count({ where: { companyId, status: "PENDING", ...(barberId ? { barberId } : {}) } }),
+    // Despesas são do negócio, não de um barbeiro — não faz sentido num login de barbeiro (que nem vê Financeiro).
+    barberId ? Promise.resolve(0) : prisma.expense.count({ where: { companyId, status: { in: ["PENDING", "OVERDUE"] }, dueDate: { lt: today } } }),
+    prisma.financialGoal.count({ where: { companyId, status: "AT_RISK", ...(barberId ? { barberId } : {}) } }),
+    prisma.appointment.count({ where: { companyId, status: "COMPLETED", payments: { none: {} }, ...(barberId ? { barberId } : {}) } }),
   ]);
 
   return { pendingConfirmation, overdueExpenses, goalsAtRiskCount, unpaidCompleted };

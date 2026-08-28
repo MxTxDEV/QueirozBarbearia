@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requireAdminContext } from "@/lib/require-admin";
+import { requireAdminOnly } from "@/lib/require-admin";
 
 const PERIODS: { value: PeriodFilter; label: string }[] = [
   { value: "today", label: "Hoje" },
@@ -20,7 +20,7 @@ export default async function FinancialOverviewPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const user = await requireAdminContext();
+  const user = await requireAdminOnly();
   const { period: periodParam } = await searchParams;
   const period = (periodParam as PeriodFilter) ?? "month";
 

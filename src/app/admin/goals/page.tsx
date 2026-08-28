@@ -12,9 +12,11 @@ import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function GoalsPage() {
   const user = await requireAdminContext();
+  const isAdmin = user.role === "ADMIN";
+  const barberId = isAdmin ? undefined : (user.barberId ?? undefined);
   const [goals, barbers] = await Promise.all([
-    getGoalsWithProgress(user.companyId),
-    prisma.barber.findMany({ where: { companyId: user.companyId }, orderBy: { name: "asc" } }),
+    getGoalsWithProgress(user.companyId, barberId),
+    isAdmin ? prisma.barber.findMany({ where: { companyId: user.companyId }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
 
   return (
@@ -24,8 +26,8 @@ export default async function GoalsPage() {
         <p className="text-sm text-foreground-muted">Metas de faturamento, atendimentos e por barbeiro.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="min-w-0 space-y-4 lg:col-span-2">
+      <div className={isAdmin ? "grid gap-6 lg:grid-cols-3" : "grid gap-6"}>
+        <div className={isAdmin ? "min-w-0 space-y-4 lg:col-span-2" : "min-w-0 space-y-4"}>
           {goals.length === 0 && (
             <Card>
               <CardContent className="text-center text-sm text-foreground-muted">Nenhuma meta cadastrada.</CardContent>
@@ -75,25 +77,29 @@ export default async function GoalsPage() {
                   <p className="text-xs text-foreground-muted">
                     Projeção pelo ritmo atual: {isAppointments ? Math.round(g.projection) : formatCurrency(g.projection)}
                   </p>
-                  <form action={deleteGoalAction.bind(null, g.goal.id)}>
-                    <Button type="submit" size="sm" variant="ghost">
-                      Remover meta
-                    </Button>
-                  </form>
+                  {isAdmin && (
+                    <form action={deleteGoalAction.bind(null, g.goal.id)}>
+                      <Button type="submit" size="sm" variant="ghost">
+                        Remover meta
+                      </Button>
+                    </form>
+                  )}
                 </CardContent>
               </Card>
             );
           })}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Nova meta</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <GoalForm barbers={barbers} />
-          </CardContent>
-        </Card>
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Nova meta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GoalForm barbers={barbers} />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MarkPaidForm } from "./mark-paid-form";
 import { ExpenseForm } from "./expense-form";
-import { requireAdminContext } from "@/lib/require-admin";
+import { requireAdminOnly } from "@/lib/require-admin";
 
 export default async function ExpensesPage() {
-  const user = await requireAdminContext();
+  const user = await requireAdminOnly();
   const expenses = await listExpenses(user.companyId);
 
   return (

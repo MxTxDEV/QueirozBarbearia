@@ -64,7 +64,10 @@ export default async function AppointmentsPage({
     : "week";
   const anchor = parseAnchor(sp.date);
   const range = (sp.range as AppointmentRangeFilter) ?? "week";
-  const barberId = sp.barberId || undefined;
+  const isBarberLogin = user.role === "BARBER";
+  // Login de barbeiro só vê os próprios atendimentos — nunca aceita um
+  // barberId diferente vindo da URL, sempre o da própria sessão.
+  const barberId = isBarberLogin ? (user.barberId ?? undefined) : sp.barberId || undefined;
   const status = (sp.status as AppointmentStatus) || undefined;
   // O carrossel mobile mostra sempre um dia por vez, independente da visão
   // de calendário escolhida no desktop (dia/semana/mês) — dia próprio
@@ -112,7 +115,7 @@ export default async function AppointmentsPage({
     isCalendar
       ? listAppointmentsInRange(user.companyId, { from, to, barberId, status, customerQuery: sp.q })
       : listAppointments(user.companyId, { range, barberId, status, customerQuery: sp.q }),
-    prisma.barber.findMany({ where: { companyId: user.companyId }, orderBy: { name: "asc" } }),
+    isBarberLogin ? Promise.resolve([]) : prisma.barber.findMany({ where: { companyId: user.companyId }, orderBy: { name: "asc" } }),
     isCalendar && calendarView === "day"
       ? listAppointmentsInRange(user.companyId, { from: mobileDay, to: addDays(mobileDay, 1), barberId, status, customerQuery: sp.q })
       : Promise.resolve([]),
@@ -208,14 +211,16 @@ export default async function AppointmentsPage({
             <input type="hidden" name="range" value={range} />
           </>
         )}
-        <Select name="barberId" defaultValue={barberId} className="w-48">
-          <option value="">Todos os barbeiros</option>
-          {barbers.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </Select>
+        {!isBarberLogin && (
+          <Select name="barberId" defaultValue={barberId} className="w-48">
+            <option value="">Todos os barbeiros</option>
+            {barbers.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </Select>
+        )}
         <Select name="status" defaultValue={status} className="w-48">
           <option value="">Todos os status</option>
           {STATUSES.map((s) => (

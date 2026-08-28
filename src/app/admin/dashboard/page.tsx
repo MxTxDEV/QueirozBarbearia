@@ -36,18 +36,20 @@ export default async function DashboardPage({
   const period: DashboardPeriod = VALID_PERIODS.includes(sp.period as DashboardPeriod)
     ? (sp.period as DashboardPeriod)
     : "today";
+  // Login de barbeiro vê só as próprias métricas — nunca faturamento/desempenho de outro barbeiro.
+  const barberId = user.role === "BARBER" ? (user.barberId ?? undefined) : undefined;
 
   const [overview, series, services, agenda, next, occupancy, performance, customers, alertsRaw, activity] = await Promise.all([
-    getDashboardOverview(user.companyId, period),
-    getRevenueTimeSeries(user.companyId, period),
-    getServiceBreakdown(user.companyId, period),
-    getTodayAgenda(user.companyId),
-    getNextAppointment(user.companyId),
-    getOccupancyToday(user.companyId),
-    getBarberPerformance(user.companyId, period),
-    getCustomerInsights(user.companyId, period),
-    getDashboardAlerts(user.companyId),
-    getRecentActivity(user.companyId, 8),
+    getDashboardOverview(user.companyId, period, barberId),
+    getRevenueTimeSeries(user.companyId, period, barberId),
+    getServiceBreakdown(user.companyId, period, barberId),
+    getTodayAgenda(user.companyId, barberId),
+    getNextAppointment(user.companyId, barberId),
+    getOccupancyToday(user.companyId, barberId),
+    barberId ? Promise.resolve([]) : getBarberPerformance(user.companyId, period),
+    getCustomerInsights(user.companyId, period, barberId),
+    getDashboardAlerts(user.companyId, barberId),
+    getRecentActivity(user.companyId, 8, barberId),
   ]);
 
   const alerts = [
@@ -86,9 +88,11 @@ export default async function DashboardPage({
         </div>
       </Reveal>
 
-      <Reveal delayMs={60}>
-        <TeamSection overallPercent={occupancy.overallPercent} occupancy={occupancy.perBarber} performance={performance} />
-      </Reveal>
+      {!barberId && (
+        <Reveal delayMs={60}>
+          <TeamSection overallPercent={occupancy.overallPercent} occupancy={occupancy.perBarber} performance={performance} />
+        </Reveal>
+      )}
 
       <Reveal delayMs={60}>
         <CustomersSection insights={customers} ticketMedio={overview.ticketMedio} />

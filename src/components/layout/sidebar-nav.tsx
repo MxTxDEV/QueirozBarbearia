@@ -5,12 +5,24 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { NavSection } from "./nav-config";
 
-export function SidebarNav({ sections, onNavigate }: { sections: NavSection[]; onNavigate?: () => void }) {
+export function SidebarNav({
+  sections,
+  onNavigate,
+  isAdmin = true,
+}: {
+  sections: NavSection[];
+  onNavigate?: () => void;
+  /** false = login de barbeiro: esconde itens adminOnly (financeiro, relatórios, usuários). */
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
-      {sections.map((section, i) => (
+      {sections.map((section, i) => {
+        const items = isAdmin ? section.items : section.items.filter((item) => !item.adminOnly);
+        if (items.length === 0) return null;
+        return (
         <div key={i}>
           {section.title && (
             <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-foreground-muted/70">
@@ -18,7 +30,7 @@ export function SidebarNav({ sections, onNavigate }: { sections: NavSection[]; o
             </p>
           )}
           <ul className="space-y-0.5">
-            {section.items.map((item) => {
+            {items.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <li key={item.href}>
@@ -40,7 +52,8 @@ export function SidebarNav({ sections, onNavigate }: { sections: NavSection[]; o
             })}
           </ul>
         </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }

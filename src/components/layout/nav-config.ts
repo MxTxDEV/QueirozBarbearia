@@ -18,7 +18,13 @@ import {
   UserCog2,
 } from "lucide-react";
 
-export type NavItem = { label: string; href: string; icon: LucideIcon };
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  /** Só aparece pro ADMIN — login de barbeiro só vê as próprias métricas, nunca dados financeiros/de outro barbeiro. */
+  adminOnly?: boolean;
+};
 export type NavSection = { title?: string; items: NavItem[] };
 
 export const ADMIN_NAV_SECTIONS: NavSection[] = [
@@ -35,17 +41,17 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "Financeiro",
     items: [
-      { label: "Visão geral", href: "/admin/financial", icon: Wallet },
-      { label: "Receitas", href: "/admin/financial/income", icon: TrendingUp },
-      { label: "Despesas", href: "/admin/financial/expenses", icon: TrendingDown },
+      { label: "Visão geral", href: "/admin/financial", icon: Wallet, adminOnly: true },
+      { label: "Receitas", href: "/admin/financial/income", icon: TrendingUp, adminOnly: true },
+      { label: "Despesas", href: "/admin/financial/expenses", icon: TrendingDown, adminOnly: true },
       { label: "Metas", href: "/admin/goals", icon: Target },
-      { label: "Relatórios", href: "/admin/reports", icon: FileBarChart },
+      { label: "Relatórios", href: "/admin/reports", icon: FileBarChart, adminOnly: true },
     ],
   },
   {
     title: "Sistema",
     items: [
-      { label: "Usuários", href: "/admin/users", icon: UserCog2 },
+      { label: "Usuários", href: "/admin/users", icon: UserCog2, adminOnly: true },
       { label: "Notificações", href: "/admin/notifications", icon: Bell },
       { label: "WhatsApp", href: "/admin/whatsapp", icon: MessageCircle },
       { label: "Configurações", href: "/admin/settings", icon: Settings },

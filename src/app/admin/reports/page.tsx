@@ -6,7 +6,7 @@ import { formatCurrency, formatWhatsappDisplay } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requireAdminContext } from "@/lib/require-admin";
+import { requireAdminOnly } from "@/lib/require-admin";
 
 const PERIODS: { value: PeriodFilter; label: string }[] = [
   { value: "month", label: "Este mês" },
@@ -19,7 +19,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const user = await requireAdminContext();
+  const user = await requireAdminOnly();
   const { period: periodParam } = await searchParams;
   const period = (periodParam as PeriodFilter) ?? "month";
 

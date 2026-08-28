@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdminContext } from "@/lib/require-admin";
+import { requireAdminOnly } from "@/lib/require-admin";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
 const goalSchema = z.object({
@@ -17,7 +17,7 @@ const goalSchema = z.object({
 
 export async function createGoalAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   try {
-    const user = await requireAdminContext();
+    const user = await requireAdminOnly();
     const data = goalSchema.parse({
       title: formData.get("title"),
       type: formData.get("type"),
@@ -56,7 +56,7 @@ export async function createGoalAction(_prev: ActionResult | undefined, formData
 }
 
 export async function deleteGoalAction(id: string) {
-  const user = await requireAdminContext();
+  const user = await requireAdminOnly();
   await prisma.financialGoal.deleteMany({ where: { id, companyId: user.companyId } });
   revalidatePath("/admin/goals");
 }

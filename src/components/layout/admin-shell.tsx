@@ -16,6 +16,7 @@ export function AdminShell({
   children,
   userName,
   roleLabel,
+  isAdmin,
   notifications,
   unreadCount,
   impersonatedBy,
@@ -25,6 +26,7 @@ export function AdminShell({
   children: React.ReactNode;
   userName: string;
   roleLabel: string;
+  isAdmin: boolean;
   notifications: BellNotification[];
   unreadCount: number;
   impersonatedBy?: { id: string; name: string } | null;
@@ -52,7 +54,7 @@ export function AdminShell({
         <div className="flex h-16 items-center border-b px-5">
           <CompanyLogo logoUrl={companyLogoUrl} name={companyName} height={26} />
         </div>
-        <SidebarNav sections={ADMIN_NAV_SECTIONS} />
+        <SidebarNav sections={ADMIN_NAV_SECTIONS} isAdmin={isAdmin} />
         <div className="border-t p-3">
           <p className="truncate px-3 text-xs text-foreground-muted/70">{roleLabel}</p>
         </div>
@@ -69,7 +71,7 @@ export function AdminShell({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <SidebarNav sections={ADMIN_NAV_SECTIONS} onNavigate={() => setMobileOpen(false)} />
+            <SidebarNav sections={ADMIN_NAV_SECTIONS} isAdmin={isAdmin} onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}

@@ -42,9 +42,14 @@ async function computeCurrentValue(goal: FinancialGoal): Promise<number> {
   return toNumber(agg._sum.amount);
 }
 
-export async function getGoalsWithProgress(companyId: string): Promise<GoalProgress[]> {
+/**
+ * `barberId` restringe às metas individuais daquele barbeiro (não mostra
+ * metas de outro barbeiro nem metas gerais da empresa) — usado no login
+ * de barbeiro, que só vê as próprias métricas.
+ */
+export async function getGoalsWithProgress(companyId: string, barberId?: string): Promise<GoalProgress[]> {
   const goals = await prisma.financialGoal.findMany({
-    where: { companyId },
+    where: { companyId, ...(barberId ? { barberId } : {}) },
     orderBy: { endDate: "desc" },
     include: { barber: { select: { id: true, name: true } } },
   });
