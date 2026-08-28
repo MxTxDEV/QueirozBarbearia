@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runSeed } from "@/lib/seed";
 import { runDemoSeed, removeDemoData } from "@/lib/demo-seed";
+import { runTestCompanySeed } from "@/lib/test-company-seed";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -13,6 +14,7 @@ import { prisma } from "@/lib/prisma";
  * ?mode=base   (padrão) dados essenciais: admin, barbeiros, catálogo base
  * ?mode=demo   dados de demonstração: cortes, clientes e atendimentos
  * ?mode=remove-demo   remove os dados de demonstração
+ * ?mode=test-company   cria a empresa "Barbearia Teste" (3 barbeiros) + dados de demonstração
  * ?company=<slug>   empresa alvo dos modos demo/remove-demo (padrão: a mais antiga cadastrada)
  */
 export async function POST(request: NextRequest) {
@@ -39,6 +41,9 @@ export async function POST(request: NextRequest) {
       }
       const result = mode === "demo" ? await runDemoSeed(company.id) : await removeDemoData(company.id);
       return NextResponse.json({ ok: true, mode, companyId: company.id, ...result });
+    }
+    if (mode === "test-company") {
+      return NextResponse.json({ ok: true, mode, ...(await runTestCompanySeed()) });
     }
     if (mode !== "base") {
       return NextResponse.json({ error: `mode inválido: ${mode}` }, { status: 400 });
