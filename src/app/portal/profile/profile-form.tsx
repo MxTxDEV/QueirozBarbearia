@@ -22,11 +22,11 @@ export function ProfileForm({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="email">E-mail</Label>
-        <Input id="email" name="email" type="email" defaultValue={defaults.email} />
+        <Input id="email" name="email" type="email" defaultValue={defaults.email} required />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="birthDate">Data de nascimento</Label>
-        <Input id="birthDate" name="birthDate" type="date" defaultValue={defaults.birthDate} />
+        <Input id="birthDate" name="birthDate" type="date" defaultValue={defaults.birthDate} required />
       </div>
       {state && !state.ok && <p className="text-sm text-danger">{state.error}</p>}
       {state && state.ok && <p className="text-sm text-success">Perfil atualizado!</p>}

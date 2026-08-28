@@ -4,7 +4,7 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createUserSession, destroySession, verifyPassword } from "@/lib/auth";
-import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
+import { actionError, type ActionResult } from "@/lib/action-helpers";
 
 const loginSchema = z.object({
   email: z.string().email("E-mail inválido."),

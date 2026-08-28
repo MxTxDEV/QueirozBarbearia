@@ -63,6 +63,38 @@ export async function listAppointments(
   });
 }
 
+/**
+ * Agendamentos dentro de um intervalo explícito de datas — usado pela visão
+ * de calendário, que navega por semanas/dias/meses arbitrários em vez dos
+ * atalhos relativos de `rangeToDates`. Aplica os mesmos filtros da lista.
+ */
+export async function listAppointmentsInRange(
+  companyId: string,
+  params: {
+    from: Date;
+    to: Date;
+    barberId?: string;
+    status?: AppointmentStatus;
+    customerQuery?: string;
+  }
+) {
+  const where: Prisma.AppointmentWhereInput = {
+    companyId,
+    appointmentDate: { gte: params.from, lt: params.to },
+    ...(params.barberId ? { barberId: params.barberId } : {}),
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.customerQuery
+      ? { customer: { fullName: { contains: params.customerQuery, mode: "insensitive" } } }
+      : {}),
+  };
+
+  return prisma.appointment.findMany({
+    where,
+    orderBy: { startTime: "asc" },
+    include: { customer: true, barber: true, services: true, payments: true },
+  });
+}
+
 export async function getAppointmentDetail(id: string, companyId: string) {
   return prisma.appointment.findFirst({
     where: { id, companyId },

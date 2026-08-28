@@ -5,10 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireAdminContext } from "@/lib/require-admin";
+import { WhatsappQrConnectPanel } from "./qr-connect-panel";
+
+/**
+ * Sempre dinâmica: a página consulta o estado da conexão do WhatsApp em
+ * tempo real. Sem isso, o Next tenta pré-renderizar a rota durante o build,
+ * a chamada `no-store` dispara um DynamicServerError para forçar o bailout,
+ * e esse erro de controle acaba capturado pelo try/catch do cliente HTTP —
+ * poluindo o log do build com uma falha que não existe.
+ */
+export const dynamic = "force-dynamic";
 
 export default async function WhatsappSettingsPage() {
   const user = await requireAdminContext();
-  const status = whatsappConnectionStatus();
+  const status = await whatsappConnectionStatus();
   const [messages, sentCount, failedCount, lastMessage] = await Promise.all([
     prisma.whatsappMessage.findMany({
       where: { companyId: user.companyId },
@@ -35,7 +45,11 @@ export default async function WhatsappSettingsPage() {
           </CardHeader>
           <CardContent>
             <Badge variant={status.connected ? "success" : "warning"}>
-              {status.connected ? "Conectado (API real)" : "Modo de desenvolvimento (mock)"}
+              {status.connected
+                ? "Conectado (API real)"
+                : status.configuredKind === "evolution"
+                  ? "Aguardando conexão"
+                  : "Modo de desenvolvimento (mock)"}
             </Badge>
           </CardContent>
         </Card>
@@ -67,15 +81,18 @@ export default async function WhatsappSettingsPage() {
         </Card>
       </div>
 
-      {!status.connected && (
+      {status.configuredKind === "evolution" && (
+        <WhatsappQrConnectPanel connected={status.connected} connectedNumber={status.connectedNumber} />
+      )}
+
+      {status.configuredKind !== "evolution" && !status.connected && (
         <Card>
           <CardContent className="text-sm text-foreground-muted">
             Nenhum provedor real de WhatsApp está configurado. Defina{" "}
-            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_PROVIDER=cloud_api</code>,{" "}
-            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_API_URL</code>,{" "}
-            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_API_KEY</code> e{" "}
-            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_PHONE_NUMBER_ID</code> nas variáveis de ambiente para
-            ativar o envio real. Enquanto isso, todas as mensagens são simuladas e registradas normalmente abaixo.
+            <code className="rounded bg-[var(--surface-subtle)] px-1">WHATSAPP_PROVIDER=evolution</code> (ou{" "}
+            <code className="rounded bg-[var(--surface-subtle)] px-1">cloud_api</code>) e as credenciais
+            correspondentes nas variáveis de ambiente para ativar o envio real. Enquanto isso, todas as mensagens são
+            simuladas e registradas normalmente abaixo.
           </CardContent>
         </Card>
       )}

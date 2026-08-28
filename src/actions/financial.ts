@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { logAudit } from "@/lib/audit";
@@ -84,7 +85,7 @@ export async function registerPaymentAction(
 
   revalidatePath("/admin/appointments");
   revalidatePath("/admin/financial");
-  return actionSuccess();
+  redirect("/admin/appointments");
 }
 
 const manualIncomeSchema = z.object({

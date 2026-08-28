@@ -209,6 +209,7 @@ model CustomerOtp {
   id         String    @id @default(cuid())
   customerId String    @map("customer_id")
   codeHash   String    @map("code_hash")
+  attempts   Int       @default(0)
   expiresAt  DateTime  @map("expires_at")
   consumedAt DateTime? @map("consumed_at")
   createdAt  DateTime  @default(now()) @map("created_at")

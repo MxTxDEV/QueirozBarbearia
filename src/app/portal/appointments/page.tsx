@@ -1,17 +1,19 @@
-import { requireCustomerContext } from "@/lib/require-customer";
+import { requireCompleteCustomerProfile } from "@/lib/require-customer";
 import { listCustomerAppointments } from "@/lib/data/portal";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { CancelButton } from "./cancel-button";
 
 export default async function PortalAppointmentsPage() {
-  const customer = await requireCustomerContext();
+  const customer = await requireCompleteCustomerProfile();
   const appointments = await listCustomerAppointments(customer.id, customer.companyId);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      <AutoRefresh />
       <h1 className="text-2xl font-semibold text-foreground">Meus agendamentos</h1>
 
       <div className="space-y-3">

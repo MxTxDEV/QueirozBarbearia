@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCustomerProfile } from "@/lib/data/customers";
+import { requireAdminContext } from "@/lib/require-admin";
 import { formatCurrency, formatDate, formatWhatsappDisplay } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageForm } from "./message-form";
+import { DeleteCustomerButton } from "./delete-customer-button";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
-import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function CustomerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdminContext();
@@ -24,9 +25,12 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
           <h1 className="text-2xl font-semibold text-foreground">{customer.fullName}</h1>
           <p className="text-sm text-foreground-muted">{formatWhatsappDisplay(customer.whatsapp)}</p>
         </div>
-        <Link href={`/admin/customers/${id}/edit`}>
-          <Button variant="secondary">Editar cadastro</Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={`/admin/customers/${id}/edit`}>
+            <Button variant="secondary">Editar cadastro</Button>
+          </Link>
+          {user.role === "ADMIN" && <DeleteCustomerButton customerId={id} customerName={customer.fullName} />}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

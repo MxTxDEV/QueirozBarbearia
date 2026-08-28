@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
@@ -60,41 +61,50 @@ async function createAppointmentCore(
       return actionError(new Error("Esse horário acabou de ser reservado por outro cliente. Escolha outro horário."));
     }
 
-    const appointment = await prisma.$transaction(async (tx) => {
-      const conflictInTx = await tx.appointment.findFirst({
-        where: {
-          barberId: data.barberId,
-          appointmentDate,
-          status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
-          startTime: { lt: endTime },
-          endTime: { gt: startTime },
-        },
-      });
-      if (conflictInTx) throw new Error("CONFLICT");
-
-      return tx.appointment.create({
-        data: {
-          companyId,
-          customerId: data.customerId,
-          barberId: data.barberId,
-          appointmentDate,
-          startTime,
-          endTime,
-          totalPrice,
-          totalDurationMin: totalDuration,
-          status: "PENDING",
-          notes: data.notes || undefined,
-          services: {
-            create: services.map((s) => ({
-              serviceId: s.id,
-              serviceName: s.name,
-              priceAtBooking: s.price,
-              durationAtBooking: s.durationMinutes,
-            })),
+    // Isolamento Serializable: sob o nível padrão (Read Committed), duas
+    // requisições concorrentes poderiam ambas passar pela checagem de
+    // conflito antes que qualquer uma inserisse sua linha, resultando em
+    // double-booking do mesmo barbeiro/horário. Serializable faz o Postgres
+    // detectar esse conflito e abortar uma das transações (P2034), tratado
+    // abaixo como o mesmo erro amigável de horário indisponível.
+    const appointment = await prisma.$transaction(
+      async (tx) => {
+        const conflictInTx = await tx.appointment.findFirst({
+          where: {
+            barberId: data.barberId,
+            appointmentDate,
+            status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
           },
-        },
-      });
-    });
+        });
+        if (conflictInTx) throw new Error("CONFLICT");
+
+        return tx.appointment.create({
+          data: {
+            companyId,
+            customerId: data.customerId,
+            barberId: data.barberId,
+            appointmentDate,
+            startTime,
+            endTime,
+            totalPrice,
+            totalDurationMin: totalDuration,
+            status: "PENDING",
+            notes: data.notes || undefined,
+            services: {
+              create: services.map((s) => ({
+                serviceId: s.id,
+                serviceName: s.name,
+                priceAtBooking: s.price,
+                durationAtBooking: s.durationMinutes,
+              })),
+            },
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
 
     await logAudit({
       action: "appointment_created",
@@ -130,6 +140,9 @@ async function createAppointmentCore(
     return actionSuccess({ id: appointment.id });
   } catch (error) {
     if (error instanceof Error && error.message === "CONFLICT") {
+      return actionError(new Error("Esse horário acabou de ser reservado por outro cliente. Escolha outro horário."));
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
       return actionError(new Error("Esse horário acabou de ser reservado por outro cliente. Escolha outro horário."));
     }
     return actionError(error);
@@ -192,8 +205,6 @@ export async function confirmAppointmentAction(appointmentId: string) {
   revalidatePath("/portal/dashboard");
   revalidatePath("/portal/appointments");
 }
-
-const cancelSchema = z.object({ reason: z.string().optional() });
 
 export async function cancelAppointmentAdminAction(appointmentId: string, formData?: FormData) {
   const user = await requireAdminContext();

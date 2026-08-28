@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 const CUSTOMER_SESSION_COOKIE = "customer_session_token";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 90; // 90 dias
 const OTP_TTL_SECONDS = 60 * 5; // 5 minutos
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_REQUEST_COOLDOWN_SECONDS = 30;
 
 function getSecretKey() {
   const secret = process.env.AUTH_SECRET;
@@ -19,28 +21,51 @@ function hashToken(token: string) {
 }
 
 /**
- * Gera e persiste um código OTP para login do cliente via WhatsApp.
- * Em desenvolvimento (sem provedor real), o código é apenas logado/mockado —
- * ver `src/lib/whatsapp`.
+ * Gera e persiste um código OTP para login do cliente via WhatsApp. O código
+ * é sempre aleatório — nunca previsível, mesmo em desenvolvimento — para não
+ * depender de NODE_ENV estar correto no ambiente de deploy (já vimos esse
+ * valor vir mal configurado pelo provedor de hospedagem). Em desenvolvimento,
+ * o provedor mock já loga a mensagem inteira (com o código) no console — ver
+ * `src/lib/whatsapp/mock-provider.ts`.
+ *
+ * Aplica um cooldown entre solicitações e invalida qualquer OTP anterior
+ * ainda válido, para que só exista um código ativo por cliente — isso limita
+ * o total de tentativas de força bruta possíveis por janela de tempo (ver
+ * `OTP_MAX_ATTEMPTS` em `verifyCustomerOtp`).
  */
 export async function createCustomerOtp(customerId: string) {
-  const code = process.env.NODE_ENV === "production"
-    ? String(crypto.randomInt(100000, 999999))
-    : "123456";
+  const recent = await prisma.customerOtp.findFirst({
+    where: { customerId, createdAt: { gt: new Date(Date.now() - OTP_REQUEST_COOLDOWN_SECONDS * 1000) } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (recent) throw new Error("Aguarde um momento antes de solicitar um novo código.");
+
+  const code = String(crypto.randomInt(100000, 999999));
   const codeHash = hashToken(code);
   const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000);
 
+  await prisma.customerOtp.updateMany({
+    where: { customerId, consumedAt: null },
+    data: { consumedAt: new Date() },
+  });
   await prisma.customerOtp.create({ data: { customerId, codeHash, expiresAt } });
   return code;
 }
 
+/** Verifica o código informado, com limite de tentativas por OTP gerado para impedir força bruta. */
 export async function verifyCustomerOtp(customerId: string, code: string) {
-  const codeHash = hashToken(code);
   const otp = await prisma.customerOtp.findFirst({
-    where: { customerId, codeHash, consumedAt: null, expiresAt: { gt: new Date() } },
+    where: { customerId, consumedAt: null, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: "desc" },
   });
-  if (!otp) return false;
+  if (!otp || otp.attempts >= OTP_MAX_ATTEMPTS) return false;
+
+  const codeHash = hashToken(code);
+  if (codeHash !== otp.codeHash) {
+    await prisma.customerOtp.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+    return false;
+  }
+
   await prisma.customerOtp.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
   return true;
 }
@@ -98,6 +123,7 @@ export type CurrentCustomer = {
   fullName: string;
   whatsapp: string;
   email: string | null;
+  birthDate: Date | null;
 };
 
 export async function getCurrentCustomer(): Promise<CurrentCustomer | null> {
@@ -126,6 +152,7 @@ export async function getCurrentCustomer(): Promise<CurrentCustomer | null> {
       fullName: customer.fullName,
       whatsapp: customer.whatsapp,
       email: customer.email,
+      birthDate: customer.birthDate,
     };
   } catch {
     return null;

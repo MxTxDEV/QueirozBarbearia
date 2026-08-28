@@ -1,235 +1,120 @@
-import Link from "next/link";
-import {
-  CalendarPlus,
-  UserPlus,
-  TrendingUp,
-  TrendingDown,
-  MessageCircle,
-  AlertTriangle,
-  CalendarCheck,
-  Wallet,
-  Scissors,
-  Receipt,
-  Target,
-} from "lucide-react";
-import {
-  getBarberComparison,
-  getDashboardAlerts,
-  getMonthSummary,
-  getTodaySummary,
-  getUpcomingAppointments,
-} from "@/lib/data/dashboard";
-import { cn, formatCurrency, formatDate, formatTime } from "@/lib/utils";
-import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { BarberComparisonChart } from "@/components/charts/barber-comparison-chart";
 import { requireAdminContext } from "@/lib/require-admin";
+import { getDashboardAlerts } from "@/lib/data/dashboard";
+import {
+  getBarberPerformance,
+  getCustomerInsights,
+  getDashboardOverview,
+  getNextAppointment,
+  getOccupancyToday,
+  getRecentActivity,
+  getRevenueTimeSeries,
+  getServiceBreakdown,
+  getTodayAgenda,
+  type DashboardPeriod,
+} from "@/lib/data/dashboard-insights";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { Reveal } from "./components/reveal";
+import { Hero } from "./components/hero";
+import { RevenueSection } from "./components/revenue-section";
+import { TodayAgenda } from "./components/today-agenda";
+import { NextAppointment } from "./components/next-appointment";
+import { TeamSection } from "./components/team-section";
+import { CustomersSection } from "./components/customers-section";
+import { AttentionSection } from "./components/attention-section";
+import { ActivitySection } from "./components/activity-section";
+import { SummarySection } from "./components/summary-section";
 
-export default async function DashboardPage() {
+const VALID_PERIODS: DashboardPeriod[] = ["today", "7d", "30d", "month"];
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
   const user = await requireAdminContext();
-  const [today, month, barberComparison, upcoming, alerts] = await Promise.all([
-    getTodaySummary(user.companyId),
-    getMonthSummary(user.companyId),
-    getBarberComparison(user.companyId),
-    getUpcomingAppointments(user.companyId),
+  const sp = await searchParams;
+  const period: DashboardPeriod = VALID_PERIODS.includes(sp.period as DashboardPeriod)
+    ? (sp.period as DashboardPeriod)
+    : "today";
+
+  const [overview, series, services, agenda, next, occupancy, performance, customers, alertsRaw, activity] = await Promise.all([
+    getDashboardOverview(user.companyId, period),
+    getRevenueTimeSeries(user.companyId, period),
+    getServiceBreakdown(user.companyId, period),
+    getTodayAgenda(user.companyId),
+    getNextAppointment(user.companyId),
+    getOccupancyToday(user.companyId),
+    getBarberPerformance(user.companyId, period),
+    getCustomerInsights(user.companyId, period),
     getDashboardAlerts(user.companyId),
+    getRecentActivity(user.companyId, 8),
   ]);
 
-  const hasAlerts =
-    alerts.pendingConfirmation > 0 || alerts.overdueExpenses > 0 || alerts.goalsAtRiskCount > 0 || alerts.unpaidCompleted > 0;
+  const alerts = [
+    alertsRaw.pendingConfirmation > 0 && {
+      text: `${alertsRaw.pendingConfirmation} agendamento(s) aguardando confirmação`,
+      href: "/admin/appointments?status=PENDING",
+    },
+    overview.cancelledCount > 0 && { text: `${overview.cancelledCount} cancelamento(s) no período`, href: "/admin/appointments" },
+    overview.noShowCount > 0 && { text: `${overview.noShowCount} falta(s) no período`, href: "/admin/appointments" },
+    alertsRaw.overdueExpenses > 0 && { text: `${alertsRaw.overdueExpenses} despesa(s) vencida(s)`, href: "/admin/financial/expenses" },
+    alertsRaw.goalsAtRiskCount > 0 && { text: `${alertsRaw.goalsAtRiskCount} meta(s) em risco`, href: "/admin/goals" },
+    alertsRaw.unpaidCompleted > 0 && {
+      text: `${alertsRaw.unpaidCompleted} atendimento(s) concluído(s) sem pagamento registrado`,
+      href: "/admin/appointments?range=month",
+    },
+  ].filter((a): a is { text: string; href: string } => !!a);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-        <p className="text-sm text-foreground-muted">Resumo de hoje e do mês.</p>
-      </div>
+    <div className="space-y-8 pb-4">
+      <AutoRefresh />
 
-      {/* Bento grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Hero: receita do mês */}
-        <div className="glass glass-hover relative col-span-1 overflow-hidden rounded-2xl p-6 sm:col-span-2">
-          <div
-            className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-20 blur-3xl"
-            style={{ background: "radial-gradient(circle, var(--secondary) 0%, transparent 70%)" }}
-          />
-          <div className="relative flex items-center justify-between">
-            <p className="text-sm font-medium text-foreground-muted">Receita do mês</p>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/15 text-secondary-light">
-              <Wallet className="h-4 w-4" />
-            </span>
+      <Reveal>
+        <Hero userName={user.name} period={period} overview={overview} occupancyPercent={occupancy.overallPercent} />
+      </Reveal>
+
+      <Reveal delayMs={60}>
+        <RevenueSection revenue={overview.revenue} series={series} services={services} />
+      </Reveal>
+
+      <Reveal delayMs={60}>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <TodayAgenda appointments={agenda} />
           </div>
-          <p className="relative mt-2 text-4xl font-semibold tracking-tight text-foreground">{formatCurrency(month.income)}</p>
-          <div className="relative mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-            <span className="text-foreground-muted">
-              Despesas: <span className="text-danger">{formatCurrency(month.expense)}</span>
-            </span>
-            <span className="text-foreground-muted">
-              Lucro:{" "}
-              <span className={month.profit >= 0 ? "text-accent-light" : "text-danger"}>{formatCurrency(month.profit)}</span>
-            </span>
-          </div>
-          {month.targetValue && (
-            <div className="relative mt-4">
-              <div className="mb-1.5 flex items-center justify-between text-xs text-foreground-muted">
-                <span>Meta mensal</span>
-                <span>{month.goalPercent?.toFixed(0)}%</span>
-              </div>
-              <Progress value={month.goalPercent ?? 0} />
-            </div>
-          )}
+          <NextAppointment appointment={next} />
         </div>
+      </Reveal>
 
-        <StatTile icon={CalendarCheck} label="Agendamentos hoje" value={String(today.appointmentsToday)}>
-          {today.confirmedToday} confirmados · {today.pendingToday} pendentes
-        </StatTile>
+      <Reveal delayMs={60}>
+        <TeamSection overallPercent={occupancy.overallPercent} occupancy={occupancy.perBarber} performance={performance} />
+      </Reveal>
 
-        <StatTile
-          icon={Wallet}
-          label="Saldo do dia"
-          value={formatCurrency(today.balance)}
-          valueClassName={today.balance >= 0 ? "text-accent-light" : "text-danger"}
-        >
-          Ticket médio: {formatCurrency(today.ticketMedio)}
-        </StatTile>
+      <Reveal delayMs={60}>
+        <CustomersSection insights={customers} ticketMedio={overview.ticketMedio} />
+      </Reveal>
 
-        {/* Chart: comparativo de barbeiros */}
-        <div className="glass glass-hover col-span-1 rounded-2xl p-5 sm:col-span-2 lg:col-span-3">
-          <div className="mb-3 flex items-center gap-2">
-            <Scissors className="h-4 w-4 text-secondary-light" />
-            <p className="text-sm font-medium text-foreground">Comparativo de barbeiros (mês)</p>
-          </div>
-          <BarberComparisonChart data={barberComparison.map((b) => ({ name: b.name, revenue: b.revenue }))} />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {barberComparison.map((b) => (
-              <div key={b.id} className="rounded-xl border p-3 text-sm">
-                <p className="font-medium text-foreground">{b.name}</p>
-                <p className="text-foreground-muted">
-                  {b.completed} atendimentos · {formatCurrency(b.revenue)} · ticket {formatCurrency(b.avgTicket)}
-                </p>
-                <p className="text-xs text-foreground-muted">{b.cancelled} cancelamento(s)</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      {alerts.length > 0 && (
+        <Reveal delayMs={60}>
+          <AttentionSection alerts={alerts} />
+        </Reveal>
+      )}
 
-        {/* Ações rápidas */}
-        <div className="glass col-span-1 rounded-2xl p-5">
-          <p className="mb-3 text-sm font-medium text-foreground">Ações rápidas</p>
-          <div className="grid gap-2">
-            <Link href="/admin/appointments/new">
-              <Button className="w-full justify-start" variant="secondary">
-                <CalendarPlus className="h-4 w-4" /> Novo agendamento
-              </Button>
-            </Link>
-            <Link href="/admin/customers/new">
-              <Button className="w-full justify-start" variant="secondary">
-                <UserPlus className="h-4 w-4" /> Novo cliente
-              </Button>
-            </Link>
-            <Link href="/admin/financial/income">
-              <Button className="w-full justify-start" variant="secondary">
-                <TrendingUp className="h-4 w-4" /> Nova receita
-              </Button>
-            </Link>
-            <Link href="/admin/financial/expenses">
-              <Button className="w-full justify-start" variant="secondary">
-                <TrendingDown className="h-4 w-4" /> Nova despesa
-              </Button>
-            </Link>
-            <Link href="/admin/customers">
-              <Button className="w-full justify-start" variant="secondary">
-                <MessageCircle className="h-4 w-4" /> Enviar mensagem
-              </Button>
-            </Link>
-          </div>
-        </div>
+      <Reveal delayMs={60}>
+        <ActivitySection items={activity} />
+      </Reveal>
 
-        <StatTile icon={TrendingUp} label="Receita hoje" value={formatCurrency(today.income)} valueClassName="text-success" />
-        <StatTile icon={TrendingDown} label="Despesas hoje" value={formatCurrency(today.expense)} valueClassName="text-danger" />
-        <StatTile icon={Receipt} label="Despesas do mês" value={formatCurrency(month.expense)} valueClassName="text-danger" />
-        <StatTile icon={Target} label="Lucro operacional" value={formatCurrency(month.profit)} valueClassName={month.profit >= 0 ? "text-accent-light" : "text-danger"} />
-
-        {/* Próximos agendamentos */}
-        <div className="glass glass-hover col-span-1 rounded-2xl p-5 sm:col-span-2 lg:col-span-3">
-          <p className="mb-3 text-sm font-medium text-foreground">Próximos agendamentos</p>
-          <div className="space-y-2">
-            {upcoming.length === 0 && <p className="text-sm text-foreground-muted">Nenhum agendamento futuro.</p>}
-            {upcoming.map((appt) => (
-              <div key={appt.id} className="flex items-center justify-between rounded-xl border p-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {formatDate(appt.appointmentDate)} às {formatTime(appt.startTime)} — {appt.customer.fullName}
-                  </p>
-                  <p className="text-xs text-foreground-muted">
-                    {appt.barber.name} · {appt.services.map((s) => s.serviceName).join(", ")}
-                  </p>
-                </div>
-                <Badge variant={APPOINTMENT_STATUS_VARIANT[appt.status]}>{APPOINTMENT_STATUS_LABEL[appt.status]}</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Alertas */}
-        <div className="glass col-span-1 rounded-2xl p-5">
-          <p className="mb-3 text-sm font-medium text-foreground">Alertas</p>
-          <div className="space-y-2">
-            {!hasAlerts && <p className="text-sm text-foreground-muted">Tudo em dia por aqui.</p>}
-            {alerts.pendingConfirmation > 0 && (
-              <AlertRow text={`${alerts.pendingConfirmation} agendamento(s) aguardando confirmação`} href="/admin/appointments?status=PENDING" />
-            )}
-            {alerts.overdueExpenses > 0 && (
-              <AlertRow text={`${alerts.overdueExpenses} despesa(s) vencida(s)`} href="/admin/financial/expenses" />
-            )}
-            {alerts.goalsAtRiskCount > 0 && <AlertRow text={`${alerts.goalsAtRiskCount} meta(s) em risco`} href="/admin/goals" />}
-            {alerts.unpaidCompleted > 0 && (
-              <AlertRow text={`${alerts.unpaidCompleted} atendimento(s) concluído(s) sem pagamento registrado`} href="/admin/appointments?range=month" />
-            )}
-          </div>
-        </div>
-      </div>
+      <Reveal delayMs={60}>
+        <SummarySection
+          period={period}
+          revenue={overview.revenue}
+          appointmentsCount={overview.appointmentsCount}
+          totalCustomers={customers.totalCustomers}
+          ticketMedio={overview.ticketMedio}
+          occupancyPercent={occupancy.overallPercent}
+          newCustomers={customers.newCustomers}
+        />
+      </Reveal>
     </div>
-  );
-}
-
-function StatTile({
-  icon: Icon,
-  label,
-  value,
-  valueClassName,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  valueClassName?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="glass glass-hover col-span-1 rounded-2xl p-5">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-foreground-muted">{label}</p>
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-subtle)] text-secondary-light">
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-      <p className={cn("mt-2 text-2xl font-semibold tracking-tight text-foreground", valueClassName)}>{value}</p>
-      {children && <p className="mt-1 text-xs text-foreground-muted">{children}</p>}
-    </div>
-  );
-}
-
-function AlertRow({ text, href }: { text: string; href: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-foreground hover:bg-warning/15"
-    >
-      <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
-      {text}
-    </Link>
   );
 }

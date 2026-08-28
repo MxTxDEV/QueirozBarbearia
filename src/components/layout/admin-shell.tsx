@@ -26,8 +26,8 @@ export function AdminShell({
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar - desktop */}
-      <aside className="glass hidden w-64 shrink-0 md:flex md:flex-col">
+      {/* Sidebar - desktop (fixa: acompanha a rolagem da página) */}
+      <aside className="glass sticky top-0 hidden h-screen w-64 shrink-0 md:flex md:flex-col">
         <div className="flex h-16 items-center border-b px-5">
           <BrandLogo height={26} />
         </div>
