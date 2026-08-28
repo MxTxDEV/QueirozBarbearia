@@ -41,7 +41,7 @@ export default async function CompanyUsersPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card variant="solid">
         <Table>
           <TableHeader>
             <TableRow>

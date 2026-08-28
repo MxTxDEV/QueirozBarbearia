@@ -36,7 +36,7 @@ export default async function CustomersPage({
         <Input name="q" defaultValue={q} placeholder="Buscar por nome ou WhatsApp" className="pl-9" />
       </form>
 
-      <Card>
+      <Card variant="solid">
         <Table>
           <TableHeader>
             <TableRow>

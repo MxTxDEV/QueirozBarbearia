@@ -75,7 +75,7 @@ export default async function ReportsPage({
             </CardContent>
           </Card>
         </div>
-        <Card>
+        <Card variant="solid">
           <Table>
             <TableHeader>
               <TableRow>
@@ -126,7 +126,7 @@ export default async function ReportsPage({
           <MiniStat label="Clientes recorrentes" value={customers.recurrentCount} />
           <MiniStat label="Clientes inativos (60+ dias)" value={customers.inactiveCount} />
         </div>
-        <Card>
+        <Card variant="solid">
           <Table>
             <TableHeader>
               <TableRow>
@@ -161,7 +161,7 @@ export default async function ReportsPage({
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground-muted">Barbeiros (mês atual)</h2>
-        <Card>
+        <Card variant="solid">
           <Table>
             <TableHeader>
               <TableRow>

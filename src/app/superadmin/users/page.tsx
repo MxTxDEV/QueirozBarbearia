@@ -28,7 +28,7 @@ export default async function SuperAdminUsersPage({
         <Input name="q" defaultValue={q} placeholder="Buscar por nome ou e-mail" className="pl-9" />
       </form>
 
-      <Card>
+      <Card variant="solid">
         <Table>
           <TableHeader>
             <TableRow>

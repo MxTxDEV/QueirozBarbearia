@@ -85,7 +85,7 @@ export default async function FinancialOverviewPage({
         </Card>
       </div>
 
-      <Card>
+      <Card variant="solid">
         <Table>
           <TableHeader>
             <TableRow>

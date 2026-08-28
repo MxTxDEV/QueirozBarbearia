@@ -211,6 +211,24 @@ body {
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
 }
 
+/*
+  Mesma linguagem visual do .glass (borda, cantos, sombra), mas com fundo
+  OPACO e sem backdrop-filter — para Cards que envolvem um elemento com
+  rolagem própria (ex: `<Table>`, que tem overflow-x-auto). Um ancestral
+  com backdrop-filter contendo um descendente com overflow é um bug
+  conhecido do WebKit/iOS Safari: o card inteiro (não só o blur) some no
+  celular, como se fosse transparente. Ver Card `variant="solid"`.
+*/
+.glass-solid {
+  background: var(--background-elevated);
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .glass-solid {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

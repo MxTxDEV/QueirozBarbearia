@@ -61,6 +61,7 @@ export async function listTransactions(companyId: string, period: PeriodFilter =
     where,
     orderBy: { transactionDate: "desc" },
     include: { customer: true },
+    take: 100,
   });
 }
 

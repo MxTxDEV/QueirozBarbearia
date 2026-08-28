@@ -105,7 +105,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
         </Card>
       </div>
 
-      <Card>
+      <Card variant="solid">
         <CardHeader>
           <CardTitle>Usuários da empresa</CardTitle>
         </CardHeader>

@@ -41,7 +41,7 @@ export default async function SuperAdminCompaniesPage({
         <Input name="q" defaultValue={q} placeholder="Buscar por nome, slug ou e-mail" className="pl-9" />
       </form>
 
-      <Card>
+      <Card variant="solid">
         <Table>
           <TableHeader>
             <TableRow>

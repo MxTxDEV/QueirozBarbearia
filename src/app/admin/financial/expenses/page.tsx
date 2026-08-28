@@ -20,7 +20,7 @@ export default async function ExpensesPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card variant="solid" className="lg:col-span-2">
           <Table>
             <TableHeader>
               <TableRow>

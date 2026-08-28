@@ -97,7 +97,7 @@ export default async function WhatsappSettingsPage() {
         </Card>
       )}
 
-      <Card>
+      <Card variant="solid">
         <Table>
           <TableHeader>
             <TableRow>

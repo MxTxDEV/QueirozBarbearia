@@ -15,12 +15,14 @@ import { AppointmentRowActions } from "./row-actions";
 import { CalendarToolbar } from "./calendar/calendar-toolbar";
 import { TimeGrid, type GridAppointment } from "./calendar/time-grid";
 import { MonthGrid, type MonthAppointment } from "./calendar/month-grid";
-import { MobileAgenda } from "./calendar/mobile-agenda";
+import { MobileDayAgenda, type DayAgendaItem } from "./calendar/mobile-day-agenda";
 import {
   addDays,
   dateOnlyUTC,
   gridHourBounds,
+  isSameDay,
   parseAnchor,
+  periodLabel,
   rangeForView,
   startOfMonth,
   toISODate,
@@ -43,7 +45,16 @@ const CALENDAR_VIEWS: CalendarView[] = ["day", "week", "month"];
 export default async function AppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; cal?: string; date?: string; range?: string; barberId?: string; status?: string; q?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    cal?: string;
+    date?: string;
+    mday?: string;
+    range?: string;
+    barberId?: string;
+    status?: string;
+    q?: string;
+  }>;
 }) {
   const user = await requireAdminContext();
   const sp = await searchParams;
@@ -55,6 +66,10 @@ export default async function AppointmentsPage({
   const range = (sp.range as AppointmentRangeFilter) ?? "week";
   const barberId = sp.barberId || undefined;
   const status = (sp.status as AppointmentStatus) || undefined;
+  // O carrossel mobile mostra sempre um dia por vez, independente da visão
+  // de calendário escolhida no desktop (dia/semana/mês) — dia próprio
+  // (mday), não o `date`/`cal` do calendário, pra não embaralhar os dois.
+  const mobileDay = parseAnchor(sp.mday);
 
   /** Preserva os filtros ativos ao trocar de visão/período. */
   function buildHref(next: {
@@ -79,13 +94,28 @@ export default async function AppointmentsPage({
     return `/admin/appointments?${params.toString()}`;
   }
 
+  /** Navegação de dia do carrossel mobile — independente do calendário do desktop. */
+  function buildMobileDayHref(day: Date) {
+    const params = new URLSearchParams();
+    params.set("cal", calendarView);
+    params.set("date", toISODate(anchor));
+    params.set("mday", toISODate(day));
+    if (barberId) params.set("barberId", barberId);
+    if (status) params.set("status", status);
+    if (sp.q) params.set("q", sp.q);
+    return `/admin/appointments?${params.toString()}`;
+  }
+
   const { from, to } = rangeForView(calendarView, anchor);
 
-  const [appointments, barbers] = await Promise.all([
+  const [appointments, barbers, mobileDayAppointments] = await Promise.all([
     isCalendar
       ? listAppointmentsInRange(user.companyId, { from, to, barberId, status, customerQuery: sp.q })
       : listAppointments(user.companyId, { range, barberId, status, customerQuery: sp.q }),
     prisma.barber.findMany({ where: { companyId: user.companyId }, orderBy: { name: "asc" } }),
+    isCalendar
+      ? listAppointmentsInRange(user.companyId, { from: mobileDay, to: addDays(mobileDay, 1), barberId, status, customerQuery: sp.q })
+      : Promise.resolve([]),
   ]);
 
   const today = dateOnlyUTC(new Date());
@@ -185,14 +215,17 @@ export default async function AppointmentsPage({
         <div className="space-y-4">
           <CalendarToolbar view={calendarView} anchor={anchor} buildHref={buildHref} />
 
-          <MobileAgenda
-            days={days}
-            today={today}
-            skipEmptyDays={calendarView === "month"}
-            items={appointments.map((appt) => ({
+          <MobileDayAgenda
+            dayLabel={periodLabel("day", mobileDay)}
+            isToday={isSameDay(mobileDay, today)}
+            prevHref={buildMobileDayHref(addDays(mobileDay, -1))}
+            nextHref={buildMobileDayHref(addDays(mobileDay, 1))}
+            todayHref={buildMobileDayHref(today)}
+            items={mobileDayAppointments.map<DayAgendaItem>((appt) => ({
               block: toBlock(appt),
               actions: renderActions(appt),
-              day: appt.appointmentDate,
+              startTime: appt.startTime,
+              endTime: appt.endTime,
             }))}
           />
 
@@ -242,7 +275,7 @@ export default async function AppointmentsPage({
             ))}
           </div>
 
-          <Card>
+          <Card variant="solid">
             <Table>
               <TableHeader>
                 <TableRow>

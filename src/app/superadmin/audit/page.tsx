@@ -13,7 +13,7 @@ export default async function SuperAdminAuditPage() {
         <p className="text-sm text-foreground-muted">Últimos {logs.length} eventos registrados na plataforma.</p>
       </div>
 
-      <Card>
+      <Card variant="solid">
         <Table>
           <TableHeader>
             <TableRow>
