@@ -4,8 +4,8 @@ import { toNumber } from "@/lib/serialize";
 import { BookingWizard } from "./booking-wizard";
 
 export default async function BookPage() {
-  await requireCustomerContext();
-  const barbers = await listActiveBarbersWithServices();
+  const customer = await requireCustomerContext();
+  const barbers = await listActiveBarbersWithServices(customer.companyId);
 
   const data = barbers.map((b) => ({
     id: b.id,

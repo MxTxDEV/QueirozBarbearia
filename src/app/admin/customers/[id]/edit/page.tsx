@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { updateCustomerAction } from "@/actions/customers";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CustomerForm } from "../../customer-form";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdminContext();
   const { id } = await params;
-  const customer = await prisma.customer.findUnique({ where: { id } });
+  const customer = await prisma.customer.findFirst({ where: { id, companyId: user.companyId } });
   if (!customer) notFound();
 
   const action = updateCustomerAction.bind(null, id);

@@ -38,9 +38,9 @@ export async function syncOverdueExpenses() {
   });
 }
 
-export async function getCashFlow(period: PeriodFilter) {
+export async function getCashFlow(companyId: string, period: PeriodFilter) {
   const { from, to } = periodToDates(period);
-  const where = from && to ? { transactionDate: { gte: from, lt: to } } : {};
+  const where = from && to ? { companyId, transactionDate: { gte: from, lt: to } } : { companyId };
 
   const [incomeAgg, expenseAgg] = await Promise.all([
     prisma.financialTransaction.aggregate({ where: { ...where, type: "INCOME" }, _sum: { amount: true } }),
@@ -53,9 +53,9 @@ export async function getCashFlow(period: PeriodFilter) {
   return { income, expense, balance: income - expense };
 }
 
-export async function listTransactions(period: PeriodFilter = "month") {
+export async function listTransactions(companyId: string, period: PeriodFilter = "month") {
   const { from, to } = periodToDates(period);
-  const where = from && to ? { transactionDate: { gte: from, lt: to } } : {};
+  const where = from && to ? { companyId, transactionDate: { gte: from, lt: to } } : { companyId };
 
   return prisma.financialTransaction.findMany({
     where,
@@ -64,17 +64,19 @@ export async function listTransactions(period: PeriodFilter = "month") {
   });
 }
 
-export async function listExpenses() {
+export async function listExpenses(companyId: string) {
   await syncOverdueExpenses();
-  return prisma.expense.findMany({ orderBy: { dueDate: "desc" } });
+  return prisma.expense.findMany({ where: { companyId }, orderBy: { dueDate: "desc" } });
 }
 
-export async function getMonthOverview() {
-  const cashFlow = await getCashFlow("month");
+export async function getMonthOverview(companyId: string) {
+  const cashFlow = await getCashFlow(companyId, "month");
   const { from, to } = periodToDates("month");
   const [appointmentsCount, cancelledCount] = await Promise.all([
-    prisma.appointment.count({ where: { appointmentDate: { gte: from, lt: to }, status: { in: ["CONFIRMED", "COMPLETED"] } } }),
-    prisma.appointment.count({ where: { appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
+    prisma.appointment.count({
+      where: { companyId, appointmentDate: { gte: from, lt: to }, status: { in: ["CONFIRMED", "COMPLETED"] } },
+    }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
   ]);
   return { ...cashFlow, appointmentsCount, cancelledCount };
 }

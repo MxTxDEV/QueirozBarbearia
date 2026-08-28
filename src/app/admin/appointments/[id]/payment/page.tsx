@@ -4,10 +4,12 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { toNumber } from "@/lib/serialize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PaymentForm } from "./payment-form";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function RegisterPaymentPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdminContext();
   const { id } = await params;
-  const appointment = await getAppointmentDetail(id);
+  const appointment = await getAppointmentDetail(id, user.companyId);
   if (!appointment) notFound();
 
   return (

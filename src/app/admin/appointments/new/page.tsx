@@ -1,15 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
 import { AdminBookingForm } from "./admin-booking-form";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function NewAppointmentPage() {
+  const user = await requireAdminContext();
   const [barbers, customers] = await Promise.all([
     prisma.barber.findMany({
-      where: { active: true },
+      where: { companyId: user.companyId, active: true },
       orderBy: { name: "asc" },
       include: { services: { include: { service: true } } },
     }),
-    prisma.customer.findMany({ orderBy: { fullName: "asc" } }),
+    prisma.customer.findMany({ where: { companyId: user.companyId }, orderBy: { fullName: "asc" } }),
   ]);
 
   const data = barbers.map((b) => ({

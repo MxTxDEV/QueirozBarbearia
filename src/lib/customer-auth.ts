@@ -91,8 +91,10 @@ export async function destroyCustomerSession() {
   }
 }
 
+/** companyId identifica a empresa da qual esse cliente é cliente — vem sempre do banco, nunca de input. */
 export type CurrentCustomer = {
   id: string;
+  companyId: string;
   fullName: string;
   whatsapp: string;
   email: string | null;
@@ -111,11 +113,16 @@ export async function getCurrentCustomer(): Promise<CurrentCustomer | null> {
     const session = await prisma.customerSession.findUnique({ where: { id: sessionId } });
     if (!session || session.revokedAt || session.expiresAt < new Date()) return null;
 
-    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { company: { select: { status: true } } },
+    });
     if (!customer) return null;
+    if (customer.company.status === "BLOCKED" || customer.company.status === "SUSPENDED") return null;
 
     return {
       id: customer.id,
+      companyId: customer.companyId,
       fullName: customer.fullName,
       whatsapp: customer.whatsapp,
       email: customer.email,

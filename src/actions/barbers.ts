@@ -17,7 +17,7 @@ const barberSchema = z.object({
 export async function createBarberAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   let newBarberId: string;
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const data = barberSchema.parse({
       name: formData.get("name"),
       phone: formData.get("phone"),
@@ -27,6 +27,7 @@ export async function createBarberAction(_prev: ActionResult | undefined, formDa
 
     const created = await prisma.barber.create({
       data: {
+        companyId: user.companyId,
         name: data.name,
         phone: data.phone || undefined,
         photoUrl: data.photoUrl || undefined,
@@ -48,7 +49,7 @@ export async function updateBarberAction(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const data = barberSchema.parse({
       name: formData.get("name"),
       phone: formData.get("phone"),
@@ -56,8 +57,8 @@ export async function updateBarberAction(
       specialties: formData.get("specialties"),
     });
 
-    await prisma.barber.update({
-      where: { id },
+    const result = await prisma.barber.updateMany({
+      where: { id, companyId: user.companyId },
       data: {
         name: data.name,
         phone: data.phone || null,
@@ -65,6 +66,7 @@ export async function updateBarberAction(
         specialties: data.specialties ? data.specialties.split(",").map((s) => s.trim()).filter(Boolean) : [],
       },
     });
+    if (result.count === 0) return actionError(new Error("Barbeiro não encontrado."));
   } catch (error) {
     return actionError(error);
   }
@@ -75,9 +77,15 @@ export async function updateBarberAction(
 }
 
 export async function toggleBarberActiveAction(id: string, active: boolean) {
-  await requireAdminContext();
-  await prisma.barber.update({ where: { id }, data: { active } });
+  const user = await requireAdminContext();
+  await prisma.barber.updateMany({ where: { id, companyId: user.companyId }, data: { active } });
   revalidatePath("/admin/barbers");
+}
+
+/** Garante que o barbeiro pertence à empresa do usuário logado antes de qualquer escrita em tabelas filhas (horários, folgas, serviços vinculados). */
+async function assertBarberOwnership(barberId: string, companyId: string) {
+  const barber = await prisma.barber.findFirst({ where: { id: barberId, companyId }, select: { id: true } });
+  if (!barber) throw new Error("Barbeiro não encontrado.");
 }
 
 const workingHourSchema = z.object({
@@ -90,7 +98,8 @@ const workingHourSchema = z.object({
 
 export async function upsertWorkingHourAction(barberId: string, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
+    await assertBarberOwnership(barberId, user.companyId);
     const data = workingHourSchema.parse({
       weekday: formData.get("weekday"),
       startTime: formData.get("startTime"),
@@ -125,7 +134,8 @@ export async function upsertWorkingHourAction(barberId: string, formData: FormDa
 }
 
 export async function removeWorkingHourAction(barberId: string, weekday: number) {
-  await requireAdminContext();
+  const user = await requireAdminContext();
+  await assertBarberOwnership(barberId, user.companyId);
   await prisma.barberWorkingHour.deleteMany({ where: { barberId, weekday } });
   revalidatePath(`/admin/barbers/${barberId}`);
 }
@@ -138,7 +148,8 @@ const timeOffSchema = z.object({
 
 export async function createTimeOffAction(barberId: string, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
+    await assertBarberOwnership(barberId, user.companyId);
     const data = timeOffSchema.parse({
       startDate: formData.get("startDate"),
       endDate: formData.get("endDate"),
@@ -162,13 +173,18 @@ export async function createTimeOffAction(barberId: string, formData: FormData):
 }
 
 export async function removeTimeOffAction(barberId: string, timeOffId: string) {
-  await requireAdminContext();
-  await prisma.barberTimeOff.delete({ where: { id: timeOffId } });
+  const user = await requireAdminContext();
+  await assertBarberOwnership(barberId, user.companyId);
+  await prisma.barberTimeOff.deleteMany({ where: { id: timeOffId, barberId } });
   revalidatePath(`/admin/barbers/${barberId}`);
 }
 
 export async function toggleBarberServiceAction(barberId: string, serviceId: string, enabled: boolean) {
-  await requireAdminContext();
+  const user = await requireAdminContext();
+  await assertBarberOwnership(barberId, user.companyId);
+  const service = await prisma.service.findFirst({ where: { id: serviceId, companyId: user.companyId }, select: { id: true } });
+  if (!service) throw new Error("Serviço não encontrado.");
+
   if (enabled) {
     await prisma.barberService.upsert({
       where: { barberId_serviceId: { barberId, serviceId } },

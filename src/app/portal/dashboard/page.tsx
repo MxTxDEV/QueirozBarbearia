@@ -10,7 +10,7 @@ import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labe
 
 export default async function PortalDashboardPage() {
   const customer = await requireCustomerContext();
-  const next = await getCustomerNextAppointment(customer.id);
+  const next = await getCustomerNextAppointment(customer.id, customer.companyId);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

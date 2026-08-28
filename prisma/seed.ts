@@ -3,7 +3,8 @@ import { prisma } from "../src/lib/prisma";
 
 runSeed()
   .then((result) => {
-    console.log(`Admin: ${result.admin} / senha: barberpro123`);
+    console.log("Super Admin: admin@baberpro.com / senha: barberpro123@");
+    console.log(`Empresa demo (${result.company}) admin: ${result.admin} / senha: barberpro123`);
     console.log("Seed concluído: barbeiros Marcos e Arthur, serviços e horários de trabalho criados.");
   })
   .catch((e) => {

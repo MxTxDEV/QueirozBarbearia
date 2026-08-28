@@ -2,25 +2,28 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
 
-export async function listCustomers(search?: string) {
+export async function listCustomers(companyId: string, search?: string) {
   const customers = await prisma.customer.findMany({
-    where: search
-      ? {
-          OR: [
-            { fullName: { contains: search, mode: "insensitive" } },
-            { whatsapp: { contains: search.replace(/\D/g, "") } },
-          ],
-        }
-      : undefined,
+    where: {
+      companyId,
+      ...(search
+        ? {
+            OR: [
+              { fullName: { contains: search, mode: "insensitive" } },
+              { whatsapp: { contains: search.replace(/\D/g, "") } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { fullName: "asc" },
     include: { _count: { select: { appointments: true } } },
   });
   return customers;
 }
 
-export async function getCustomerProfile(id: string) {
-  const customer = await prisma.customer.findUnique({
-    where: { id },
+export async function getCustomerProfile(id: string, companyId: string) {
+  const customer = await prisma.customer.findFirst({
+    where: { id, companyId },
     include: {
       appointments: {
         orderBy: { appointmentDate: "desc" },
@@ -64,6 +67,6 @@ export async function getCustomerProfile(id: string) {
   };
 }
 
-export async function findCustomerByWhatsapp(whatsapp: string) {
-  return prisma.customer.findUnique({ where: { whatsapp } });
+export async function findCustomerByWhatsapp(companyId: string, whatsapp: string) {
+  return prisma.customer.findUnique({ where: { companyId_whatsapp: { companyId, whatsapp } } });
 }

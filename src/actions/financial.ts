@@ -32,8 +32,8 @@ export async function registerPaymentAction(
       paidAt: formData.get("paidAt"),
     });
 
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: appointmentId, companyId: user.companyId },
       include: { customer: true },
     });
     if (!appointment) return actionError(new Error("Agendamento não encontrado."));
@@ -46,6 +46,7 @@ export async function registerPaymentAction(
     await prisma.$transaction([
       prisma.payment.create({
         data: {
+          companyId: user.companyId,
           appointmentId,
           customerId: appointment.customerId,
           amount: data.amount,
@@ -55,6 +56,7 @@ export async function registerPaymentAction(
       }),
       prisma.financialTransaction.create({
         data: {
+          companyId: user.companyId,
           type: "INCOME",
           category: "Serviços",
           description: `Pagamento — ${appointment.customer.fullName}`,
@@ -96,7 +98,7 @@ const manualIncomeSchema = z.object({
 
 export async function createManualIncomeAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const data = manualIncomeSchema.parse({
       description: formData.get("description"),
       category: formData.get("category"),
@@ -108,6 +110,7 @@ export async function createManualIncomeAction(_prev: ActionResult | undefined, 
 
     await prisma.financialTransaction.create({
       data: {
+        companyId: user.companyId,
         type: "INCOME",
         category: data.category,
         description: data.description,
@@ -138,7 +141,7 @@ const expenseSchema = z.object({
 
 export async function createExpenseAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const data = expenseSchema.parse({
       description: formData.get("description"),
       category: formData.get("category"),
@@ -151,6 +154,7 @@ export async function createExpenseAction(_prev: ActionResult | undefined, formD
 
     await prisma.expense.create({
       data: {
+        companyId: user.companyId,
         description: data.description,
         category: data.category,
         amount: data.amount,
@@ -180,13 +184,13 @@ export async function markExpensePaidAction(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const data = markPaidSchema.parse({
       paidDate: formData.get("paidDate"),
       paymentMethod: formData.get("paymentMethod"),
     });
 
-    const expense = await prisma.expense.findUnique({ where: { id: expenseId } });
+    const expense = await prisma.expense.findFirst({ where: { id: expenseId, companyId: user.companyId } });
     if (!expense) return actionError(new Error("Despesa não encontrada."));
 
     const paidDate = new Date(data.paidDate);
@@ -199,6 +203,7 @@ export async function markExpensePaidAction(
 
       await tx.financialTransaction.create({
         data: {
+          companyId: user.companyId,
           type: "EXPENSE",
           category: expense.category,
           description: expense.description,
@@ -215,6 +220,7 @@ export async function markExpensePaidAction(
         if (next) {
           await tx.expense.create({
             data: {
+              companyId: user.companyId,
               description: expense.description,
               category: expense.category,
               amount: expense.amount,
@@ -238,14 +244,16 @@ export async function markExpensePaidAction(
   return actionSuccess();
 }
 
+/** Job global (cron) — percorre despesas vencidas de todas as empresas e notifica cada uma isoladamente. */
 export async function checkOverdueExpensesAndNotify() {
   const overdue = await prisma.expense.findMany({ where: { status: "OVERDUE" } });
   for (const expense of overdue) {
     const existing = await prisma.notification.findFirst({
-      where: { relatedEntityType: "expense", relatedEntityId: expense.id, type: "EXPENSE_OVERDUE" },
+      where: { companyId: expense.companyId, relatedEntityType: "expense", relatedEntityId: expense.id, type: "EXPENSE_OVERDUE" },
     });
     if (!existing) {
       await createNotification({
+        companyId: expense.companyId,
         title: "⚠️ Despesa vencida",
         message: `${expense.description} venceu e ainda não foi paga.`,
         type: "EXPENSE_OVERDUE",

@@ -20,7 +20,7 @@ const customerSchema = z.object({
 export async function createCustomerAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   let newCustomerId: string;
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const parsed = customerSchema.parse({
       fullName: formData.get("fullName"),
       whatsapp: formData.get("whatsapp"),
@@ -32,11 +32,12 @@ export async function createCustomerAction(_prev: ActionResult | undefined, form
     const whatsapp = normalizeWhatsapp(parsed.whatsapp);
     if (!whatsapp) return actionError(new Error("Número de WhatsApp inválido. Use o formato (DD) 9XXXX-XXXX."));
 
-    const existing = await prisma.customer.findUnique({ where: { whatsapp } });
+    const existing = await prisma.customer.findUnique({ where: { companyId_whatsapp: { companyId: user.companyId, whatsapp } } });
     if (existing) return actionError(new Error("Já existe um cliente cadastrado com este WhatsApp."));
 
     const created = await prisma.customer.create({
       data: {
+        companyId: user.companyId,
         fullName: parsed.fullName,
         whatsapp,
         email: parsed.email || undefined,
@@ -59,7 +60,7 @@ export async function updateCustomerAction(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const parsed = customerSchema.parse({
       fullName: formData.get("fullName"),
       whatsapp: formData.get("whatsapp"),
@@ -71,11 +72,11 @@ export async function updateCustomerAction(
     const whatsapp = normalizeWhatsapp(parsed.whatsapp);
     if (!whatsapp) return actionError(new Error("Número de WhatsApp inválido."));
 
-    const existing = await prisma.customer.findUnique({ where: { whatsapp } });
+    const existing = await prisma.customer.findUnique({ where: { companyId_whatsapp: { companyId: user.companyId, whatsapp } } });
     if (existing && existing.id !== id) return actionError(new Error("Já existe outro cliente com este WhatsApp."));
 
-    await prisma.customer.update({
-      where: { id },
+    const result = await prisma.customer.updateMany({
+      where: { id, companyId: user.companyId },
       data: {
         fullName: parsed.fullName,
         whatsapp,
@@ -84,6 +85,7 @@ export async function updateCustomerAction(
         notes: parsed.notes || null,
       },
     });
+    if (result.count === 0) return actionError(new Error("Cliente não encontrado."));
   } catch (error) {
     return actionError(error);
   }
@@ -101,13 +103,13 @@ export async function sendCustomerMessageAction(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const parsed = messageSchema.parse({ message: formData.get("message") });
 
-    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    const customer = await prisma.customer.findFirst({ where: { id: customerId, companyId: user.companyId } });
     if (!customer) return actionError(new Error("Cliente não encontrado."));
 
-    const result = await sendWhatsapp({ phone: customer.whatsapp, customerId, message: parsed.message });
+    const result = await sendWhatsapp({ companyId: user.companyId, phone: customer.whatsapp, customerId, message: parsed.message });
     if (!result.ok) return actionError(new Error(result.errorMessage ?? "Falha ao enviar mensagem."));
   } catch (error) {
     return actionError(error);

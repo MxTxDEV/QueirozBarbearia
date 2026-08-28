@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MarkPaidForm } from "./mark-paid-form";
 import { ExpenseForm } from "./expense-form";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function ExpensesPage() {
-  const expenses = await listExpenses();
+  const user = await requireAdminContext();
+  const expenses = await listExpenses(user.companyId);
 
   return (
     <div className="space-y-6">

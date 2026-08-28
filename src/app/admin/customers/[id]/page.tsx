@@ -7,10 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageForm } from "./message-form";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function CustomerProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdminContext();
   const { id } = await params;
-  const profile = await getCustomerProfile(id);
+  const profile = await getCustomerProfile(id, user.companyId);
   if (!profile) notFound();
 
   const { customer, clv, avgTicket, visits, lastVisit, preferredBarber, topServices } = profile;

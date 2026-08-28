@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { requireAdminContext } from "@/lib/require-admin";
 
 const PERIODS: { value: PeriodFilter; label: string }[] = [
   { value: "today", label: "Hoje" },
@@ -19,10 +20,14 @@ export default async function FinancialOverviewPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
+  const user = await requireAdminContext();
   const { period: periodParam } = await searchParams;
   const period = (periodParam as PeriodFilter) ?? "month";
 
-  const [cashFlow, transactions] = await Promise.all([getCashFlow(period), listTransactions(period)]);
+  const [cashFlow, transactions] = await Promise.all([
+    getCashFlow(user.companyId, period),
+    listTransactions(user.companyId, period),
+  ]);
 
   return (
     <div className="space-y-6">

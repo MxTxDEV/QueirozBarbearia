@@ -19,6 +19,7 @@ async function computeCurrentValue(goal: FinancialGoal): Promise<number> {
   if (goal.type === "APPOINTMENTS") {
     const count = await prisma.appointment.count({
       where: {
+        companyId: goal.companyId,
         appointmentDate: { gte: goal.startDate, lte: goal.endDate },
         status: { in: ["CONFIRMED", "COMPLETED"] },
         ...(goal.barberId ? { barberId: goal.barberId } : {}),
@@ -29,6 +30,7 @@ async function computeCurrentValue(goal: FinancialGoal): Promise<number> {
 
   const agg = await prisma.financialTransaction.aggregate({
     where: {
+      companyId: goal.companyId,
       type: "INCOME",
       transactionDate: { gte: goal.startDate, lte: goal.endDate },
       ...(goal.barberId
@@ -40,8 +42,9 @@ async function computeCurrentValue(goal: FinancialGoal): Promise<number> {
   return toNumber(agg._sum.amount);
 }
 
-export async function getGoalsWithProgress(): Promise<GoalProgress[]> {
+export async function getGoalsWithProgress(companyId: string): Promise<GoalProgress[]> {
   const goals = await prisma.financialGoal.findMany({
+    where: { companyId },
     orderBy: { endDate: "desc" },
     include: { barber: { select: { id: true, name: true } } },
   });

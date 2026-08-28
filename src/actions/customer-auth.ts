@@ -18,6 +18,17 @@ const requestSchema = z.object({
 });
 
 /**
+ * O portal ainda não tem roteamento por empresa (slug) — ver tarefa de
+ * multi-tenant no portal. Até lá, o login do cliente resolve a única
+ * empresa cadastrada. Quando o roteamento por slug for implementado, isso
+ * deve ser substituído pelo companyId resolvido a partir da URL.
+ */
+async function getPortalCompanyId() {
+  const company = await prisma.company.findFirstOrThrow({ orderBy: { createdAt: "asc" }, select: { id: true } });
+  return company.id;
+}
+
+/**
  * Etapa 1 do login do cliente: recebe o WhatsApp, cria o cadastro caso não
  * exista, gera um código OTP e envia via WhatsApp (mock em desenvolvimento).
  */
@@ -30,14 +41,15 @@ export async function requestCustomerOtpAction(
     const whatsapp = normalizeWhatsapp(data.whatsapp);
     if (!whatsapp) return actionError(new Error("Número de WhatsApp inválido. Use o formato (DD) 9XXXX-XXXX."));
 
+    const companyId = await getPortalCompanyId();
     const customer = await prisma.customer.upsert({
-      where: { whatsapp },
+      where: { companyId_whatsapp: { companyId, whatsapp } },
       update: {},
-      create: { fullName: "Cliente", whatsapp },
+      create: { companyId, fullName: "Cliente", whatsapp },
     });
 
     const code = await createCustomerOtp(customer.id);
-    await sendCustomerOtp(whatsapp, customer.id, code);
+    await sendCustomerOtp(companyId, whatsapp, customer.id, code);
 
     return actionSuccess({ customerId: customer.id, whatsapp });
   } catch (error) {

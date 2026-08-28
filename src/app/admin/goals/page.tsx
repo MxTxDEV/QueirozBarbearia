@@ -8,9 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { GoalForm } from "./goal-form";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function GoalsPage() {
-  const [goals, barbers] = await Promise.all([getGoalsWithProgress(), prisma.barber.findMany({ orderBy: { name: "asc" } })]);
+  const user = await requireAdminContext();
+  const [goals, barbers] = await Promise.all([
+    getGoalsWithProgress(user.companyId),
+    prisma.barber.findMany({ where: { companyId: user.companyId }, orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <div className="space-y-6">

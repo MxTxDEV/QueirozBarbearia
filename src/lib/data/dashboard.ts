@@ -7,22 +7,28 @@ function dateOnlyUTC(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-export async function getTodaySummary() {
+export async function getTodaySummary(companyId: string) {
   const { from, to } = periodToDates("today");
 
   const [appointmentsToday, confirmedToday, pendingToday, cancelledToday, incomeAgg, expenseAgg] = await Promise.all([
-    prisma.appointment.count({ where: { appointmentDate: { gte: from, lt: to } } }),
-    prisma.appointment.count({ where: { appointmentDate: { gte: from, lt: to }, status: "CONFIRMED" } }),
-    prisma.appointment.count({ where: { appointmentDate: { gte: from, lt: to }, status: "PENDING" } }),
-    prisma.appointment.count({ where: { appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
-    prisma.financialTransaction.aggregate({ where: { type: "INCOME", transactionDate: { gte: from, lt: to } }, _sum: { amount: true } }),
-    prisma.financialTransaction.aggregate({ where: { type: "EXPENSE", transactionDate: { gte: from, lt: to } }, _sum: { amount: true } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to } } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CONFIRMED" } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "PENDING" } }),
+    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
+    prisma.financialTransaction.aggregate({
+      where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to } },
+      _sum: { amount: true },
+    }),
+    prisma.financialTransaction.aggregate({
+      where: { companyId, type: "EXPENSE", transactionDate: { gte: from, lt: to } },
+      _sum: { amount: true },
+    }),
   ]);
 
   const income = toNumber(incomeAgg._sum.amount);
   const expense = toNumber(expenseAgg._sum.amount);
   const completedToday = await prisma.appointment.count({
-    where: { appointmentDate: { gte: from, lt: to }, status: "COMPLETED" },
+    where: { companyId, appointmentDate: { gte: from, lt: to }, status: "COMPLETED" },
   });
   const ticketMedio = completedToday > 0 ? income / completedToday : 0;
 
@@ -39,13 +45,19 @@ export async function getTodaySummary() {
   };
 }
 
-export async function getMonthSummary() {
+export async function getMonthSummary(companyId: string) {
   const { from, to } = periodToDates("month");
   const [incomeAgg, expenseAgg, activeGoal] = await Promise.all([
-    prisma.financialTransaction.aggregate({ where: { type: "INCOME", transactionDate: { gte: from, lt: to } }, _sum: { amount: true } }),
-    prisma.financialTransaction.aggregate({ where: { type: "EXPENSE", transactionDate: { gte: from, lt: to } }, _sum: { amount: true } }),
+    prisma.financialTransaction.aggregate({
+      where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to } },
+      _sum: { amount: true },
+    }),
+    prisma.financialTransaction.aggregate({
+      where: { companyId, type: "EXPENSE", transactionDate: { gte: from, lt: to } },
+      _sum: { amount: true },
+    }),
     prisma.financialGoal.findFirst({
-      where: { type: "REVENUE", startDate: { lte: to }, endDate: { gte: from } },
+      where: { companyId, type: "REVENUE", startDate: { lte: to }, endDate: { gte: from } },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -58,21 +70,21 @@ export async function getMonthSummary() {
   return { income, expense, profit: income - expense, targetValue, goalPercent };
 }
 
-export async function getBarberComparison() {
+export async function getBarberComparison(companyId: string) {
   const { from, to } = periodToDates("month");
-  const barbers = await prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" } });
+  const barbers = await prisma.barber.findMany({ where: { companyId, active: true }, orderBy: { name: "asc" } });
 
   return Promise.all(
     barbers.map(async (barber) => {
       const [completed, cancelled, incomeAgg] = await Promise.all([
         prisma.appointment.count({
-          where: { barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "COMPLETED" },
+          where: { companyId, barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "COMPLETED" },
         }),
         prisma.appointment.count({
-          where: { barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" },
+          where: { companyId, barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" },
         }),
         prisma.financialTransaction.aggregate({
-          where: { type: "INCOME", transactionDate: { gte: from, lt: to }, appointment: { barberId: barber.id } },
+          where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to }, appointment: { barberId: barber.id } },
           _sum: { amount: true },
         }),
       ]);
@@ -85,23 +97,23 @@ export async function getBarberComparison() {
   );
 }
 
-export async function getUpcomingAppointments(limit = 8) {
+export async function getUpcomingAppointments(companyId: string, limit = 8) {
   return prisma.appointment.findMany({
-    where: { status: { in: ["PENDING", "CONFIRMED"] }, startTime: { gte: new Date() } },
+    where: { companyId, status: { in: ["PENDING", "CONFIRMED"] }, startTime: { gte: new Date() } },
     orderBy: { startTime: "asc" },
     take: limit,
     include: { customer: true, barber: true, services: true },
   });
 }
 
-export async function getDashboardAlerts() {
+export async function getDashboardAlerts(companyId: string) {
   const today = dateOnlyUTC(new Date());
 
   const [pendingConfirmation, overdueExpenses, goalsAtRiskCount, unpaidCompleted] = await Promise.all([
-    prisma.appointment.count({ where: { status: "PENDING" } }),
-    prisma.expense.count({ where: { status: { in: ["PENDING", "OVERDUE"] }, dueDate: { lt: today } } }),
-    prisma.financialGoal.count({ where: { status: "AT_RISK" } }),
-    prisma.appointment.count({ where: { status: "COMPLETED", payments: { none: {} } } }),
+    prisma.appointment.count({ where: { companyId, status: "PENDING" } }),
+    prisma.expense.count({ where: { companyId, status: { in: ["PENDING", "OVERDUE"] }, dueDate: { lt: today } } }),
+    prisma.financialGoal.count({ where: { companyId, status: "AT_RISK" } }),
+    prisma.appointment.count({ where: { companyId, status: "COMPLETED", payments: { none: {} } } }),
   ]);
 
   return { pendingConfirmation, overdueExpenses, goalsAtRiskCount, unpaidCompleted };

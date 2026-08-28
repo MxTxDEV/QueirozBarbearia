@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
 import { periodToDates, type PeriodFilter } from "@/lib/data/financial";
 
-export async function getFinancialReport(period: PeriodFilter) {
+export async function getFinancialReport(companyId: string, period: PeriodFilter) {
   const { from, to } = periodToDates(period);
-  const where = from && to ? { transactionDate: { gte: from, lt: to } } : {};
+  const where = from && to ? { companyId, transactionDate: { gte: from, lt: to } } : { companyId };
 
   const transactions = await prisma.financialTransaction.findMany({ where });
 
@@ -34,9 +34,9 @@ export async function getFinancialReport(period: PeriodFilter) {
   };
 }
 
-export async function getOperationalReport(period: PeriodFilter) {
+export async function getOperationalReport(companyId: string, period: PeriodFilter) {
   const { from, to } = periodToDates(period);
-  const where = from && to ? { appointmentDate: { gte: from, lt: to } } : {};
+  const where = from && to ? { companyId, appointmentDate: { gte: from, lt: to } } : { companyId };
 
   const [total, completed, cancelled, noShow, confirmed, pending] = await Promise.all([
     prisma.appointment.count({ where }),
@@ -52,13 +52,14 @@ export async function getOperationalReport(period: PeriodFilter) {
   return { total, completed, cancelled, noShow, confirmed, pending, confirmationRate };
 }
 
-export async function getCustomerReport(period: PeriodFilter) {
+export async function getCustomerReport(companyId: string, period: PeriodFilter) {
   const { from, to } = periodToDates(period);
 
   const [newCustomers, topSpendersRaw] = await Promise.all([
-    prisma.customer.count({ where: from && to ? { createdAt: { gte: from, lt: to } } : undefined }),
+    prisma.customer.count({ where: from && to ? { companyId, createdAt: { gte: from, lt: to } } : { companyId } }),
     prisma.payment.groupBy({
       by: ["customerId"],
+      where: { companyId },
       _sum: { amount: true },
       orderBy: { _sum: { amount: "desc" } },
       take: 10,
@@ -66,7 +67,7 @@ export async function getCustomerReport(period: PeriodFilter) {
   ]);
 
   const customers = await prisma.customer.findMany({
-    where: { id: { in: topSpendersRaw.map((t) => t.customerId) } },
+    where: { companyId, id: { in: topSpendersRaw.map((t) => t.customerId) } },
   });
   const customerMap = new Map(customers.map((c) => [c.id, c]));
 
@@ -77,9 +78,10 @@ export async function getCustomerReport(period: PeriodFilter) {
 
   const sixtyDaysAgo = new Date(Date.now() - 60 * 86_400_000);
   const [recurrentCount, inactiveCount] = await Promise.all([
-    prisma.customer.count({ where: { appointments: { some: { status: "COMPLETED" } } } }),
+    prisma.customer.count({ where: { companyId, appointments: { some: { status: "COMPLETED" } } } }),
     prisma.customer.count({
       where: {
+        companyId,
         appointments: { none: { appointmentDate: { gte: sixtyDaysAgo } } },
         createdAt: { lt: sixtyDaysAgo },
       },

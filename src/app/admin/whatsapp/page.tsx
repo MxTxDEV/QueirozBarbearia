@@ -4,14 +4,21 @@ import { formatDate, formatTime } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function WhatsappSettingsPage() {
+  const user = await requireAdminContext();
   const status = whatsappConnectionStatus();
   const [messages, sentCount, failedCount, lastMessage] = await Promise.all([
-    prisma.whatsappMessage.findMany({ orderBy: { createdAt: "desc" }, take: 30, include: { customer: true } }),
-    prisma.whatsappMessage.count({ where: { status: "SENT" } }),
-    prisma.whatsappMessage.count({ where: { status: "FAILED" } }),
-    prisma.whatsappMessage.findFirst({ orderBy: { createdAt: "desc" } }),
+    prisma.whatsappMessage.findMany({
+      where: { companyId: user.companyId },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      include: { customer: true },
+    }),
+    prisma.whatsappMessage.count({ where: { companyId: user.companyId, status: "SENT" } }),
+    prisma.whatsappMessage.count({ where: { companyId: user.companyId, status: "FAILED" } }),
+    prisma.whatsappMessage.findFirst({ where: { companyId: user.companyId }, orderBy: { createdAt: "desc" } }),
   ]);
 
   return (

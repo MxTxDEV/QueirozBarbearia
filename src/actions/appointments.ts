@@ -27,14 +27,17 @@ const createSchema = z.object({
 
 type CreateAppointmentInput = z.infer<typeof createSchema>;
 
-async function createAppointmentCore(input: CreateAppointmentInput): Promise<ActionResult<{ id: string }>> {
+async function createAppointmentCore(
+  input: CreateAppointmentInput,
+  companyId: string
+): Promise<ActionResult<{ id: string }>> {
   try {
     const data = createSchema.parse(input);
 
     const [customer, barber, services] = await Promise.all([
-      prisma.customer.findUnique({ where: { id: data.customerId } }),
-      prisma.barber.findUnique({ where: { id: data.barberId } }),
-      prisma.service.findMany({ where: { id: { in: data.serviceIds }, active: true } }),
+      prisma.customer.findFirst({ where: { id: data.customerId, companyId } }),
+      prisma.barber.findFirst({ where: { id: data.barberId, companyId } }),
+      prisma.service.findMany({ where: { id: { in: data.serviceIds }, companyId, active: true } }),
     ]);
 
     if (!customer) return actionError(new Error("Cliente não encontrado."));
@@ -71,6 +74,7 @@ async function createAppointmentCore(input: CreateAppointmentInput): Promise<Act
 
       return tx.appointment.create({
         data: {
+          companyId,
           customerId: data.customerId,
           barberId: data.barberId,
           appointmentDate,
@@ -101,6 +105,7 @@ async function createAppointmentCore(input: CreateAppointmentInput): Promise<Act
     });
 
     await createNotification({
+      companyId,
       title: "🔔 Novo agendamento",
       message: `${customer.fullName} solicitou horário com ${barber.name} em ${formatDate(appointmentDate)} às ${formatTime(startTime)}.`,
       type: "NEW_APPOINTMENT",
@@ -108,7 +113,7 @@ async function createAppointmentCore(input: CreateAppointmentInput): Promise<Act
       relatedEntityId: appointment.id,
     });
 
-    await sendNewAppointmentAlertToShop({
+    await sendNewAppointmentAlertToShop(companyId, {
       customerName: customer.fullName,
       date: formatDate(appointmentDate),
       time: formatTime(startTime),
@@ -137,25 +142,25 @@ export async function createAppointmentAsCustomer(
 ): Promise<ActionResult<{ id: string }>> {
   const customer = await getCurrentCustomer();
   if (!customer) return actionError(new Error("Sessão expirada. Faça login novamente."));
-  return createAppointmentCore({ ...input, customerId: customer.id });
+  return createAppointmentCore({ ...input, customerId: customer.id }, customer.companyId);
 }
 
 /** Usado pelo painel administrativo, onde o admin escolhe o cliente manualmente. */
 export async function createAppointmentAsAdmin(input: CreateAppointmentInput): Promise<ActionResult<{ id: string }>> {
-  await requireAdminContext();
-  return createAppointmentCore(input);
+  const user = await requireAdminContext();
+  return createAppointmentCore(input, user.companyId);
 }
 
-async function loadAppointmentContext(appointmentId: string) {
-  return prisma.appointment.findUnique({
-    where: { id: appointmentId },
+async function loadAppointmentContext(appointmentId: string, companyId: string) {
+  return prisma.appointment.findFirst({
+    where: { id: appointmentId, companyId },
     include: { customer: true, barber: true, services: true },
   });
 }
 
 export async function confirmAppointmentAction(appointmentId: string) {
   const user = await requireAdminContext();
-  const appt = await loadAppointmentContext(appointmentId);
+  const appt = await loadAppointmentContext(appointmentId, user.companyId);
   if (!appt) throw new Error("Agendamento não encontrado.");
 
   await prisma.appointment.update({
@@ -166,6 +171,7 @@ export async function confirmAppointmentAction(appointmentId: string) {
   await logAudit({ userId: user.id, action: "appointment_confirmed", entityType: "appointment", entityId: appointmentId, appointmentId });
 
   await createNotification({
+    companyId: user.companyId,
     title: "Agendamento confirmado",
     message: `Agendamento de ${appt.customer.fullName} confirmado para ${formatDate(appt.appointmentDate)}.`,
     type: "APPOINTMENT_CONFIRMED",
@@ -173,7 +179,7 @@ export async function confirmAppointmentAction(appointmentId: string) {
     relatedEntityId: appointmentId,
   });
 
-  await sendAppointmentConfirmation(appt.customer.whatsapp, appt.customer.id, {
+  await sendAppointmentConfirmation(user.companyId, appt.customer.whatsapp, appt.customer.id, {
     customerName: appt.customer.fullName,
     date: formatDate(appt.appointmentDate),
     time: formatTime(appt.startTime),
@@ -191,7 +197,7 @@ const cancelSchema = z.object({ reason: z.string().optional() });
 
 export async function cancelAppointmentAdminAction(appointmentId: string, formData?: FormData) {
   const user = await requireAdminContext();
-  await cancelAppointmentCore(appointmentId, user.id);
+  await cancelAppointmentCore(appointmentId, user.companyId, user.id);
   void formData;
 }
 
@@ -199,20 +205,20 @@ export async function cancelAppointmentAsCustomerAction(appointmentId: string): 
   try {
     const customer = await getCurrentCustomer();
     if (!customer) return actionError(new Error("Sessão expirada."));
-    const appt = await prisma.appointment.findUnique({ where: { id: appointmentId } });
+    const appt = await prisma.appointment.findFirst({ where: { id: appointmentId, companyId: customer.companyId } });
     if (!appt || appt.customerId !== customer.id) return actionError(new Error("Agendamento não encontrado."));
     if (appt.status === "COMPLETED" || appt.status === "CANCELLED") {
       return actionError(new Error("Este agendamento não pode mais ser cancelado."));
     }
-    await cancelAppointmentCore(appointmentId, null);
+    await cancelAppointmentCore(appointmentId, customer.companyId, null);
     return actionSuccess();
   } catch (error) {
     return actionError(error);
   }
 }
 
-async function cancelAppointmentCore(appointmentId: string, byUserId: string | null) {
-  const appt = await loadAppointmentContext(appointmentId);
+async function cancelAppointmentCore(appointmentId: string, companyId: string, byUserId: string | null) {
+  const appt = await loadAppointmentContext(appointmentId, companyId);
   if (!appt) throw new Error("Agendamento não encontrado.");
 
   await prisma.appointment.update({
@@ -223,6 +229,7 @@ async function cancelAppointmentCore(appointmentId: string, byUserId: string | n
   await logAudit({ userId: byUserId, action: "appointment_cancelled", entityType: "appointment", entityId: appointmentId, appointmentId });
 
   await createNotification({
+    companyId,
     title: "Agendamento cancelado",
     message: `Agendamento de ${appt.customer.fullName} em ${formatDate(appt.appointmentDate)} foi cancelado.`,
     type: "APPOINTMENT_CANCELLED",
@@ -230,7 +237,7 @@ async function cancelAppointmentCore(appointmentId: string, byUserId: string | n
     relatedEntityId: appointmentId,
   });
 
-  await sendAppointmentCancellation(appt.customer.whatsapp, appt.customer.id, {
+  await sendAppointmentCancellation(companyId, appt.customer.whatsapp, appt.customer.id, {
     customerName: appt.customer.fullName,
     date: formatDate(appt.appointmentDate),
     time: formatTime(appt.startTime),
@@ -243,17 +250,22 @@ async function cancelAppointmentCore(appointmentId: string, byUserId: string | n
 
 export async function completeAppointmentAction(appointmentId: string) {
   const user = await requireAdminContext();
-  await prisma.appointment.update({
-    where: { id: appointmentId },
+  const result = await prisma.appointment.updateMany({
+    where: { id: appointmentId, companyId: user.companyId },
     data: { status: "COMPLETED", completedAt: new Date() },
   });
+  if (result.count === 0) throw new Error("Agendamento não encontrado.");
   await logAudit({ userId: user.id, action: "appointment_completed", entityType: "appointment", entityId: appointmentId, appointmentId });
   revalidatePath("/admin/appointments");
 }
 
 export async function markNoShowAction(appointmentId: string) {
   const user = await requireAdminContext();
-  await prisma.appointment.update({ where: { id: appointmentId }, data: { status: "NO_SHOW" } });
+  const result = await prisma.appointment.updateMany({
+    where: { id: appointmentId, companyId: user.companyId },
+    data: { status: "NO_SHOW" },
+  });
+  if (result.count === 0) throw new Error("Agendamento não encontrado.");
   await logAudit({ userId: user.id, action: "appointment_no_show", entityType: "appointment", entityId: appointmentId, appointmentId });
   revalidatePath("/admin/appointments");
 }

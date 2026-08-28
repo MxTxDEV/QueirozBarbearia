@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AppointmentRowActions } from "./row-actions";
 import type { AppointmentStatus } from "@prisma/client";
+import { requireAdminContext } from "@/lib/require-admin";
 
 const RANGES: { value: AppointmentRangeFilter; label: string }[] = [
   { value: "today", label: "Hoje" },
@@ -28,14 +29,15 @@ export default async function AppointmentsPage({
 }: {
   searchParams: Promise<{ range?: string; barberId?: string; status?: string; q?: string }>;
 }) {
+  const user = await requireAdminContext();
   const sp = await searchParams;
   const range = (sp.range as AppointmentRangeFilter) ?? "today";
   const barberId = sp.barberId || undefined;
   const status = (sp.status as AppointmentStatus) || undefined;
 
   const [appointments, barbers] = await Promise.all([
-    listAppointments({ range, barberId, status, customerQuery: sp.q }),
-    prisma.barber.findMany({ orderBy: { name: "asc" } }),
+    listAppointments(user.companyId, { range, barberId, status, customerQuery: sp.q }),
+    prisma.barber.findMany({ where: { companyId: user.companyId }, orderBy: { name: "asc" } }),
   ]);
 
   return (

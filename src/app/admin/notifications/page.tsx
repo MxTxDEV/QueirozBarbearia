@@ -7,7 +7,7 @@ import { markAllNotificationsReadAction, markNotificationReadAction } from "@/ac
 
 export default async function NotificationsPage() {
   const user = await requireAdminContext();
-  const notifications = await getNotificationsForUser(user.id, 100);
+  const notifications = await getNotificationsForUser(user.companyId, user.id, 100);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

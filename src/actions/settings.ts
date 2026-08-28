@@ -11,13 +11,13 @@ const schema = z.object({ systemName: z.string().min(2, "Informe um nome.") });
 
 export async function updateSystemNameAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminOnly();
+    const user = await requireAdminOnly();
     const data = schema.parse({ systemName: formData.get("systemName") });
 
     await prisma.systemSetting.upsert({
-      where: { key: "system_name" },
+      where: { companyId_key: { companyId: user.companyId, key: "system_name" } },
       update: { value: data.systemName },
-      create: { key: "system_name", value: data.systemName },
+      create: { companyId: user.companyId, key: "system_name", value: data.systemName },
     });
   } catch (error) {
     return actionError(error);

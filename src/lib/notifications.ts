@@ -2,8 +2,9 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { NotificationType } from "@prisma/client";
 
-/** Cria uma notificação interna. userId nulo = visível para todos os administradores/barbeiros. */
+/** Cria uma notificação interna, sempre associada a uma empresa. userId nulo = visível para todos os administradores/barbeiros dessa empresa. */
 export async function createNotification(params: {
+  companyId: string;
   userId?: string | null;
   title: string;
   message: string;
@@ -13,6 +14,7 @@ export async function createNotification(params: {
 }) {
   return prisma.notification.create({
     data: {
+      companyId: params.companyId,
       userId: params.userId ?? null,
       title: params.title,
       message: params.message,
@@ -23,16 +25,16 @@ export async function createNotification(params: {
   });
 }
 
-export async function getNotificationsForUser(userId: string, limit = 20) {
+export async function getNotificationsForUser(companyId: string, userId: string, limit = 20) {
   return prisma.notification.findMany({
-    where: { OR: [{ userId }, { userId: null }] },
+    where: { companyId, OR: [{ userId }, { userId: null }] },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
 }
 
-export async function getUnreadCountForUser(userId: string) {
+export async function getUnreadCountForUser(companyId: string, userId: string) {
   return prisma.notification.count({
-    where: { OR: [{ userId }, { userId: null }], read: false },
+    where: { companyId, OR: [{ userId }, { userId: null }], read: false },
   });
 }

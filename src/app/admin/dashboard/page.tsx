@@ -25,14 +25,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { BarberComparisonChart } from "@/components/charts/barber-comparison-chart";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function DashboardPage() {
+  const user = await requireAdminContext();
   const [today, month, barberComparison, upcoming, alerts] = await Promise.all([
-    getTodaySummary(),
-    getMonthSummary(),
-    getBarberComparison(),
-    getUpcomingAppointments(),
-    getDashboardAlerts(),
+    getTodaySummary(user.companyId),
+    getMonthSummary(user.companyId),
+    getBarberComparison(user.companyId),
+    getUpcomingAppointments(user.companyId),
+    getDashboardAlerts(user.companyId),
   ]);
 
   const hasAlerts =

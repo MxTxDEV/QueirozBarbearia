@@ -4,7 +4,7 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@prisma/client";
+import type { CompanyStatus, Role } from "@prisma/client";
 
 const SESSION_COOKIE = "session_token";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 dias
@@ -73,6 +73,13 @@ export async function destroySession() {
   }
 }
 
+/**
+ * Usuário autenticado. Para SUPERADMIN, companyId/companyStatus/companyName
+ * são sempre nulos — a plataforma nunca associa esse papel a uma empresa.
+ * Para ADMIN/BARBER, companyId vem exclusivamente do banco (nunca aceito de
+ * input do cliente) e representa a única empresa que esse usuário pode
+ * enxergar.
+ */
 export type CurrentUser = {
   id: string;
   name: string;
@@ -80,6 +87,9 @@ export type CurrentUser = {
   role: Role;
   avatarUrl: string | null;
   barberId: string | null;
+  companyId: string | null;
+  companyStatus: CompanyStatus | null;
+  companyName: string | null;
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -97,7 +107,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { barber: { select: { id: true } } },
+      include: {
+        barber: { select: { id: true } },
+        company: { select: { id: true, status: true, name: true } },
+      },
     });
     if (!user || !user.active) return null;
 
@@ -108,6 +121,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       role: user.role,
       avatarUrl: user.avatarUrl,
       barberId: user.barber?.id ?? null,
+      companyId: user.company?.id ?? null,
+      companyStatus: user.company?.status ?? null,
+      companyName: user.company?.name ?? null,
     };
   } catch {
     return null;

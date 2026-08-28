@@ -48,6 +48,7 @@ export function whatsappConnectionStatus() {
  * fica registrado para auditoria na tela de configurações.
  */
 export async function sendWhatsapp(params: {
+  companyId: string;
   phone: string;
   message: string;
   customerId?: string;
@@ -57,6 +58,7 @@ export async function sendWhatsapp(params: {
 
   await prisma.whatsappMessage.create({
     data: {
+      companyId: params.companyId,
       customerId: params.customerId,
       phone: params.phone,
       message: params.message,
@@ -70,31 +72,47 @@ export async function sendWhatsapp(params: {
   return result;
 }
 
-function barbershopNumber() {
-  return process.env.BARBERSHOP_WHATSAPP_NUMBER ?? "+5531995797674";
+/** Número da barbearia para alertas internos — busca a configuração da empresa, com fallback global. */
+async function barbershopNumber(companyId: string) {
+  const setting = await prisma.systemSetting.findUnique({
+    where: { companyId_key: { companyId, key: "shop_whatsapp" } },
+  });
+  return setting?.value ?? process.env.BARBERSHOP_WHATSAPP_NUMBER ?? "+5531995797674";
 }
 
-export async function sendAppointmentConfirmation(phone: string, customerId: string, data: AppointmentMessageData) {
-  return sendWhatsapp({ phone, customerId, message: appointmentConfirmationTemplate(data) });
+export async function sendAppointmentConfirmation(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: AppointmentMessageData
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: appointmentConfirmationTemplate(data) });
 }
 
-export async function sendAppointmentReminder(phone: string, customerId: string, data: AppointmentMessageData) {
-  return sendWhatsapp({ phone, customerId, message: appointmentReminderTemplate(data) });
+export async function sendAppointmentReminder(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: AppointmentMessageData
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: appointmentReminderTemplate(data) });
 }
 
 export async function sendAppointmentCancellation(
+  companyId: string,
   phone: string,
   customerId: string,
   data: Pick<AppointmentMessageData, "customerName" | "date" | "time">
 ) {
-  return sendWhatsapp({ phone, customerId, message: appointmentCancellationTemplate(data) });
+  return sendWhatsapp({ companyId, phone, customerId, message: appointmentCancellationTemplate(data) });
 }
 
 /** Notifica o WhatsApp da barbearia sobre um novo agendamento recebido. */
-export async function sendNewAppointmentAlertToShop(data: AppointmentMessageData & { status?: string }) {
-  return sendWhatsapp({ phone: barbershopNumber(), message: newAppointmentInternalTemplate(data) });
+export async function sendNewAppointmentAlertToShop(companyId: string, data: AppointmentMessageData & { status?: string }) {
+  const phone = await barbershopNumber(companyId);
+  return sendWhatsapp({ companyId, phone, message: newAppointmentInternalTemplate(data) });
 }
 
-export async function sendCustomerOtp(phone: string, customerId: string, code: string) {
-  return sendWhatsapp({ phone, customerId, message: otpTemplate(code) });
+export async function sendCustomerOtp(companyId: string, phone: string, customerId: string, code: string) {
+  return sendWhatsapp({ companyId, phone, customerId, message: otpTemplate(code) });
 }

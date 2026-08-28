@@ -17,7 +17,7 @@ const goalSchema = z.object({
 
 export async function createGoalAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const data = goalSchema.parse({
       title: formData.get("title"),
       type: formData.get("type"),
@@ -31,8 +31,14 @@ export async function createGoalAction(_prev: ActionResult | undefined, formData
       return actionError(new Error("Selecione o barbeiro para uma meta por barbeiro."));
     }
 
+    if (data.barberId) {
+      const barber = await prisma.barber.findFirst({ where: { id: data.barberId, companyId: user.companyId }, select: { id: true } });
+      if (!barber) return actionError(new Error("Barbeiro não encontrado."));
+    }
+
     await prisma.financialGoal.create({
       data: {
+        companyId: user.companyId,
         title: data.title,
         type: data.type,
         targetValue: data.targetValue,
@@ -50,7 +56,7 @@ export async function createGoalAction(_prev: ActionResult | undefined, formData
 }
 
 export async function deleteGoalAction(id: string) {
-  await requireAdminContext();
-  await prisma.financialGoal.delete({ where: { id } });
+  const user = await requireAdminContext();
+  await prisma.financialGoal.deleteMany({ where: { id, companyId: user.companyId } });
   revalidatePath("/admin/goals");
 }

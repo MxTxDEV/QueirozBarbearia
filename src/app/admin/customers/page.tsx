@@ -6,14 +6,16 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function CustomersPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
+  const user = await requireAdminContext();
   const { q } = await searchParams;
-  const customers = await listCustomers(q);
+  const customers = await listCustomers(user.companyId, q);
 
   return (
     <div className="space-y-6">

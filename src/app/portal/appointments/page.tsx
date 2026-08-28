@@ -8,7 +8,7 @@ import { CancelButton } from "./cancel-button";
 
 export default async function PortalAppointmentsPage() {
   const customer = await requireCustomerContext();
-  const appointments = await listCustomerAppointments(customer.id);
+  const appointments = await listCustomerAppointments(customer.id, customer.companyId);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

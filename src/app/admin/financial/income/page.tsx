@@ -4,10 +4,12 @@ import { PAYMENT_METHOD_LABEL } from "@/lib/labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { IncomeForm } from "./income-form";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function IncomePage() {
+  const user = await requireAdminContext();
   const incomes = await prisma.financialTransaction.findMany({
-    where: { type: "INCOME" },
+    where: { companyId: user.companyId, type: "INCOME" },
     orderBy: { transactionDate: "desc" },
     take: 50,
   });

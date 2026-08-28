@@ -16,7 +16,7 @@ const serviceSchema = z.object({
 
 export async function createServiceAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const data = serviceSchema.parse({
       name: formData.get("name"),
       description: formData.get("description"),
@@ -25,7 +25,7 @@ export async function createServiceAction(_prev: ActionResult | undefined, formD
     });
 
     await prisma.service.create({
-      data: { ...data, description: data.description || undefined },
+      data: { ...data, companyId: user.companyId, description: data.description || undefined },
     });
   } catch (error) {
     return actionError(error);
@@ -41,7 +41,7 @@ export async function updateServiceAction(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    await requireAdminContext();
+    const user = await requireAdminContext();
     const data = serviceSchema.parse({
       name: formData.get("name"),
       description: formData.get("description"),
@@ -49,10 +49,11 @@ export async function updateServiceAction(
       durationMinutes: formData.get("durationMinutes"),
     });
 
-    await prisma.service.update({
-      where: { id },
+    const result = await prisma.service.updateMany({
+      where: { id, companyId: user.companyId },
       data: { ...data, description: data.description || null },
     });
+    if (result.count === 0) return actionError(new Error("Serviço não encontrado."));
   } catch (error) {
     return actionError(error);
   }
@@ -62,7 +63,7 @@ export async function updateServiceAction(
 }
 
 export async function toggleServiceActiveAction(id: string, active: boolean) {
-  await requireAdminContext();
-  await prisma.service.update({ where: { id }, data: { active } });
+  const user = await requireAdminContext();
+  await prisma.service.updateMany({ where: { id, companyId: user.companyId }, data: { active } });
   revalidatePath("/admin/services");
 }

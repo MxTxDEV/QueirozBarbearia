@@ -4,10 +4,12 @@ import { updateServiceAction } from "@/actions/services";
 import { toNumber } from "@/lib/serialize";
 import { Card, CardContent } from "@/components/ui/card";
 import { ServiceForm } from "../../service-form";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function EditServicePage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdminContext();
   const { id } = await params;
-  const service = await prisma.service.findUnique({ where: { id } });
+  const service = await prisma.service.findFirst({ where: { id, companyId: user.companyId } });
   if (!service) notFound();
 
   const action = updateServiceAction.bind(null, id);

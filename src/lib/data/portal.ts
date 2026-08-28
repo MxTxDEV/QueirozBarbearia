@@ -1,10 +1,11 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 
-export async function getCustomerNextAppointment(customerId: string) {
+export async function getCustomerNextAppointment(customerId: string, companyId: string) {
   return prisma.appointment.findFirst({
     where: {
       customerId,
+      companyId,
       status: { in: ["PENDING", "CONFIRMED"] },
       startTime: { gte: new Date() },
     },
@@ -13,9 +14,9 @@ export async function getCustomerNextAppointment(customerId: string) {
   });
 }
 
-export async function listCustomerAppointments(customerId: string) {
+export async function listCustomerAppointments(customerId: string, companyId: string) {
   return prisma.appointment.findMany({
-    where: { customerId },
+    where: { customerId, companyId },
     orderBy: { startTime: "desc" },
     include: { barber: true, services: true },
   });

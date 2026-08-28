@@ -5,8 +5,8 @@ import { AdminShell } from "@/components/layout/admin-shell";
 export default async function AdminLayout({ children }: LayoutProps<"/">) {
   const user = await requireAdminContext();
   const [notifications, unreadCount] = await Promise.all([
-    getNotificationsForUser(user.id, 8),
-    getUnreadCountForUser(user.id),
+    getNotificationsForUser(user.companyId, user.id, 8),
+    getUnreadCountForUser(user.companyId, user.id),
   ]);
 
   return (

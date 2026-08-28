@@ -18,10 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ToggleActiveButton } from "../../services/toggle-active-button";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function BarberDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdminContext();
   const { id } = await params;
-  const [barber, services] = await Promise.all([getBarberDetail(id), listServices()]);
+  const [barber, services] = await Promise.all([getBarberDetail(id, user.companyId), listServices(user.companyId)]);
   if (!barber) notFound();
 
   const hoursByWeekday = new Map(barber.workingHours.map((h) => [h.weekday, h]));

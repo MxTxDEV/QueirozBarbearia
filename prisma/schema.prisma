@@ -15,10 +15,20 @@ datasource db {
 // Enums
 // ---------------------------------------------------------------------------
 
+/// SUPERADMIN administra a plataforma inteira (todas as empresas); não
+/// pertence a nenhuma Company (companyId nulo). Os demais papéis pertencem
+/// sempre a uma Company.
 enum Role {
+  SUPERADMIN
   ADMIN
   BARBER
   CUSTOMER
+}
+
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
 }
 
 enum AppointmentStatus {
@@ -93,12 +103,60 @@ enum WhatsappStatus {
 }
 
 // ---------------------------------------------------------------------------
+// Tenant (empresa / barbearia)
+// ---------------------------------------------------------------------------
+
+/// Uma barbearia cliente da plataforma (tenant). Todo dado operacional
+/// (clientes, barbeiros, agenda, financeiro...) pertence a exatamente uma
+/// Company e nunca é compartilhado entre empresas.
+model Company {
+  id             String        @id @default(cuid())
+  name           String
+  tradeName      String?       @map("trade_name")
+  slug           String        @unique
+  document       String?
+  email          String?
+  phone          String?
+  whatsapp       String?
+  address        String?
+  city           String?
+  state          String?
+  zipCode        String?       @map("zip_code")
+  logoUrl        String?       @map("logo_url")
+  primaryColor   String?       @map("primary_color")
+  secondaryColor String?       @map("secondary_color")
+  status         CompanyStatus @default(ACTIVE)
+  plan           String        @default("FREE")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  users                 User[]
+  customers             Customer[]
+  barbers               Barber[]
+  services              Service[]
+  appointments          Appointment[]
+  payments              Payment[]
+  financialTransactions FinancialTransaction[]
+  expenses              Expense[]
+  financialGoals        FinancialGoal[]
+  notifications         Notification[]
+  whatsappMessages      WhatsappMessage[]
+  auditLogs             AuditLog[]
+  systemSettings        SystemSetting[]
+
+  @@map("companies")
+}
+
+// ---------------------------------------------------------------------------
 // Identity
 // ---------------------------------------------------------------------------
 
-/// Usuários internos (administradores e barbeiros) que fazem login no painel.
+/// Usuários internos (SUPERADMIN da plataforma, ou administradores/barbeiros
+/// de uma empresa) que fazem login no painel. SUPERADMIN tem companyId nulo;
+/// todos os demais papéis pertencem a exatamente uma Company.
 model User {
   id           String   @id @default(cuid())
+  companyId    String?  @map("company_id")
   name         String
   phone        String?
   email        String   @unique
@@ -109,11 +167,13 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  company       Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sessions      Session[]
   barber        Barber?
   notifications Notification[]
   auditLogs     AuditLog[]
 
+  @@index([companyId])
   @@map("users")
 }
 
@@ -162,23 +222,31 @@ model CustomerOtp {
 // Customers
 // ---------------------------------------------------------------------------
 
+/// Um cliente pertence a exatamente uma empresa. A mesma pessoa (mesmo
+/// WhatsApp) pode ser cliente de várias barbearias diferentes — cada uma tem
+/// seu próprio registro Customer — por isso o WhatsApp é único apenas dentro
+/// da empresa, não globalmente.
 model Customer {
   id        String    @id @default(cuid())
+  companyId String    @map("company_id")
   fullName  String    @map("full_name")
-  whatsapp  String    @unique
+  whatsapp  String
   email     String?
   birthDate DateTime? @map("birth_date")
   notes     String?
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  appointments        Appointment[]
-  payments             Payment[]
+  company               Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  appointments          Appointment[]
+  payments              Payment[]
   financialTransactions FinancialTransaction[]
-  whatsappMessages     WhatsappMessage[]
-  sessions             CustomerSession[]
-  otps                 CustomerOtp[]
+  whatsappMessages      WhatsappMessage[]
+  sessions              CustomerSession[]
+  otps                  CustomerOtp[]
 
+  @@unique([companyId, whatsapp])
+  @@index([companyId])
   @@map("customers")
 }
 
@@ -188,6 +256,7 @@ model Customer {
 
 model Barber {
   id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
   userId       String?  @unique @map("user_id")
   name         String
   photoUrl     String?  @map("photo_url")
@@ -197,13 +266,15 @@ model Barber {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  user          User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
-  workingHours  BarberWorkingHour[]
-  timeOffs      BarberTimeOff[]
-  services      BarberService[]
-  appointments  Appointment[]
-  goals         FinancialGoal[]
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user         User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workingHours BarberWorkingHour[]
+  timeOffs     BarberTimeOff[]
+  services     BarberService[]
+  appointments Appointment[]
+  goals        FinancialGoal[]
 
+  @@index([companyId])
   @@map("barbers")
 }
 
@@ -239,6 +310,7 @@ model BarberTimeOff {
 
 model Service {
   id              String   @id @default(cuid())
+  companyId       String   @map("company_id")
   name            String
   description     String?
   price           Decimal  @db.Decimal(10, 2)
@@ -247,9 +319,11 @@ model Service {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  barbers              BarberService[]
-  appointmentServices  AppointmentService[]
+  company             Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  barbers             BarberService[]
+  appointmentServices AppointmentService[]
 
+  @@index([companyId])
   @@map("services")
 }
 
@@ -272,6 +346,7 @@ model BarberService {
 
 model Appointment {
   id                String            @id @default(cuid())
+  companyId         String            @map("company_id")
   customerId        String            @map("customer_id")
   barberId          String            @map("barber_id")
   appointmentDate   DateTime          @map("appointment_date") @db.Date
@@ -287,13 +362,15 @@ model Appointment {
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
 
-  customer Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  barber   Barber                @relation(fields: [barberId], references: [id], onDelete: Restrict)
-  services AppointmentService[]
-  payments Payment[]
+  company               Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer              Customer                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  barber                Barber                  @relation(fields: [barberId], references: [id], onDelete: Restrict)
+  services              AppointmentService[]
+  payments              Payment[]
   financialTransactions FinancialTransaction[]
-  auditLogs AuditLog[]
+  auditLogs             AuditLog[]
 
+  @@index([companyId])
   @@index([barberId, appointmentDate])
   @@index([customerId])
   @@index([status])
@@ -321,6 +398,7 @@ model AppointmentService {
 
 model Payment {
   id            String        @id @default(cuid())
+  companyId     String        @map("company_id")
   appointmentId String?       @map("appointment_id")
   customerId    String        @map("customer_id")
   amount        Decimal       @db.Decimal(10, 2)
@@ -328,15 +406,18 @@ model Payment {
   paidAt        DateTime      @map("paid_at")
   createdAt     DateTime      @default(now()) @map("created_at")
 
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
+  @@index([companyId])
   @@map("payments")
 }
 
 /// Livro-razão financeiro unificado (receitas manuais + receitas de pagamentos + despesas pagas).
 model FinancialTransaction {
   id              String            @id @default(cuid())
+  companyId       String            @map("company_id")
   type            TransactionType
   category        String
   description     String
@@ -350,40 +431,44 @@ model FinancialTransaction {
   notes           String?
   createdAt       DateTime          @default(now()) @map("created_at")
 
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   expense     Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
 
-  @@index([type, transactionDate])
+  @@index([companyId, type, transactionDate])
   @@map("financial_transactions")
 }
 
 model Expense {
-  id             String            @id @default(cuid())
-  description    String
-  category       String
-  amount         Decimal           @db.Decimal(10, 2)
-  dueDate        DateTime          @map("due_date")
-  paidDate       DateTime?         @map("paid_date")
-  status         TransactionStatus @default(PENDING)
-  paymentMethod  PaymentMethod?    @map("payment_method")
-  recurring      Boolean           @default(false)
-  recurrenceType RecurrenceType    @default(NONE) @map("recurrence_type")
-  notes          String?
-  parentExpenseId String?          @map("parent_expense_id")
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
+  id              String            @id @default(cuid())
+  companyId       String            @map("company_id")
+  description     String
+  category        String
+  amount          Decimal           @db.Decimal(10, 2)
+  dueDate         DateTime          @map("due_date")
+  paidDate        DateTime?         @map("paid_date")
+  status          TransactionStatus @default(PENDING)
+  paymentMethod   PaymentMethod?    @map("payment_method")
+  recurring       Boolean           @default(false)
+  recurrenceType  RecurrenceType    @default(NONE) @map("recurrence_type")
+  notes           String?
+  parentExpenseId String?           @map("parent_expense_id")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
 
-  transactions FinancialTransaction[]
-  parentExpense Expense? @relation("ExpenseRecurrence", fields: [parentExpenseId], references: [id], onDelete: SetNull)
-  childExpenses Expense[] @relation("ExpenseRecurrence")
+  company       Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions  FinancialTransaction[]
+  parentExpense Expense?                @relation("ExpenseRecurrence", fields: [parentExpenseId], references: [id], onDelete: SetNull)
+  childExpenses Expense[]               @relation("ExpenseRecurrence")
 
-  @@index([status, dueDate])
+  @@index([companyId, status, dueDate])
   @@map("expenses")
 }
 
 model FinancialGoal {
   id           String     @id @default(cuid())
+  companyId    String     @map("company_id")
   title        String
   type         GoalType
   targetValue  Decimal    @map("target_value") @db.Decimal(12, 2)
@@ -395,8 +480,10 @@ model FinancialGoal {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  barber Barber? @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  barber  Barber? @relation(fields: [barberId], references: [id], onDelete: Cascade)
 
+  @@index([companyId])
   @@map("financial_goals")
 }
 
@@ -404,8 +491,11 @@ model FinancialGoal {
 // Notifications, WhatsApp & audit
 // ---------------------------------------------------------------------------
 
+/// Notificação interna. companyId nulo = notificação de nível de plataforma
+/// (visível apenas para SUPERADMIN); caso contrário pertence à empresa.
 model Notification {
   id                String           @id @default(cuid())
+  companyId         String?          @map("company_id")
   userId            String?          @map("user_id")
   title             String
   message           String
@@ -415,14 +505,17 @@ model Notification {
   relatedEntityId   String?          @map("related_entity_id")
   createdAt         DateTime         @default(now()) @map("created_at")
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([companyId, read])
   @@index([userId, read])
   @@map("notifications")
 }
 
 model WhatsappMessage {
   id                String            @id @default(cuid())
+  companyId         String            @map("company_id")
   customerId        String?           @map("customer_id")
   phone             String
   message           String
@@ -432,14 +525,18 @@ model WhatsappMessage {
   errorMessage      String?           @map("error_message")
   createdAt         DateTime          @default(now()) @map("created_at")
 
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
+  @@index([companyId])
   @@map("whatsapp_messages")
 }
 
-/// Registro de auditoria para eventos críticos do sistema.
+/// Registro de auditoria para eventos críticos do sistema. companyId nulo =
+/// ação de nível de plataforma (feita pelo SUPERADMIN, ex: criar empresa).
 model AuditLog {
   id            String   @id @default(cuid())
+  companyId     String?  @map("company_id")
   userId        String?  @map("user_id")
   action        String
   entityType    String   @map("entity_type")
@@ -448,9 +545,11 @@ model AuditLog {
   metadata      Json?
   createdAt     DateTime @default(now()) @map("created_at")
 
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
+  @@index([companyId])
   @@index([entityType, entityId])
   @@map("audit_logs")
 }
@@ -459,10 +558,17 @@ model AuditLog {
 // System settings
 // ---------------------------------------------------------------------------
 
+/// Configurações por empresa (ex: nome do sistema exibido). Chaves de
+/// plataforma (usadas pelo SUPERADMIN) usam companyId nulo.
 model SystemSetting {
-  key       String   @id
+  id        String   @id @default(cuid())
+  companyId String?  @map("company_id")
+  key       String
   value     String
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
   @@map("system_settings")
 }

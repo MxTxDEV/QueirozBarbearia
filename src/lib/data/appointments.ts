@@ -35,15 +35,19 @@ export function rangeToDates(range: AppointmentRangeFilter): { from?: Date; to?:
   return {};
 }
 
-export async function listAppointments(filters: {
-  range?: AppointmentRangeFilter;
-  barberId?: string;
-  status?: AppointmentStatus;
-  customerQuery?: string;
-}) {
+export async function listAppointments(
+  companyId: string,
+  filters: {
+    range?: AppointmentRangeFilter;
+    barberId?: string;
+    status?: AppointmentStatus;
+    customerQuery?: string;
+  }
+) {
   const { from, to } = rangeToDates(filters.range ?? "all");
 
   const where: Prisma.AppointmentWhereInput = {
+    companyId,
     ...(from && to ? { appointmentDate: { gte: from, lt: to } } : {}),
     ...(filters.barberId ? { barberId: filters.barberId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
@@ -59,9 +63,9 @@ export async function listAppointments(filters: {
   });
 }
 
-export async function getAppointmentDetail(id: string) {
-  return prisma.appointment.findUnique({
-    where: { id },
+export async function getAppointmentDetail(id: string, companyId: string) {
+  return prisma.appointment.findFirst({
+    where: { id, companyId },
     include: { customer: true, barber: true, services: true, payments: true },
   });
 }

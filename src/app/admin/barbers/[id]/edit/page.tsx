@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { updateBarberAction } from "@/actions/barbers";
 import { Card, CardContent } from "@/components/ui/card";
 import { BarberForm } from "../../barber-form";
+import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function EditBarberPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdminContext();
   const { id } = await params;
-  const barber = await prisma.barber.findUnique({ where: { id } });
+  const barber = await prisma.barber.findFirst({ where: { id, companyId: user.companyId } });
   if (!barber) notFound();
 
   const action = updateBarberAction.bind(null, id);
