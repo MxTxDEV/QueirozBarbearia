@@ -10,16 +10,16 @@ import {
   logoutEvolutionInstance,
 } from "@/lib/whatsapp/evolution-client";
 
-function requireEvolutionConfig() {
-  const config = getEvolutionConfig();
+function requireEvolutionConfig(companyId: string) {
+  const config = getEvolutionConfig(companyId);
   if (!config) throw new Error("Integração do WhatsApp não está configurada nas variáveis de ambiente.");
   return config;
 }
 
 export async function getWhatsappQrCodeAction(): Promise<ActionResult<{ base64: string }>> {
   try {
-    await requireAdminOnly();
-    const config = requireEvolutionConfig();
+    const user = await requireAdminOnly();
+    const config = requireEvolutionConfig(user.companyId);
 
     const result = await getEvolutionQrCode(config);
     if ("error" in result) return actionError(new Error(result.error));
@@ -31,8 +31,8 @@ export async function getWhatsappQrCodeAction(): Promise<ActionResult<{ base64: 
 
 export async function getWhatsappConnectionStateAction(): Promise<ActionResult<{ connected: boolean; phone?: string }>> {
   try {
-    await requireAdminOnly();
-    const config = requireEvolutionConfig();
+    const user = await requireAdminOnly();
+    const config = requireEvolutionConfig(user.companyId);
 
     const state = await getEvolutionConnectionState(config);
     const connected = state === "open";
@@ -45,8 +45,8 @@ export async function getWhatsappConnectionStateAction(): Promise<ActionResult<{
 
 export async function disconnectWhatsappAction(): Promise<ActionResult> {
   try {
-    await requireAdminOnly();
-    const config = requireEvolutionConfig();
+    const user = await requireAdminOnly();
+    const config = requireEvolutionConfig(user.companyId);
 
     const result = await logoutEvolutionInstance(config);
     if ("error" in result) return actionError(new Error(result.error));

@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function WhatsappSettingsPage() {
   const user = await requireAdminContext();
-  const status = await whatsappConnectionStatus();
+  const status = await whatsappConnectionStatus(user.companyId);
   const [messages, sentCount, failedCount, lastMessage] = await Promise.all([
     prisma.whatsappMessage.findMany({
       where: { companyId: user.companyId },

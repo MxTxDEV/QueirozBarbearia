@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
-const SUPERADMIN_EMAIL = "admin@baberpro.com";
+const SUPERADMIN_EMAIL = "admin@barberpro.com";
 const SUPERADMIN_PASSWORD = "barberpro123@";
 
 /** Cria o usuário SUPERADMIN da plataforma (idempotente). companyId sempre nulo. */
@@ -48,12 +48,12 @@ export async function runSeed() {
   const passwordHash = await bcrypt.hash("barberpro123", 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@barberpro.com" },
+    where: { email: "queiroz@barberpro.com" },
     update: {},
     create: {
       companyId: company.id,
       name: "Administrador",
-      email: "admin@barberpro.com",
+      email: "queiroz@barberpro.com",
       passwordHash,
       role: "ADMIN",
     },

@@ -31,7 +31,8 @@ pnpm run dev
 
 Acesse `http://localhost:3000`:
 
-- **Painel administrativo** (`/login`): `admin@barberpro.com` / `barberpro123`
+- **Painel administrativo** (`/login`, empresa Queiroz Barbearia): `queiroz@barberpro.com` / `barberpro123`
+- **SuperAdmin** (`/login`, plataforma): `admin@barberpro.com` / `barberpro123@`
 - **Portal do cliente** (`/portal/login`): informe um WhatsApp; em
   desenvolvimento o código OTP é sempre `123456` (nenhuma mensagem real é
   enviada — veja a seção WhatsApp abaixo)

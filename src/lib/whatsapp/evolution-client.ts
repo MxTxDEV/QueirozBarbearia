@@ -21,12 +21,24 @@ export function describeFetchError(error: unknown): string {
   return error.message;
 }
 
-/** Lê a configuração do Evolution API das variáveis de ambiente. */
-export function getEvolutionConfig(): EvolutionConfig | null {
+/**
+ * Lê a configuração do Evolution API para uma empresa. `EVOLUTION_API_URL` e
+ * `EVOLUTION_API_KEY` são globais (é um único servidor Evolution self-hosted
+ * atendendo todas as empresas), mas cada empresa tem sua própria instância
+ * (sessão/número do WhatsApp) nele — nomeada a partir do `companyId`, para
+ * que conectar o número de uma empresa nunca afete o de outra.
+ *
+ * A empresa seed original ("company_default", Queiroz Barbearia) é a
+ * exceção: continua usando o nome fixo de `EVOLUTION_INSTANCE`, se definido,
+ * para não perder a conexão com o número que ela já tinha pareado antes
+ * desta mudança passar a isolar por empresa.
+ */
+export function getEvolutionConfig(companyId: string): EvolutionConfig | null {
   const apiUrl = process.env.EVOLUTION_API_URL;
   const apiKey = process.env.EVOLUTION_API_KEY;
-  const instanceName = process.env.EVOLUTION_INSTANCE;
-  if (!apiUrl || !apiKey || !instanceName) return null;
+  if (!apiUrl || !apiKey) return null;
+  const legacyInstance = companyId === "company_default" ? process.env.EVOLUTION_INSTANCE : undefined;
+  const instanceName = legacyInstance || `barberpro_${companyId}`;
   return { apiUrl: apiUrl.replace(/\/$/, ""), apiKey, instanceName };
 }
 

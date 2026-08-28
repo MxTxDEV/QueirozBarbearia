@@ -16,34 +16,39 @@ import {
 export { appointmentCancellationTemplate, appointmentConfirmationTemplate, appointmentReminderTemplate, newAppointmentInternalTemplate };
 export type { AppointmentMessageData };
 
-let cachedProvider: WhatsAppProvider | null = null;
+/** cloud_api e mock não variam por empresa — um único provedor compartilhado serve. */
+let cachedSharedProvider: WhatsAppProvider | null = null;
+/** evolution varia por empresa (cada uma tem sua própria instância/número). */
+const cachedEvolutionProviders = new Map<string, WhatsAppProvider>();
 
 /** Fábrica do provedor de WhatsApp, controlada por variáveis de ambiente. */
-function getProvider(): WhatsAppProvider {
-  if (cachedProvider) return cachedProvider;
-
+function getProvider(companyId: string): WhatsAppProvider {
   const kind = process.env.WHATSAPP_PROVIDER ?? "mock";
 
   if (kind === "cloud_api") {
+    if (cachedSharedProvider) return cachedSharedProvider;
     const apiUrl = process.env.WHATSAPP_API_URL;
     const apiKey = process.env.WHATSAPP_API_KEY;
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
     if (apiUrl && apiKey && phoneNumberId) {
-      cachedProvider = new CloudApiWhatsAppProvider(apiUrl, apiKey, phoneNumberId);
-      return cachedProvider;
+      cachedSharedProvider = new CloudApiWhatsAppProvider(apiUrl, apiKey, phoneNumberId);
+      return cachedSharedProvider;
     }
   }
 
   if (kind === "evolution") {
-    const config = getEvolutionConfig();
+    const cached = cachedEvolutionProviders.get(companyId);
+    if (cached) return cached;
+    const config = getEvolutionConfig(companyId);
     if (config) {
-      cachedProvider = new EvolutionApiWhatsAppProvider(config.apiUrl, config.apiKey, config.instanceName);
-      return cachedProvider;
+      const provider = new EvolutionApiWhatsAppProvider(config.apiUrl, config.apiKey, config.instanceName);
+      cachedEvolutionProviders.set(companyId, provider);
+      return provider;
     }
   }
 
-  cachedProvider = new MockWhatsAppProvider();
-  return cachedProvider;
+  if (!cachedSharedProvider) cachedSharedProvider = new MockWhatsAppProvider();
+  return cachedSharedProvider;
 }
 
 export type WhatsappStatus = {
@@ -56,7 +61,7 @@ export type WhatsappStatus = {
   connectedNumber?: string;
 };
 
-export async function whatsappConnectionStatus(): Promise<WhatsappStatus> {
+export async function whatsappConnectionStatus(companyId: string): Promise<WhatsappStatus> {
   const configuredKind = (process.env.WHATSAPP_PROVIDER as WhatsappStatus["configuredKind"] | undefined) ?? "mock";
 
   if (configuredKind === "cloud_api") {
@@ -65,7 +70,7 @@ export async function whatsappConnectionStatus(): Promise<WhatsappStatus> {
   }
 
   if (configuredKind === "evolution") {
-    const config = getEvolutionConfig();
+    const config = getEvolutionConfig(companyId);
     if (!config) return { configuredKind, mode: "mock", connected: false };
     const state = await getEvolutionConnectionState(config);
     const connected = state === "open";
@@ -87,7 +92,7 @@ export async function sendWhatsapp(params: {
   message: string;
   customerId?: string;
 }) {
-  const provider = getProvider();
+  const provider = getProvider(params.companyId);
   const result = await provider.sendMessage(params.phone, params.message);
 
   await prisma.whatsappMessage.create({
@@ -121,7 +126,7 @@ async function barbershopNumber(companyId: string): Promise<string | null> {
 
   const configuredKind = process.env.WHATSAPP_PROVIDER ?? "mock";
   if (configuredKind === "evolution") {
-    const config = getEvolutionConfig();
+    const config = getEvolutionConfig(companyId);
     if (config) {
       const connectedNumber = await getEvolutionConnectedNumber(config);
       if (connectedNumber) return connectedNumber;
