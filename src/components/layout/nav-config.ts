@@ -15,6 +15,7 @@ import {
   Settings,
   Building2,
   ShieldCheck,
+  UserCog2,
 } from "lucide-react";
 
 export type NavItem = { label: string; href: string; icon: LucideIcon };
@@ -44,6 +45,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "Sistema",
     items: [
+      { label: "Usuários", href: "/admin/users", icon: UserCog2 },
       { label: "Notificações", href: "/admin/notifications", icon: Bell },
       { label: "WhatsApp", href: "/admin/whatsapp", icon: MessageCircle },
       { label: "Configurações", href: "/admin/settings", icon: Settings },

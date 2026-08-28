@@ -15,6 +15,7 @@ import { AppointmentRowActions } from "./row-actions";
 import { CalendarToolbar } from "./calendar/calendar-toolbar";
 import { TimeGrid, type GridAppointment } from "./calendar/time-grid";
 import { MonthGrid, type MonthAppointment } from "./calendar/month-grid";
+import { MobileAgenda } from "./calendar/mobile-agenda";
 import {
   addDays,
   dateOnlyUTC,
@@ -183,7 +184,19 @@ export default async function AppointmentsPage({
       {isCalendar ? (
         <div className="space-y-4">
           <CalendarToolbar view={calendarView} anchor={anchor} buildHref={buildHref} />
-          <Card className="p-4">
+
+          <MobileAgenda
+            days={days}
+            today={today}
+            skipEmptyDays={calendarView === "month"}
+            items={appointments.map((appt) => ({
+              block: toBlock(appt),
+              actions: renderActions(appt),
+              day: appt.appointmentDate,
+            }))}
+          />
+
+          <Card className="hidden p-4 md:block">
             {calendarView === "month" ? (
               <MonthGrid
                 days={days}
