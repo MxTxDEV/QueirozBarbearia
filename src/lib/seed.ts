@@ -41,6 +41,7 @@ export async function runSeed() {
       tradeName: "Queiroz Barbearia",
       slug: "queiroz-barbearia",
       whatsapp: "+5531995797674",
+      logoUrl: "/logo-queiroz-transparent.png",
     },
   });
 

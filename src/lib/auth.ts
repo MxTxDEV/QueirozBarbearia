@@ -149,6 +149,7 @@ export type CurrentUser = {
   companyId: string | null;
   companyStatus: CompanyStatus | null;
   companyName: string | null;
+  companyLogoUrl: string | null;
   impersonatedBy: { id: string; name: string } | null;
 };
 
@@ -170,7 +171,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       where: { id: userId },
       include: {
         barber: { select: { id: true } },
-        company: { select: { id: true, status: true, name: true } },
+        company: { select: { id: true, status: true, name: true, logoUrl: true } },
       },
     });
     if (!user || !user.active) return null;
@@ -197,6 +198,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       companyId: user.company?.id ?? null,
       companyStatus: user.company?.status ?? null,
       companyName: user.company?.name ?? null,
+      companyLogoUrl: user.company?.logoUrl ?? null,
       impersonatedBy,
     };
   } catch {

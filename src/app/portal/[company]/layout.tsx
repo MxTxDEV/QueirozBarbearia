@@ -26,7 +26,12 @@ export default async function PortalCompanyLayout({
   if (!customer || customer.companyId !== company.id) return children;
 
   return (
-    <PortalShell customerName={customer.fullName} companySlug={slug}>
+    <PortalShell
+      customerName={customer.fullName}
+      companySlug={slug}
+      companyName={company.name}
+      companyLogoUrl={company.logoUrl}
+    >
       {children}
     </PortalShell>
   );

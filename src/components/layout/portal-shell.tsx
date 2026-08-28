@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, CalendarPlus, CalendarClock, User, LogOut } from "lucide-react";
-import { BrandLogo } from "@/components/brand-logo";
+import { CompanyLogo } from "@/components/company-logo";
 import { cn } from "@/lib/utils";
 import { logoutCustomerAction } from "@/actions/customer-auth";
 
@@ -11,10 +11,14 @@ export function PortalShell({
   children,
   customerName,
   companySlug,
+  companyName,
+  companyLogoUrl,
 }: {
   children: React.ReactNode;
   customerName: string;
   companySlug: string;
+  companyName: string;
+  companyLogoUrl: string | null;
 }) {
   const pathname = usePathname();
   const base = `/portal/${companySlug}`;
@@ -29,7 +33,7 @@ export function PortalShell({
     <div className="flex min-h-screen flex-col pb-20 md:pb-0">
       <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between px-4 md:px-6">
         <Link href={`${base}/dashboard`}>
-          <BrandLogo height={22} />
+          <CompanyLogo logoUrl={companyLogoUrl} name={companyName} height={22} />
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
           {NAV.map((item) => {

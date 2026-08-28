@@ -6,9 +6,10 @@ import { ChangePasswordForm } from "./change-password-form";
 
 export default async function SettingsPage() {
   const user = await requireAdminContext();
-  const systemNameSetting = await prisma.systemSetting.findUnique({
-    where: { companyId_key: { companyId: user.companyId, key: "system_name" } },
-  });
+  const [systemNameSetting, company] = await Promise.all([
+    prisma.systemSetting.findUnique({ where: { companyId_key: { companyId: user.companyId, key: "system_name" } } }),
+    prisma.company.findUnique({ where: { id: user.companyId }, select: { logoUrl: true } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -20,7 +21,7 @@ export default async function SettingsPage() {
             <CardTitle>Identidade do sistema</CardTitle>
           </CardHeader>
           <CardContent>
-            <SettingsForm systemName={systemNameSetting?.value ?? "Barber Pro"} />
+            <SettingsForm systemName={systemNameSetting?.value ?? "Barber Pro"} logoUrl={company?.logoUrl ?? ""} />
           </CardContent>
         </Card>
       )}

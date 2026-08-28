@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X, LogOut, ShieldAlert } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { CompanyLogo } from "@/components/company-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { ADMIN_NAV_SECTIONS } from "./nav-config";
 import { NotificationsBell, type BellNotification } from "./notifications-bell";
@@ -17,6 +18,8 @@ export function AdminShell({
   notifications,
   unreadCount,
   impersonatedBy,
+  companyName,
+  companyLogoUrl,
 }: {
   children: React.ReactNode;
   userName: string;
@@ -24,6 +27,8 @@ export function AdminShell({
   notifications: BellNotification[];
   unreadCount: number;
   impersonatedBy?: { id: string; name: string } | null;
+  companyName: string;
+  companyLogoUrl: string | null;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -44,7 +49,7 @@ export function AdminShell({
       {/* Sidebar - desktop (fixa: acompanha a rolagem da página) */}
       <aside className="glass sticky top-0 hidden h-full w-64 shrink-0 md:flex md:flex-col">
         <div className="flex h-16 items-center border-b px-5">
-          <BrandLogo height={26} />
+          <CompanyLogo logoUrl={companyLogoUrl} name={companyName} height={26} />
         </div>
         <SidebarNav sections={ADMIN_NAV_SECTIONS} />
         <div className="border-t p-3">
@@ -58,7 +63,7 @@ export function AdminShell({
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
           <aside className="glass-strong absolute left-0 top-0 flex h-full w-64 flex-col">
             <div className="flex h-16 items-center justify-between border-b px-5">
-              <BrandLogo height={24} />
+              <CompanyLogo logoUrl={companyLogoUrl} name={companyName} height={24} />
               <button onClick={() => setMobileOpen(false)} aria-label="Fechar menu" className="text-foreground-muted">
                 <X className="h-5 w-5" />
               </button>

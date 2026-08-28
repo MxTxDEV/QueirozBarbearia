@@ -3,13 +3,19 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentCustomer, type CurrentCustomer } from "@/lib/customer-auth";
 
-export type PortalCompany = { id: string; name: string; slug: string; status: "ACTIVE" | "SUSPENDED" | "BLOCKED" };
+export type PortalCompany = {
+  id: string;
+  name: string;
+  slug: string;
+  status: "ACTIVE" | "SUSPENDED" | "BLOCKED";
+  logoUrl: string | null;
+};
 
 /** Resolve a empresa do portal a partir do slug na URL. 404 se não existir — nunca confia no slug para nada além de localizar a empresa. */
 export async function resolvePortalCompany(slug: string): Promise<PortalCompany> {
   const company = await prisma.company.findUnique({
     where: { slug },
-    select: { id: true, name: true, slug: true, status: true },
+    select: { id: true, name: true, slug: true, status: true, logoUrl: true },
   });
   if (!company) notFound();
   return company;
