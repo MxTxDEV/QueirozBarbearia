@@ -61,7 +61,7 @@ export default async function AppointmentsPage({
   const isCalendar = sp.view !== "list";
   const calendarView: CalendarView = CALENDAR_VIEWS.includes(sp.cal as CalendarView)
     ? (sp.cal as CalendarView)
-    : "week";
+    : "day";
   const anchor = parseAnchor(sp.date);
   const range = (sp.range as AppointmentRangeFilter) ?? "week";
   const isBarberLogin = user.role === "BARBER";
