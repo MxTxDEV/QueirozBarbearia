@@ -10,6 +10,12 @@ export default async function SettingsPage() {
     prisma.systemSetting.findUnique({ where: { companyId_key: { companyId: user.companyId, key: "system_name" } } }),
     prisma.company.findUnique({ where: { id: user.companyId }, select: { logoUrl: true } }),
   ]);
+  const currentLogoUrl = company?.logoUrl ?? null;
+  // Só preenche o campo de URL externa se a logo atual for mesmo uma URL
+  // absoluta (https://...) — nunca um caminho interno (upload nosso, ou o
+  // arquivo estático herdado da migração antiga), senão o navegador recusa
+  // o submit por não ser uma URL válida no input type="url".
+  const externalLogoUrl = currentLogoUrl && /^https:\/\//.test(currentLogoUrl) ? currentLogoUrl : "";
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -21,7 +27,11 @@ export default async function SettingsPage() {
             <CardTitle>Identidade do sistema</CardTitle>
           </CardHeader>
           <CardContent>
-            <SettingsForm systemName={systemNameSetting?.value ?? "Barber Pro"} logoUrl={company?.logoUrl ?? ""} />
+            <SettingsForm
+              systemName={systemNameSetting?.value ?? "Barber Pro"}
+              currentLogoUrl={currentLogoUrl}
+              externalLogoUrl={externalLogoUrl}
+            />
           </CardContent>
         </Card>
       )}

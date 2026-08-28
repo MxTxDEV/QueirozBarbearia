@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# uploads (logo por empresa etc.) — persistem em disco fora do controle de versão
+/uploads
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
