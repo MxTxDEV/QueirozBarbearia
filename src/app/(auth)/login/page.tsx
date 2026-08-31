@@ -7,7 +7,12 @@ import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {
   const user = await getCurrentUser();
-  if (user) redirect("/admin/dashboard");
+  // Manda pro painel certo conforme o papel — mandar todo mundo pra
+  // /admin/dashboard incondicionalmente fazia um SUPERADMIN já logado
+  // entrar num loop: /login manda pro admin, o admin exige role
+  // ADMIN/BARBER e manda de volta pro /login, e assim por diante (o
+  // navegador chega a bloquear a navegação de tantos redirecionamentos).
+  if (user) redirect(user.role === "SUPERADMIN" ? "/superadmin/dashboard" : "/admin/dashboard");
 
   // Autoconfiguração: se o banco ainda não tem nenhum administrador de
   // empresa (primeiro acesso em um ambiente novo), popula a empresa de
