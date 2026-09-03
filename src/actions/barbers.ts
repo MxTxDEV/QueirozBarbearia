@@ -92,8 +92,12 @@ const workingHourSchema = z.object({
   weekday: z.coerce.number().int().min(0).max(6),
   startTime: z.string().min(1),
   endTime: z.string().min(1),
-  breakStart: z.string().optional().or(z.literal("")),
-  breakEnd: z.string().optional().or(z.literal("")),
+  // .nullish() (não .optional()) porque o formulário compacto de "Ativar
+  // dia" (dia sem horário definido) nem envia esses campos — FormData.get()
+  // retorna null pra chave ausente, e .optional() só aceita undefined,
+  // rejeitando null e fazendo o upsert falhar silenciosamente.
+  breakStart: z.string().nullish(),
+  breakEnd: z.string().nullish(),
 });
 
 export async function upsertWorkingHourAction(barberId: string, formData: FormData): Promise<ActionResult> {
