@@ -14,8 +14,13 @@ export default async function PortalLoginPage({ params }: { params: Promise<{ co
   return (
     <Card>
       <CardHeader>
-        <h1 className="text-lg font-semibold text-foreground">{company.name}</h1>
-        <p className="text-sm text-foreground-muted">Entre com seu WhatsApp para agendar seu horário.</p>
+        {/* O nome da empresa já aparece em destaque no logo, logo acima
+            deste card (ver layout) — repeti-lo aqui como título só duplicava
+            a mesma informação duas vezes na mesma tela. */}
+        <h1 className="text-lg font-semibold text-foreground">Vamos agendar seu horário?</h1>
+        <p className="text-sm text-foreground-muted">
+          Informe seu WhatsApp e enviamos um código de acesso na hora.
+        </p>
       </CardHeader>
       <CardContent>
         <PortalLoginForm companySlug={slug} />

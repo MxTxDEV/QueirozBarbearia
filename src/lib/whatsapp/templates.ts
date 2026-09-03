@@ -62,8 +62,8 @@ Valor: R$ ${d.totalPrice}
 Status: ${d.status ?? "Aguardando confirmação"}`;
 }
 
-export function otpTemplate(code: string) {
-  return `Seu código de acesso Barber Pro é: ${code}
+export function otpTemplate(code: string, companyName: string) {
+  return `Seu código de acesso ${companyName} é: ${code}
 
 Válido por 5 minutos. Não compartilhe este código.`;
 }

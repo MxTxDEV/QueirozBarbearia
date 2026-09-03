@@ -37,7 +37,7 @@ export async function requestCustomerOtpAction(
     const whatsapp = normalizeWhatsapp(data.whatsapp);
     if (!whatsapp) return actionError(new Error("Número de WhatsApp inválido. Use o formato (DD) 9XXXX-XXXX."));
 
-    const company = await prisma.company.findUnique({ where: { slug: data.companySlug }, select: { id: true, status: true } });
+    const company = await prisma.company.findUnique({ where: { slug: data.companySlug }, select: { id: true, name: true, status: true } });
     if (!company || company.status !== "ACTIVE") return actionError(new Error("Empresa não encontrada ou indisponível."));
 
     const customer = await prisma.customer.upsert({
@@ -47,7 +47,7 @@ export async function requestCustomerOtpAction(
     });
 
     const code = await createCustomerOtp(customer.id);
-    await sendCustomerOtp(company.id, whatsapp, customer.id, code);
+    await sendCustomerOtp(company.id, whatsapp, customer.id, code, company.name);
 
     return actionSuccess({ customerId: customer.id, whatsapp });
   } catch (error) {

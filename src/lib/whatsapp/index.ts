@@ -192,12 +192,12 @@ export async function sendNewAppointmentAlertToShop(companyId: string, data: App
   return sendWhatsapp({ companyId, phone, message: newAppointmentInternalTemplate(data) });
 }
 
-export async function sendCustomerOtp(companyId: string, phone: string, customerId: string, code: string) {
+export async function sendCustomerOtp(companyId: string, phone: string, customerId: string, code: string, companyName: string) {
   return sendWhatsapp({
     companyId,
     phone,
     customerId,
-    message: otpTemplate(code),
-    logMessage: otpTemplate("••••••"),
+    message: otpTemplate(code, companyName),
+    logMessage: otpTemplate("••••••", companyName),
   });
 }

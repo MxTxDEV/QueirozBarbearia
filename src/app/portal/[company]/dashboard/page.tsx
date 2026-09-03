@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarPlus } from "lucide-react";
-import { requireCompleteCustomerProfile } from "@/lib/require-customer";
+import { requireCompleteCustomerProfile, resolvePortalCompany } from "@/lib/require-customer";
 import { getCustomerNextAppointment } from "@/lib/data/portal";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,14 +10,14 @@ import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labe
 
 export default async function PortalDashboardPage({ params }: { params: Promise<{ company: string }> }) {
   const { company: slug } = await params;
-  const customer = await requireCompleteCustomerProfile(slug);
+  const [customer, company] = await Promise.all([requireCompleteCustomerProfile(slug), resolvePortalCompany(slug)]);
   const next = await getCustomerNextAppointment(customer.id, customer.companyId);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Olá, {customer.fullName.split(" ")[0]}!</h1>
-        <p className="text-sm text-foreground-muted">Bem-vindo ao seu portal Barber Pro.</p>
+        <p className="text-sm text-foreground-muted">Bem-vindo ao seu espaço na {company.name}.</p>
       </div>
 
       <Card>
