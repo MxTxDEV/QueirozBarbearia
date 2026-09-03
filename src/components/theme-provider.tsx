@@ -22,6 +22,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
+    // Sincroniza o estado React com o atributo já definido no <html> pelo
+    // script pré-hidratação (ver THEME_INIT_SCRIPT em layout.tsx) — precisa
+    // ser um efeito, não lazy init do useState: SSR não tem acesso ao DOM
+    // real, então ler o atributo já no render inicial produziria um valor
+    // diferente do HTML enviado pelo servidor (mismatch de hidratação em
+    // qualquer componente que dependa do tema, ex: BrandLogo).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
   }, []);
 

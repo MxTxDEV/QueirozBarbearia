@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 export function ToggleActiveButton({
@@ -20,7 +21,16 @@ export function ToggleActiveButton({
       variant="outline"
       size="sm"
       disabled={pending}
-      onClick={() => startTransition(() => action(id, !active))}
+      onClick={() =>
+        startTransition(async () => {
+          try {
+            await action(id, !active);
+            toast.success(active ? "Desativado com sucesso." : "Ativado com sucesso.");
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Não foi possível concluir a ação.");
+          }
+        })
+      }
     >
       {active ? "Desativar" : "Ativar"}
     </Button>
