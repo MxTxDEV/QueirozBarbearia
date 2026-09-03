@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
 
 export async function listCustomers(companyId: string, search?: string) {
+  // `whatsapp.contains: ""` bate com QUALQUER telefone (toda string contém a
+  // string vazia) — uma busca só com letras (sem dígito nenhum) tinha esse
+  // branch do OR sempre verdadeiro, e retornava todos os clientes da empresa
+  // em vez de filtrar. Só inclui esse branch quando sobrou algum dígito.
+  const phoneDigits = search?.replace(/\D/g, "") ?? "";
   const customers = await prisma.customer.findMany({
     where: {
       companyId,
@@ -10,7 +15,7 @@ export async function listCustomers(companyId: string, search?: string) {
         ? {
             OR: [
               { fullName: { contains: search, mode: "insensitive" } },
-              { whatsapp: { contains: search.replace(/\D/g, "") } },
+              ...(phoneDigits ? [{ whatsapp: { contains: phoneDigits } }] : []),
             ],
           }
         : {}),

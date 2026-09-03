@@ -18,7 +18,7 @@ export function SidebarNav({
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
+    <nav aria-label="Navegação principal" className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
       {sections.map((section, i) => {
         const items = isAdmin ? section.items : section.items.filter((item) => !item.adminOnly);
         if (items.length === 0) return null;

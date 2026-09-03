@@ -1,22 +1,11 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { timeOnDate, dateOnly, overlaps } from "@/lib/availability-helpers";
+
+export { timeOnDate, dateOnly, overlaps };
 
 const SLOT_STEP_MINUTES = 15;
 const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED"] as const;
-
-/** Constrói um Date em UTC para uma data (Y-M-D) e horário "HH:mm" — evita bugs de fuso horário do servidor. */
-export function timeOnDate(date: Date, hhmm: string): Date {
-  const [h, m] = hhmm.split(":").map(Number);
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), h, m, 0, 0));
-}
-
-export function dateOnly(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
-  return aStart < bEnd && bStart < aEnd;
-}
 
 export type TimeSlot = { start: Date; label: string };
 

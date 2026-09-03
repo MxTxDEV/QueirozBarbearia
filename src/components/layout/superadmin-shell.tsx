@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X, LogOut, ShieldCheck } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
 import { SUPERADMIN_NAV_SECTIONS } from "./nav-config";
+import { SkipLink } from "./skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { logoutAction } from "@/actions/auth";
 
@@ -13,6 +14,7 @@ export function SuperAdminShell({ children, userName }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen">
+      <SkipLink />
       <aside className="glass sticky top-0 hidden h-screen w-64 shrink-0 md:flex md:flex-col">
         <div className="flex h-16 items-center gap-2 border-b px-5">
           <ShieldCheck className="h-5 w-5 text-accent-light" />
@@ -74,7 +76,7 @@ export function SuperAdminShell({ children, userName }: { children: React.ReactN
             </form>
           </div>
         </header>
-        <main className="min-w-0 flex-1 px-4 py-6 md:px-6">{children}</main>
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 outline-none md:px-6">{children}</main>
       </div>
     </div>
   );

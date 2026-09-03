@@ -30,6 +30,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Queiroz Barbearia | Agendamento online",
   description: "Agende seu horário na Queiroz Barbearia. Gestão completa com Barber Pro.",
+  manifest: "/manifest.json",
+};
+
+export const viewport = {
+  themeColor: "#08090b",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

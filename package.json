@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:demo": "tsx prisma/demo-seed.ts",
-    "db:seed:test-company": "tsx prisma/test-company-seed.ts"
+    "db:seed:test-company": "tsx prisma/test-company-seed.ts",
+    "test": "vitest run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -41,7 +42,8 @@
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.0"
   },
   "packageManager": "pnpm@10.33.0",
   "engines": {

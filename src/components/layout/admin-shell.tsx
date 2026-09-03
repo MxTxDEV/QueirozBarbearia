@@ -8,6 +8,8 @@ import { CompanyLogo } from "@/components/company-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { ADMIN_NAV_SECTIONS } from "./nav-config";
 import { NotificationsBell, type BellNotification } from "./notifications-bell";
+import { CommandPalette } from "./command-palette";
+import { SkipLink } from "./skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { logoutAction } from "@/actions/auth";
 import { stopImpersonationAction } from "@/actions/superadmin";
@@ -37,6 +39,7 @@ export function AdminShell({
 
   return (
     <div className="flex min-h-screen flex-col">
+      <SkipLink />
       {impersonatedBy && (
         <div className="flex flex-wrap items-center justify-center gap-2 bg-warning/90 px-4 py-2 text-center text-sm font-medium text-black">
           <ShieldAlert className="h-4 w-4" />
@@ -87,6 +90,7 @@ export function AdminShell({
           </button>
           <div className="hidden flex-1 md:block" />
           <div className="flex items-center gap-3">
+            <CommandPalette />
             <ThemeToggle />
             <NotificationsBell notifications={notifications} unreadCount={unreadCount} />
             <div className="hidden items-center gap-2 sm:flex">
@@ -107,7 +111,7 @@ export function AdminShell({
             </form>
           </div>
         </header>
-        <main className="min-w-0 flex-1 px-4 py-6 md:px-6">{children}</main>
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 outline-none md:px-6">{children}</main>
       </div>
       </div>
     </div>
