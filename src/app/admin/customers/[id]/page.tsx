@@ -76,26 +76,43 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
             <CardHeader>
               <CardTitle>Histórico de agendamentos</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent>
               {customer.appointments.length === 0 && (
                 <p className="text-sm text-foreground-muted">Nenhum agendamento ainda.</p>
               )}
-              {customer.appointments.map((appt) => (
-                <div key={appt.id} className="flex items-center justify-between rounded-xl border p-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {formatDate(appt.appointmentDate)} — {appt.barber.name}
-                    </p>
-                    <p className="text-xs text-foreground-muted">
-                      {appt.services.map((s) => s.serviceName).join(", ")}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-foreground-muted">{formatCurrency(appt.totalPrice.toString())}</span>
-                    <Badge variant={APPOINTMENT_STATUS_VARIANT[appt.status]}>{APPOINTMENT_STATUS_LABEL[appt.status]}</Badge>
-                  </div>
-                </div>
-              ))}
+              {customer.appointments.length > 0 && (
+                <ol className="space-y-0">
+                  {customer.appointments.map((appt, i) => {
+                    const isLast = i === customer.appointments.length - 1;
+                    return (
+                      <li key={appt.id} className="relative flex gap-4 pb-6 last:pb-0">
+                        {!isLast && <span className="absolute left-[5px] top-3 h-full w-px bg-[var(--border-glass)]" aria-hidden />}
+                        <span
+                          className={`relative mt-1.5 h-[11px] w-[11px] shrink-0 rounded-full border-2 border-background ${
+                            appt.status === "COMPLETED"
+                              ? "bg-success"
+                              : appt.status === "CANCELLED" || appt.status === "NO_SHOW"
+                                ? "bg-danger"
+                                : "bg-secondary-light"
+                          }`}
+                        />
+                        <div className="min-w-0 flex-1 pb-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-foreground">{formatDate(appt.appointmentDate)}</p>
+                            <Badge variant={APPOINTMENT_STATUS_VARIANT[appt.status]}>{APPOINTMENT_STATUS_LABEL[appt.status]}</Badge>
+                          </div>
+                          <p className="text-sm text-foreground-muted">
+                            {appt.services.map((s) => s.serviceName).join(", ")} · {appt.barber.name}
+                          </p>
+                          <p className="mt-0.5 text-sm font-medium text-foreground">
+                            {formatCurrency(appt.totalPrice.toString())}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
             </CardContent>
           </Card>
         </div>

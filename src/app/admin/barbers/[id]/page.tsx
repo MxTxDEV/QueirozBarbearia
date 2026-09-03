@@ -64,6 +64,27 @@ export default async function BarberDetailPage({ params }: { params: Promise<{ i
                 "use server";
                 await upsertWorkingHourAction(id, formData);
               };
+
+              // Dia sem horário definido: linha compacta, sem os 4 campos de
+              // horário (que mostrariam 09:00–19:00 por padrão mesmo pro dia
+              // estando de folga — parecia já configurado sem estar).
+              if (!hour) {
+                return (
+                  <form key={weekday} action={action} className="flex items-center justify-between gap-2 rounded-xl border p-3">
+                    <input type="hidden" name="weekday" value={weekday} />
+                    <input type="hidden" name="startTime" value="09:00" />
+                    <input type="hidden" name="endTime" value="19:00" />
+                    <span className="text-sm font-medium text-foreground">{weekdayName(weekday)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-foreground-muted">Dia de folga</span>
+                      <SubmitButton size="sm" variant="secondary" pendingText="...">
+                        Ativar dia
+                      </SubmitButton>
+                    </div>
+                  </form>
+                );
+              }
+
               return (
                 <form
                   key={weekday}
@@ -74,33 +95,26 @@ export default async function BarberDetailPage({ params }: { params: Promise<{ i
                   <span className="w-24 shrink-0 pb-2 text-sm font-medium text-foreground">{weekdayName(weekday)}</span>
                   <div className="space-y-1">
                     <Label className="text-[10px]">Início</Label>
-                    <Input name="startTime" type="time" defaultValue={hour?.startTime ?? "09:00"} className="w-28" />
+                    <Input name="startTime" type="time" defaultValue={hour.startTime} className="w-28" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px]">Fim</Label>
-                    <Input name="endTime" type="time" defaultValue={hour?.endTime ?? "19:00"} className="w-28" />
+                    <Input name="endTime" type="time" defaultValue={hour.endTime} className="w-28" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px]">Almoço início</Label>
-                    <Input name="breakStart" type="time" defaultValue={hour?.breakStart ?? ""} className="w-28" />
+                    <Input name="breakStart" type="time" defaultValue={hour.breakStart ?? ""} className="w-28" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px]">Almoço fim</Label>
-                    <Input name="breakEnd" type="time" defaultValue={hour?.breakEnd ?? ""} className="w-28" />
+                    <Input name="breakEnd" type="time" defaultValue={hour.breakEnd ?? ""} className="w-28" />
                   </div>
                   <SubmitButton size="sm" variant="secondary" pendingText="...">
-                    {hour ? "Salvar" : "Ativar dia"}
+                    Salvar
                   </SubmitButton>
-                  {hour && (
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant="ghost"
-                      formAction={removeWorkingHourAction.bind(null, id, weekday)}
-                    >
-                      Folga
-                    </Button>
-                  )}
+                  <Button type="submit" size="sm" variant="ghost" formAction={removeWorkingHourAction.bind(null, id, weekday)}>
+                    Folga
+                  </Button>
                 </form>
               );
             })}
