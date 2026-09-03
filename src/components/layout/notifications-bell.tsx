@@ -51,7 +51,7 @@ export function NotificationsBell({
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary-dark px-1 text-[10px] font-bold text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -84,7 +84,7 @@ export function NotificationsBell({
                     <p className="font-medium text-foreground">{n.title}</p>
                   </div>
                   <p className="mt-0.5 line-clamp-2 text-xs text-foreground-muted">{n.message}</p>
-                  <p className="mt-1 text-[11px] text-foreground-muted/60">
+                  <p className="mt-1 text-[11px] text-foreground-muted">
                     {formatDate(n.createdAt)} às {formatTime(n.createdAt)}
                   </p>
                 </div>

@@ -196,7 +196,7 @@ export default async function AppointmentsPage({
               href={buildHref({ mode: "calendar" })}
               className={
                 "flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all " +
-                (isCalendar ? "bg-secondary text-white" : "text-foreground-muted hover:text-foreground")
+                (isCalendar ? "bg-secondary-dark text-white" : "text-foreground-muted hover:text-foreground")
               }
             >
               <CalendarDays className="h-3.5 w-3.5" /> Calendário
@@ -205,7 +205,7 @@ export default async function AppointmentsPage({
               href={buildHref({ mode: "list" })}
               className={
                 "flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all " +
-                (!isCalendar ? "bg-secondary text-white" : "text-foreground-muted hover:text-foreground")
+                (!isCalendar ? "bg-secondary-dark text-white" : "text-foreground-muted hover:text-foreground")
               }
             >
               <List className="h-3.5 w-3.5" /> Lista
@@ -233,7 +233,7 @@ export default async function AppointmentsPage({
           </>
         )}
         {!isBarberLogin && (
-          <Select name="barberId" defaultValue={barberId} className="w-48">
+          <Select name="barberId" defaultValue={barberId} className="w-48" aria-label="Filtrar por barbeiro">
             <option value="">Todos os barbeiros</option>
             {barbers.map((b) => (
               <option key={b.id} value={b.id}>
@@ -242,7 +242,7 @@ export default async function AppointmentsPage({
             ))}
           </Select>
         )}
-        <Select name="status" defaultValue={status} className="w-48">
+        <Select name="status" defaultValue={status} className="w-48" aria-label="Filtrar por status">
           <option value="">Todos os status</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>

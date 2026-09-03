@@ -48,7 +48,7 @@ export function ActivitySection({ items }: { items: ActivityItem[] }) {
                     {item.amount !== undefined ? `${formatCurrency(item.amount)} — ${item.subtitle}` : item.subtitle}
                   </p>
                 </div>
-                <span className="shrink-0 text-xs text-foreground-muted/70">{timeAgo(item.at)}</span>
+                <span className="shrink-0 text-xs text-foreground-muted">{timeAgo(item.at)}</span>
               </div>
             );
           })}

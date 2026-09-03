@@ -8,15 +8,15 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-gradient-to-b from-secondary-light to-secondary text-white shadow-[0_4px_20px_rgba(14,165,233,0.35)] hover:brightness-110 active:brightness-95",
+          "bg-secondary-dark text-white shadow-[0_4px_20px_rgba(14,165,233,0.35)] hover:brightness-110 active:brightness-95",
         accent:
-          "bg-gradient-to-b from-accent-light to-accent text-white shadow-[0_4px_20px_rgba(29,78,216,0.3)] hover:brightness-110",
+          "bg-accent-dark text-white shadow-[0_4px_20px_rgba(29,78,216,0.3)] hover:brightness-110",
         secondary:
           "glass glass-hover text-foreground border-glass",
         outline:
           "border bg-transparent text-foreground hover:bg-[var(--surface-subtle-hover)]",
         ghost: "text-foreground-muted hover:bg-[var(--surface-subtle-hover)] hover:text-foreground",
-        destructive: "bg-danger text-white hover:brightness-110",
+        destructive: "bg-danger-button text-white hover:brightness-110",
         link: "text-secondary-light underline-offset-4 hover:underline",
       },
       size: {

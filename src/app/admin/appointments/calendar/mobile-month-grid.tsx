@@ -49,7 +49,7 @@ export function MobileMonthGrid({
               className={cn(
                 "flex aspect-square flex-col items-center justify-center gap-1 rounded-xl text-sm transition-colors",
                 outsideMonth ? "text-foreground-muted/40" : "text-foreground",
-                isToday ? "bg-secondary font-semibold text-white" : "hover:bg-[var(--surface-subtle-hover)]"
+                isToday ? "bg-secondary-dark font-semibold text-white" : "hover:bg-[var(--surface-subtle-hover)]"
               )}
             >
               <span>{day.getUTCDate()}</span>

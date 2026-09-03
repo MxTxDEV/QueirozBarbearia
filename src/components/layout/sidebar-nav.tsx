@@ -25,7 +25,7 @@ export function SidebarNav({
         return (
         <div key={i}>
           {section.title && (
-            <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-foreground-muted/70">
+            <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
               {section.title}
             </p>
           )}

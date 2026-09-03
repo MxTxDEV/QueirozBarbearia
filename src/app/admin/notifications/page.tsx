@@ -35,7 +35,7 @@ export default async function NotificationsPage() {
                   <p className="font-medium text-foreground">{n.title}</p>
                 </div>
                 <p className="mt-1 text-sm text-foreground-muted">{n.message}</p>
-                <p className="mt-1 text-xs text-foreground-muted/60">
+                <p className="mt-1 text-xs text-foreground-muted">
                   {formatDate(n.createdAt)} às {formatTime(n.createdAt)}
                 </p>
               </div>

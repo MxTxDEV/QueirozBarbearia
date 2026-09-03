@@ -53,7 +53,7 @@ export function MonthGrid({
                     <p
                       className={cn(
                         "mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
-                        isToday ? "bg-secondary text-white" : "text-foreground-muted"
+                        isToday ? "bg-secondary-dark text-white" : "text-foreground-muted"
                       )}
                     >
                       {day.getUTCDate()}

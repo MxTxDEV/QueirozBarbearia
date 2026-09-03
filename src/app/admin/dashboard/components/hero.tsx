@@ -55,7 +55,7 @@ export function Hero({
             <div
               className={
                 "mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium " +
-                (change >= 0 ? "bg-success/15 text-success" : "bg-danger/15 text-danger")
+                (change >= 0 ? "bg-[var(--badge-success-bg)] text-success" : "bg-[var(--badge-danger-bg)] text-danger")
               }
             >
               {change >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}

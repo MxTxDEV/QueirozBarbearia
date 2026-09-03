@@ -14,7 +14,7 @@ export function PeriodSelector({ current }: { current: DashboardPeriod }) {
           href={`/admin/dashboard?period=${p}`}
           className={cn(
             "rounded-full px-3.5 py-1.5 text-sm font-medium transition-all",
-            current === p ? "bg-secondary text-white shadow-[0_2px_12px_rgba(14,165,233,0.4)]" : "text-foreground-muted hover:text-foreground"
+            current === p ? "bg-secondary-dark text-white shadow-[0_2px_12px_rgba(14,165,233,0.4)]" : "text-foreground-muted hover:text-foreground"
           )}
         >
           {DASHBOARD_PERIOD_LABEL[p]}

@@ -94,7 +94,7 @@ export function TimeGrid({
                 <p
                   className={cn(
                     "mx-auto mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold",
-                    isToday ? "bg-secondary text-white" : "text-foreground"
+                    isToday ? "bg-secondary-dark text-white" : "text-foreground"
                   )}
                 >
                   {day.getUTCDate()}

@@ -28,6 +28,15 @@
 
   --accent: #3b82f6;
   --accent-light: #60a5fa;
+  /* Só pra fundo de botão (accent/destructive) — --accent e --danger
+     continuam calibrados pra uso como TEXTO; texto branco sobre eles não
+     bate 4.5:1 (auditoria de contraste da F8), então botões sólidos usam
+     --accent-dark/--danger-button, mais escuros, em vez do gradiente
+     anterior (from-accent-light to-accent), que também não fechava
+     contraste em nenhum dos dois tons. Mesmo valor nos dois temas — só
+     redefinido aqui porque é onde os outros tokens de cor moram. */
+  --accent-dark: #1d4ed8;
+  --danger-button: #dc2626;
 
   --surface-glass: rgba(255, 255, 255, 0.045);
   --surface-glass-hover: rgba(255, 255, 255, 0.08);
@@ -38,6 +47,17 @@
   --success: #34d399;
   --warning: #fbbf24;
   --danger: #f87171;
+
+  /* Fundo tingido dos Badge (texto sólido da própria cor sobre uma versão
+     translúcida dela). --badge-danger-bg intencionalmente usa a MESMA cor
+     de --danger neste tema (só existe como token separado porque no claro
+     as duas precisam de opacidades bem diferentes — ver bloco do tema
+     claro logo abaixo). */
+  --badge-secondary-bg: rgba(14, 165, 233, 0.15);
+  --badge-accent-bg: rgba(59, 130, 246, 0.15);
+  --badge-success-bg: rgba(52, 211, 153, 0.15);
+  --badge-warning-bg: rgba(251, 191, 36, 0.15);
+  --badge-danger-bg: rgba(248, 113, 113, 0.15);
 
   /*
     Elevação: 2 níveis, cada um só a sombra — a superfície (opaca/vidro) é
@@ -102,9 +122,26 @@
   --surface-subtle-hover: rgba(15, 23, 42, 0.055);
   --border-glass: rgba(15, 23, 42, 0.1);
 
-  --success: #059669;
-  --warning: #b45309;
-  --danger: #dc2626;
+  /* #059669/#b45309/#dc2626 (tons originais) passavam como link/texto
+     isolado mas falhavam quando usados como fundo tingido de Badge (~3:1,
+     abaixo do mínimo AA de 4.5:1) — escurecidos mais, confirmado via
+     auditoria de contraste automatizada (mesmo processo que já tinha
+     corrigido --secondary-light nesta sessão). */
+  --success: #047857;
+  --warning: #92400e;
+  --danger: #b91c1c;
+
+  /* Fundo tingido dos Badge no claro: opacidade bem menor que no escuro
+     (3% em vez de 15%) — sobre um fundo quase-branco, a mesma opacidade do
+     escuro deixa o texto colorido perto demais do próprio fundo tingido
+     (falha de contraste confirmada na auditoria; ver --success/--warning/
+     --danger acima, que sozinhos já não bastavam). Cores-base (secondary/
+     accent) não mudam entre temas, só a opacidade do tingimento. */
+  --badge-secondary-bg: rgba(14, 165, 233, 0.03);
+  --badge-accent-bg: rgba(59, 130, 246, 0.03);
+  --badge-success-bg: rgba(4, 120, 87, 0.03);
+  --badge-warning-bg: rgba(146, 64, 14, 0.03);
+  --badge-danger-bg: rgba(185, 28, 28, 0.03);
 
   /* Mesma ideia de 2 níveis do escuro, mas bem mais leve — sobre fundo
      claro, a opacidade que dá profundidade no escuro vira mancha cinza
@@ -129,6 +166,8 @@
 
   --color-accent: var(--accent);
   --color-accent-light: var(--accent-light);
+  --color-accent-dark: var(--accent-dark);
+  --color-danger-button: var(--danger-button);
 
   --color-success: var(--success);
   --color-warning: var(--warning);

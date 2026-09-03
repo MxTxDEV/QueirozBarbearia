@@ -87,11 +87,11 @@ export function CommandPalette() {
         type="button"
         onClick={openPalette}
         className="flex items-center gap-2 rounded-xl border bg-[var(--surface-subtle)] px-2.5 py-2 text-sm text-foreground-muted hover:bg-[var(--surface-subtle-hover)] sm:px-3 sm:py-1.5"
-        aria-label="Buscar"
+        aria-label="Buscar... Ctrl K"
       >
         <Search className="h-4 w-4" />
         <span className="hidden sm:inline">Buscar...</span>
-        <kbd className="ml-2 hidden rounded border px-1.5 py-0.5 text-[10px] text-foreground-muted/70 sm:inline">Ctrl K</kbd>
+        <kbd className="ml-2 hidden rounded border px-1.5 py-0.5 text-[10px] text-foreground-muted sm:inline">Ctrl K</kbd>
       </button>
     );
   }
@@ -126,7 +126,7 @@ export function CommandPalette() {
             const Icon = TYPE_ICON[type];
             return (
               <div key={type} className="mb-2">
-                <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground-muted/70">
+                <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
                   {TYPE_LABEL[type]}
                 </p>
                 {group.map((r) => {
@@ -144,7 +144,7 @@ export function CommandPalette() {
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="flex-1 truncate">{r.title}</span>
-                      <span className="truncate text-xs text-foreground-muted/70">{r.subtitle}</span>
+                      <span className="truncate text-xs text-foreground-muted">{r.subtitle}</span>
                       {isActive && <CornerDownLeft className="h-3.5 w-3.5 shrink-0" />}
                     </button>
                   );

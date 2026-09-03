@@ -24,7 +24,7 @@ export function MarkPaidForm({ expenseId }: { expenseId: string }) {
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-2">
       <Input name="paidDate" type="date" required className="h-9 w-36" defaultValue={new Date().toISOString().slice(0, 10)} />
-      <Select name="paymentMethod" required defaultValue="PIX" className="h-9 w-40">
+      <Select name="paymentMethod" required defaultValue="PIX" className="h-9 w-40" aria-label="Forma de pagamento">
         {Object.entries(PAYMENT_METHOD_LABEL).map(([value, label]) => (
           <option key={value} value={value}>
             {label}

@@ -60,7 +60,7 @@ export function AdminShell({
         </div>
         <SidebarNav sections={ADMIN_NAV_SECTIONS} isAdmin={isAdmin} />
         <div className="border-t p-3">
-          <p className="truncate px-3 text-xs text-foreground-muted/70">{roleLabel}</p>
+          <p className="truncate px-3 text-xs text-foreground-muted">{roleLabel}</p>
         </div>
       </aside>
 

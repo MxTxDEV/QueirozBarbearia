@@ -22,7 +22,7 @@ export function SuperAdminShell({ children, userName }: { children: React.ReactN
         </div>
         <SidebarNav sections={SUPERADMIN_NAV_SECTIONS} />
         <div className="border-t p-3">
-          <p className="truncate px-3 text-xs text-foreground-muted/70">Super Admin</p>
+          <p className="truncate px-3 text-xs text-foreground-muted">Super Admin</p>
         </div>
       </aside>
 

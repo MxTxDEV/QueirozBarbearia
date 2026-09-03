@@ -85,7 +85,7 @@ export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; com
           <div key={label} className="flex min-w-0 items-center gap-1 sm:gap-2">
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
-                i <= step ? "bg-secondary text-white" : "bg-[var(--surface-subtle)] text-foreground-muted"
+                i <= step ? "bg-secondary-dark text-white" : "bg-[var(--surface-subtle)] text-foreground-muted"
               }`}
             >
               {i + 1}

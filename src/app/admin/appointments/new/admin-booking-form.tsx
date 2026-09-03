@@ -75,8 +75,8 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
         <CardContent className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Cliente</Label>
-              <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              <Label htmlFor="booking-customer">Cliente</Label>
+              <Select id="booking-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
                 <option value="">Selecione um cliente</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -86,8 +86,9 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Barbeiro</Label>
+              <Label htmlFor="booking-barber">Barbeiro</Label>
               <Select
+                id="booking-barber"
                 value={barberId}
                 onChange={(e) => {
                   setBarberId(e.target.value);
