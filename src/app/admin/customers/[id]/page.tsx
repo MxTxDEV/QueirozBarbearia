@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { MessageForm } from "./message-form";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default async function CustomerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdminContext();
@@ -20,6 +21,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
 
   return (
     <div className="space-y-6">
+      <Breadcrumb items={[{ label: "Clientes", href: "/admin/customers" }, { label: customer.fullName }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{customer.fullName}</h1>

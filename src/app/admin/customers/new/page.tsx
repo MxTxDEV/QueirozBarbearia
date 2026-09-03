@@ -1,10 +1,12 @@
 import { createCustomerAction } from "@/actions/customers";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CustomerForm } from "../customer-form";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default function NewCustomerPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      <Breadcrumb items={[{ label: "Clientes", href: "/admin/customers" }, { label: "Novo" }]} />
       <h1 className="text-2xl font-semibold text-foreground">Novo cliente</h1>
       <Card>
         <CardHeader>

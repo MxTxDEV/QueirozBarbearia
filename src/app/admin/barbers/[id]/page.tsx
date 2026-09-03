@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ToggleActiveButton } from "../../services/toggle-active-button";
 import { requireAdminContext } from "@/lib/require-admin";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default async function BarberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdminContext();
@@ -31,6 +32,7 @@ export default async function BarberDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
+      <Breadcrumb items={[{ label: "Barbeiros", href: "/admin/barbers" }, { label: barber.name }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-secondary-light to-secondary-dark text-xl font-semibold text-white">

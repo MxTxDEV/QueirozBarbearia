@@ -10,6 +10,7 @@ import { ADMIN_NAV_SECTIONS } from "./nav-config";
 import { NotificationsBell, type BellNotification } from "./notifications-bell";
 import { CommandPalette } from "./command-palette";
 import { SkipLink } from "./skip-link";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { logoutAction } from "@/actions/auth";
 import { stopImpersonationAction } from "@/actions/superadmin";
@@ -111,9 +112,12 @@ export function AdminShell({
             </form>
           </div>
         </header>
-        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 outline-none md:px-6">{children}</main>
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 pb-24 outline-none md:px-6 md:pb-6">
+          {children}
+        </main>
       </div>
       </div>
+      <MobileBottomNav isAdmin={isAdmin} onOpenMore={() => setMobileOpen(true)} />
     </div>
   );
 }

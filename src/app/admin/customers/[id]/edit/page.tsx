@@ -4,6 +4,7 @@ import { updateCustomerAction } from "@/actions/customers";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CustomerForm } from "../../customer-form";
 import { requireAdminContext } from "@/lib/require-admin";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default async function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdminContext();
@@ -15,6 +16,13 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Clientes", href: "/admin/customers" },
+          { label: customer.fullName, href: `/admin/customers/${id}` },
+          { label: "Editar" },
+        ]}
+      />
       <h1 className="text-2xl font-semibold text-foreground">Editar cliente</h1>
       <Card>
         <CardHeader />

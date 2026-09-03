@@ -5,6 +5,7 @@ import { toNumber } from "@/lib/serialize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PaymentForm } from "./payment-form";
 import { requireAdminContext } from "@/lib/require-admin";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default async function RegisterPaymentPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdminContext();
@@ -14,6 +15,13 @@ export default async function RegisterPaymentPage({ params }: { params: Promise<
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Agendamentos", href: "/admin/appointments" },
+          { label: appointment.customer.fullName },
+          { label: "Pagamento" },
+        ]}
+      />
       <h1 className="text-2xl font-semibold text-foreground">Registrar pagamento</h1>
       <Card>
         <CardHeader>

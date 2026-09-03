@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
 import { AdminBookingForm } from "./admin-booking-form";
 import { requireAdminContext } from "@/lib/require-admin";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default async function NewAppointmentPage() {
   const user = await requireAdminContext();
@@ -29,6 +30,7 @@ export default async function NewAppointmentPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumb items={[{ label: "Agendamentos", href: "/admin/appointments" }, { label: "Novo" }]} />
       <h1 className="text-2xl font-semibold text-foreground">Novo agendamento</h1>
       <AdminBookingForm
         barbers={data}

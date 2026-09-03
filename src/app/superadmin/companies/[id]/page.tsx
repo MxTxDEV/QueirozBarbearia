@@ -9,6 +9,7 @@ import { CompanyStatusActions } from "./company-status-actions";
 import { NewUserForm } from "./new-user-form";
 import { UserActiveToggle } from "./user-active-toggle";
 import { ImpersonateButton } from "./impersonate-button";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "Ativa", SUSPENDED: "Suspensa", BLOCKED: "Bloqueada" };
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger"> = {
@@ -27,6 +28,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="space-y-6">
+      <Breadcrumb items={[{ label: "Empresas", href: "/superadmin/companies" }, { label: company.name }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{company.name}</h1>
