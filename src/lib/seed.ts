@@ -1,16 +1,22 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { resolveSeedPassword } from "@/lib/seed-credentials";
 
 const SUPERADMIN_EMAIL = "admin@barberpro.com";
-const SUPERADMIN_PASSWORD = "barberpro123@";
 
-/** Cria o usuário SUPERADMIN da plataforma (idempotente). companyId sempre nulo. */
-export async function ensureSuperAdmin() {
+/**
+ * Cria o usuário SUPERADMIN da plataforma (idempotente). companyId sempre
+ * nulo. A senha vem de SUPERADMIN_PASSWORD (env) ou é gerada aleatoriamente
+ * na primeira execução — só é retornada em texto puro quando a conta é
+ * criada nesta chamada, nunca para uma conta já existente.
+ */
+export async function ensureSuperAdmin(): Promise<{ email: string; password: string | null }> {
   const existing = await prisma.user.findUnique({ where: { email: SUPERADMIN_EMAIL } });
-  if (existing) return existing;
+  if (existing) return { email: SUPERADMIN_EMAIL, password: null };
 
-  const passwordHash = await bcrypt.hash(SUPERADMIN_PASSWORD, 12);
-  return prisma.user.create({
+  const { password } = resolveSeedPassword("SUPERADMIN_PASSWORD");
+  const passwordHash = await bcrypt.hash(password, 12);
+  await prisma.user.create({
     data: {
       name: "Super Admin",
       email: SUPERADMIN_EMAIL,
@@ -19,6 +25,7 @@ export async function ensureSuperAdmin() {
       companyId: null,
     },
   });
+  return { email: SUPERADMIN_EMAIL, password };
 }
 
 /**
@@ -28,9 +35,14 @@ export async function ensureSuperAdmin() {
  * Usado pelo script `db:seed` e pela rota `/api/system/seed` — útil em
  * ambientes onde não é possível rodar `prisma db seed` diretamente contra o
  * banco de produção (ex: conexão só via HTTPS).
+ *
+ * As senhas das contas da empresa demo vêm de SEED_ADMIN_PASSWORD (env) ou
+ * são geradas aleatoriamente — só retornadas em texto puro quando as contas
+ * são criadas nesta chamada (upsert com `update: {}` nunca altera uma senha
+ * já existente).
  */
 export async function runSeed() {
-  await ensureSuperAdmin();
+  const superAdmin = await ensureSuperAdmin();
 
   const company = await prisma.company.upsert({
     where: { slug: "queiroz-barbearia" },
@@ -45,15 +57,18 @@ export async function runSeed() {
     },
   });
 
-  const passwordHash = await bcrypt.hash("barberpro123", 12);
+  const companyAdminEmail = "queiroz@barberpro.com";
+  const adminExisted = !!(await prisma.user.findUnique({ where: { email: companyAdminEmail }, select: { id: true } }));
+  const { password: companyPassword } = resolveSeedPassword("SEED_ADMIN_PASSWORD");
+  const passwordHash = await bcrypt.hash(companyPassword, 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: "queiroz@barberpro.com" },
+    where: { email: companyAdminEmail },
     update: {},
     create: {
       companyId: company.id,
       name: "Administrador",
-      email: "queiroz@barberpro.com",
+      email: companyAdminEmail,
       passwordHash,
       role: "ADMIN",
     },
@@ -157,5 +172,14 @@ export async function runSeed() {
     create: { companyId: company.id, key: "shop_whatsapp", value: "+5531995797674" },
   });
 
-  return { admin: admin.email, company: company.slug };
+  return {
+    admin: admin.email,
+    company: company.slug,
+    credentials: {
+      superAdmin: superAdmin.password ? { email: superAdmin.email, password: superAdmin.password } : null,
+      companyAccounts: !adminExisted
+        ? { password: companyPassword, emails: [companyAdminEmail, "marcos@barberpro.com", "arthur@barberpro.com"] }
+        : null,
+    },
+  };
 }

@@ -22,7 +22,17 @@ export default async function LoginPage() {
   // garantido separadamente (idempotente, custo desprezível).
   const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
   if (adminCount === 0) {
-    await runSeed();
+    const result = await runSeed();
+    // Só existe esse instante para capturar a senha gerada — depois só o hash
+    // fica salvo. Vai para o log do servidor (Coolify/VPS), nunca pro cliente.
+    if (result.credentials.superAdmin) {
+      console.log(`[seed] Super Admin criado: ${result.credentials.superAdmin.email} / senha: ${result.credentials.superAdmin.password}`);
+    }
+    if (result.credentials.companyAccounts) {
+      console.log(
+        `[seed] Empresa demo (${result.company}) — contas criadas: ${result.credentials.companyAccounts.emails.join(", ")} / senha: ${result.credentials.companyAccounts.password}`
+      );
+    }
   } else {
     await ensureSuperAdmin();
   }

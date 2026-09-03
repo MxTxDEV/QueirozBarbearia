@@ -1,8 +1,16 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { runSeed } from "@/lib/seed";
 import { runDemoSeed, removeDemoData } from "@/lib/demo-seed";
 import { runTestCompanySeed } from "@/lib/test-company-seed";
 import { prisma } from "@/lib/prisma";
+
+/** Compara em tempo constante — evita que a duração da comparação vaze, byte a byte, o segredo correto. */
+function secretsMatch(provided: string, expected: string) {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 /**
  * Endpoint de seed protegido por segredo — existe para permitir popular o
@@ -24,7 +32,7 @@ export async function POST(request: NextRequest) {
   }
 
   const provided = request.headers.get("x-seed-secret");
-  if (provided !== secret) {
+  if (!provided || !secretsMatch(provided, secret)) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 

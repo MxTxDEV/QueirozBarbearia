@@ -7,7 +7,13 @@ import type { WhatsAppProvider, WhatsappSendResult } from "./types";
  */
 export class MockWhatsAppProvider implements WhatsAppProvider {
   async sendMessage(phone: string, message: string): Promise<WhatsappSendResult> {
-    console.log(`[WhatsApp MOCK] -> ${phone}\n${message}\n`);
+    if (process.env.NODE_ENV === "production") {
+      // Nunca loga o conteúdo em produção — pode ser um código OTP. Só o
+      // aviso alto em getProvider() já sinaliza o problema de configuração.
+      console.warn(`[WhatsApp MOCK] Envio simulado em produção para ${phone} (conteúdo omitido do log).`);
+    } else {
+      console.log(`[WhatsApp MOCK] -> ${phone}\n${message}\n`);
+    }
     return { ok: true, providerMessageId: `mock_${Date.now()}` };
   }
 }

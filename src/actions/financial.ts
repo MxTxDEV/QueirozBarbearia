@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { logAudit } from "@/lib/audit";
-import { createNotification } from "@/lib/notifications";
 import { nextRecurrenceDate } from "@/lib/recurrence";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 import type { PaymentMethod, RecurrenceType } from "@prisma/client";
@@ -198,8 +197,8 @@ export async function markExpensePaidAction(
     const paidDate = new Date(data.paidDate);
 
     await prisma.$transaction(async (tx) => {
-      await tx.expense.update({
-        where: { id: expenseId },
+      await tx.expense.updateMany({
+        where: { id: expenseId, companyId: user.companyId },
         data: { status: "PAID", paidDate, paymentMethod: data.paymentMethod },
       });
 
@@ -244,24 +243,4 @@ export async function markExpensePaidAction(
   revalidatePath("/admin/financial/expenses");
   revalidatePath("/admin/financial");
   return actionSuccess();
-}
-
-/** Job global (cron) — percorre despesas vencidas de todas as empresas e notifica cada uma isoladamente. */
-export async function checkOverdueExpensesAndNotify() {
-  const overdue = await prisma.expense.findMany({ where: { status: "OVERDUE" } });
-  for (const expense of overdue) {
-    const existing = await prisma.notification.findFirst({
-      where: { companyId: expense.companyId, relatedEntityType: "expense", relatedEntityId: expense.id, type: "EXPENSE_OVERDUE" },
-    });
-    if (!existing) {
-      await createNotification({
-        companyId: expense.companyId,
-        title: "⚠️ Despesa vencida",
-        message: `${expense.description} venceu e ainda não foi paga.`,
-        type: "EXPENSE_OVERDUE",
-        relatedEntityType: "expense",
-        relatedEntityId: expense.id,
-      });
-    }
-  }
 }

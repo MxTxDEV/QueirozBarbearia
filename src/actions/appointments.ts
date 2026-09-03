@@ -176,8 +176,8 @@ export async function confirmAppointmentAction(appointmentId: string) {
   const appt = await loadAppointmentContext(appointmentId, user.companyId);
   if (!appt) throw new Error("Agendamento não encontrado.");
 
-  await prisma.appointment.update({
-    where: { id: appointmentId },
+  await prisma.appointment.updateMany({
+    where: { id: appointmentId, companyId: user.companyId },
     data: { status: "CONFIRMED", confirmedAt: new Date() },
   });
 
@@ -231,8 +231,8 @@ async function cancelAppointmentCore(appointmentId: string, companyId: string, b
   const appt = await loadAppointmentContext(appointmentId, companyId);
   if (!appt) throw new Error("Agendamento não encontrado.");
 
-  await prisma.appointment.update({
-    where: { id: appointmentId },
+  await prisma.appointment.updateMany({
+    where: { id: appointmentId, companyId },
     data: { status: "CANCELLED", cancelledAt: new Date() },
   });
 

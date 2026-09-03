@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { runDemoSeed } from "@/lib/demo-seed";
+import { resolveSeedPassword } from "@/lib/seed-credentials";
 
 /**
  * Cria uma empresa de TESTE completa (idempotente via upsert): admin, 3
@@ -30,15 +31,18 @@ export async function runTestCompanySeed() {
     },
   });
 
-  const passwordHash = await bcrypt.hash("barberpro123", 12);
+  const testAdminEmail = "teste@barberpro.com";
+  const adminExisted = !!(await prisma.user.findUnique({ where: { email: testAdminEmail }, select: { id: true } }));
+  const { password: sharedPassword } = resolveSeedPassword("SEED_TEST_COMPANY_PASSWORD");
+  const passwordHash = await bcrypt.hash(sharedPassword, 12);
 
   await prisma.user.upsert({
-    where: { email: "teste@barberpro.com" },
+    where: { email: testAdminEmail },
     update: {},
     create: {
       companyId: company.id,
       name: "Administrador Teste",
-      email: "teste@barberpro.com",
+      email: testAdminEmail,
       passwordHash,
       role: "ADMIN",
     },
@@ -88,5 +92,13 @@ export async function runTestCompanySeed() {
 
   const demo = await runDemoSeed(company.id);
 
-  return { company: company.slug, admin: "teste@barberpro.com", barbers: barbers.length, ...demo };
+  return {
+    company: company.slug,
+    admin: testAdminEmail,
+    barbers: barbers.length,
+    ...demo,
+    credentials: !adminExisted
+      ? { password: sharedPassword, emails: [testAdminEmail, ...BARBERS_DATA.map((b) => `${b.slug}@barberpro.com`)] }
+      : null,
+  };
 }

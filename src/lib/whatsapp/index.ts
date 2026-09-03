@@ -47,7 +47,17 @@ function getProvider(companyId: string): WhatsAppProvider {
     }
   }
 
-  if (!cachedSharedProvider) cachedSharedProvider = new MockWhatsAppProvider();
+  if (!cachedSharedProvider) {
+    if (process.env.NODE_ENV === "production") {
+      // Alto-falante no log do servidor: cair pro mock em produção significa
+      // que nenhuma mensagem real (nem código de login) chega ao cliente —
+      // precisa ser corrigido configurando WHATSAPP_PROVIDER corretamente.
+      console.error(
+        `[WhatsApp] ATENÇÃO: WHATSAPP_PROVIDER="${kind}" está ausente ou mal configurado em produção — caindo para o modo MOCK. Mensagens reais (incluindo códigos de login de clientes) não serão entregues.`
+      );
+    }
+    cachedSharedProvider = new MockWhatsAppProvider();
+  }
   return cachedSharedProvider;
 }
 
@@ -91,6 +101,13 @@ export async function sendWhatsapp(params: {
   phone: string;
   message: string;
   customerId?: string;
+  /**
+   * Texto alternativo persistido em `whatsapp_messages` no lugar de `message`.
+   * Usado para não guardar segredos (ex: código OTP) em texto puro num log
+   * que ADMIN e BARBER da empresa podem ler em /admin/whatsapp — a mensagem
+   * real (com `message`) ainda é enviada normalmente ao cliente.
+   */
+  logMessage?: string;
 }) {
   const provider = getProvider(params.companyId);
   const result = await provider.sendMessage(params.phone, params.message);
@@ -100,7 +117,7 @@ export async function sendWhatsapp(params: {
       companyId: params.companyId,
       customerId: params.customerId,
       phone: params.phone,
-      message: params.message,
+      message: params.logMessage ?? params.message,
       direction: "OUTBOUND",
       status: result.ok ? "SENT" : "FAILED",
       providerMessageId: result.providerMessageId,
@@ -176,5 +193,11 @@ export async function sendNewAppointmentAlertToShop(companyId: string, data: App
 }
 
 export async function sendCustomerOtp(companyId: string, phone: string, customerId: string, code: string) {
-  return sendWhatsapp({ companyId, phone, customerId, message: otpTemplate(code) });
+  return sendWhatsapp({
+    companyId,
+    phone,
+    customerId,
+    message: otpTemplate(code),
+    logMessage: otpTemplate("••••••"),
+  });
 }

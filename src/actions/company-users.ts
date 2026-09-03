@@ -59,7 +59,7 @@ export async function createCompanyUserAction(_prev: ActionResult | undefined, f
     });
 
     if (barberId) {
-      await prisma.barber.update({ where: { id: barberId }, data: { userId: user.id } });
+      await prisma.barber.updateMany({ where: { id: barberId, companyId: admin.companyId }, data: { userId: user.id } });
     }
 
     await logAudit({
