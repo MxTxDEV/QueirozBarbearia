@@ -39,7 +39,33 @@
   --warning: #fbbf24;
   --danger: #f87171;
 
-  --radius: 1.25rem;
+  /*
+    Elevação: 2 níveis, cada um só a sombra — a superfície (opaca/vidro) é
+    decidida por quem usa (.glass, .glass-solid, .glass-strong). Nível 1 é
+    o padrão pra qualquer painel/card; nível 2 é reservado pra conteúdo que
+    flutua sobre a interface (modal, dropdown, command palette).
+  */
+  --shadow-1: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  /*
+    Movimento: uma curva só (padrão de saída rápida, entrada suave) e duas
+    durações — rápida pra feedback de cor/borda (hover, focus), base pra
+    qualquer coisa que se move/aparece (elevação no hover, abrir modal).
+    Acima de 250ms começa a parecer lento num painel de gestão.
+  */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+
+  /*
+    Raio: sem token próprio — a escala padrão do Tailwind já cobre bem e é
+    usada de forma consistente: rounded-lg (controles pequenos: badge de
+    status inline), rounded-xl (controles: Button, Input, Select,
+    Textarea), rounded-2xl (contêineres: Card, Table), rounded-full
+    (pills: Badge, avatar, Progress). Manter essa convenção em vez de
+    introduzir uma escala paralela.
+  */
 }
 
 /*
@@ -79,6 +105,12 @@
   --success: #059669;
   --warning: #b45309;
   --danger: #dc2626;
+
+  /* Mesma ideia de 2 níveis do escuro, mas bem mais leve — sobre fundo
+     claro, a opacidade que dá profundidade no escuro vira mancha cinza
+     pesada em vez de sombra sutil. */
+  --shadow-1: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-2: 0 12px 32px rgba(15, 23, 42, 0.12);
 }
 
 @theme inline {
@@ -177,11 +209,13 @@ body {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-glass);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-1);
 }
 
 .glass-hover {
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: background-color var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard);
 }
 
 .glass-hover:hover {
@@ -195,23 +229,19 @@ body {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-glass);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-2);
 }
 
-/* Sombras e realces do vidro são pensados para flutuar sobre um fundo
-   escuro — sobre fundo claro precisam de bem menos peso/opacidade, senão
-   viram uma mancha cinza pesada em vez de um card sutil. */
-[data-theme="light"] .glass {
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-}
-
+/* Realce de borda no hover é pensado pra flutuar sobre um fundo escuro —
+   sobre fundo claro precisa de bem menos peso, senão vira uma linha
+   pesada em vez de um destaque sutil. A sombra (--shadow-1/--shadow-2) já
+   é resolvida pelo token, então esta regra só cuida da borda. */
 [data-theme="light"] .glass-hover:hover {
   border-color: rgba(15, 23, 42, 0.16);
 }
 
 [data-theme="light"] .glass-strong {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
 }
 
 /*
@@ -225,11 +255,7 @@ body {
 .glass-solid {
   background: var(--background-elevated);
   border: 1px solid var(--border-glass);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-}
-
-[data-theme="light"] .glass-solid {
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-1);
 }
 
 ::-webkit-scrollbar {
