@@ -49,14 +49,16 @@ export default async function GoalsPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  <div className="flex items-end justify-between gap-2">
+                    <p className="text-2xl font-semibold tracking-tight text-foreground">
+                      {isAppointments ? g.currentValue : formatCurrency(g.currentValue)}
+                    </p>
+                    <p className={`text-lg font-semibold ${g.percent >= 100 ? "text-success" : "text-foreground-muted"}`}>
+                      {Math.round(g.percent)}%
+                    </p>
+                  </div>
                   <Progress value={g.percent} />
-                  <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                    <div>
-                      <p className="text-foreground-muted">Atual</p>
-                      <p className="font-medium text-foreground">
-                        {isAppointments ? g.currentValue : formatCurrency(g.currentValue)}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>
                       <p className="text-foreground-muted">Meta</p>
                       <p className="font-medium text-foreground">
