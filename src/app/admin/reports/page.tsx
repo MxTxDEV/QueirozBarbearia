@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { getCustomerReport, getFinancialReport, getOperationalReport } from "@/lib/data/reports";
 import { getBarberComparison } from "@/lib/data/dashboard";
 import type { PeriodFilter } from "@/lib/data/financial";
@@ -34,7 +35,7 @@ export default async function ReportsPage({
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">Relatórios</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {PERIODS.map((p) => (
             <Link key={p.value} href={`/admin/reports?period=${p.value}`}>
               <Button size="sm" variant={period === p.value ? "default" : "secondary"}>
@@ -42,6 +43,11 @@ export default async function ReportsPage({
               </Button>
             </Link>
           ))}
+          <a href={`/admin/reports/export?period=${period}`}>
+            <Button size="sm" variant="outline">
+              <Download className="h-4 w-4" /> Exportar CSV
+            </Button>
+          </a>
         </div>
       </div>
 

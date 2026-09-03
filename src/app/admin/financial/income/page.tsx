@@ -3,6 +3,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { PAYMENT_METHOD_LABEL } from "@/lib/labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TrendingUp } from "lucide-react";
 import { IncomeForm } from "./income-form";
 import { requireAdminOnly } from "@/lib/require-admin";
 
@@ -50,8 +52,12 @@ export default async function IncomePage() {
               ))}
               {incomes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-foreground-muted">
-                    Nenhuma receita registrada.
+                  <TableCell colSpan={5}>
+                    <EmptyState
+                      icon={TrendingUp}
+                      title="Nenhuma receita registrada"
+                      description="Use o formulário ao lado para registrar a primeira receita manual."
+                    />
                   </TableCell>
                 </TableRow>
               )}

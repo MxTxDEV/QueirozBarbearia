@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Users } from "lucide-react";
 import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function CustomersPage({
@@ -61,8 +63,23 @@ export default async function CustomersPage({
             ))}
             {customers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-foreground-muted">
-                  Nenhum cliente encontrado.
+                <TableCell colSpan={4}>
+                  {q ? (
+                    <EmptyState icon={Users} title="Nenhum cliente encontrado" description={`Nenhum resultado para "${q}".`} />
+                  ) : (
+                    <EmptyState
+                      icon={Users}
+                      title="Nenhum cliente cadastrado"
+                      description="Cadastre o primeiro cliente para começar a agendar horários."
+                      action={
+                        <Link href="/admin/customers/new">
+                          <Button size="sm">
+                            <Plus className="h-4 w-4" /> Novo cliente
+                          </Button>
+                        </Link>
+                      }
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             )}

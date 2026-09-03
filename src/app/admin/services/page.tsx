@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Scissors } from "lucide-react";
 import { listServices } from "@/lib/data/services";
 import { createServiceAction, toggleServiceActiveAction } from "@/actions/services";
 import { formatCurrency, formatDuration } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ServiceForm } from "./service-form";
 import { ToggleActiveButton } from "./toggle-active-button";
 import { requireAdminContext } from "@/lib/require-admin";
@@ -22,6 +24,13 @@ export default async function ServicesPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card variant="solid" className="lg:col-span-2">
+          {services.length === 0 ? (
+            <EmptyState
+              icon={Scissors}
+              title="Nenhum serviço cadastrado"
+              description="Use o formulário ao lado para cadastrar o primeiro serviço do catálogo."
+            />
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -54,6 +63,7 @@ export default async function ServicesPage() {
               ))}
             </TableBody>
           </Table>
+          )}
         </Card>
 
         <Card>

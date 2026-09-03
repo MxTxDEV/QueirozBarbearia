@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { AppointmentRowActions } from "./row-actions";
 import { CalendarToolbar } from "./calendar/calendar-toolbar";
@@ -345,8 +346,19 @@ export default async function AppointmentsPage({
                 ))}
                 {appointments.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-foreground-muted">
-                      Nenhum agendamento neste período.
+                    <TableCell colSpan={7}>
+                      <EmptyState
+                        icon={CalendarDays}
+                        title="Nenhum agendamento neste período"
+                        description="Experimente trocar o filtro de período ou crie um novo agendamento."
+                        action={
+                          <Link href="/admin/appointments/new">
+                            <Button size="sm">
+                              <Plus className="h-4 w-4" /> Novo agendamento
+                            </Button>
+                          </Link>
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 )}

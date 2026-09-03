@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Receipt } from "lucide-react";
 import { requireAdminOnly } from "@/lib/require-admin";
 
 const PERIODS: { value: PeriodFilter; label: string }[] = [
@@ -115,8 +117,12 @@ export default async function FinancialOverviewPage({
             ))}
             {transactions.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-foreground-muted">
-                  Nenhuma transação neste período.
+                <TableCell colSpan={5}>
+                  <EmptyState
+                    icon={Receipt}
+                    title="Nenhuma transação neste período"
+                    description="Receitas e despesas pagas aparecem aqui automaticamente."
+                  />
                 </TableCell>
               </TableRow>
             )}

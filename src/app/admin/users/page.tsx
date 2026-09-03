@@ -3,6 +3,8 @@ import { requireAdminOnly } from "@/lib/require-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { UserPlus } from "lucide-react";
 import { NewCompanyUserForm } from "./new-company-user-form";
 import { ToggleActiveButton } from "../services/toggle-active-button";
 import { toggleCompanyUserActiveAction } from "@/actions/company-users";
@@ -74,8 +76,12 @@ export default async function CompanyUsersPage() {
             ))}
             {users.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-foreground-muted">
-                  Nenhum usuário cadastrado ainda.
+                <TableCell colSpan={6}>
+                  <EmptyState
+                    icon={UserPlus}
+                    title="Nenhum usuário cadastrado ainda"
+                    description="Use o formulário ao lado para criar o primeiro acesso de ADMIN ou BARBER."
+                  />
                 </TableCell>
               </TableRow>
             )}

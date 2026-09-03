@@ -4,6 +4,8 @@ import { RECURRENCE_LABEL, TRANSACTION_STATUS_LABEL, TRANSACTION_STATUS_VARIANT 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Receipt } from "lucide-react";
 import { MarkPaidForm } from "./mark-paid-form";
 import { ExpenseForm } from "./expense-form";
 import { requireAdminOnly } from "@/lib/require-admin";
@@ -52,8 +54,12 @@ export default async function ExpensesPage() {
               ))}
               {expenses.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-foreground-muted">
-                    Nenhuma despesa cadastrada.
+                  <TableCell colSpan={6}>
+                    <EmptyState
+                      icon={Receipt}
+                      title="Nenhuma despesa cadastrada"
+                      description="Use o formulário ao lado para registrar a primeira despesa."
+                    />
                   </TableCell>
                 </TableRow>
               )}
