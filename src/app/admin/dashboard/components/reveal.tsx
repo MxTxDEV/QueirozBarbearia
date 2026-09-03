@@ -4,10 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Revela o conteúdo com fade + leve slide/scale conforme entra na viewport.
- * A animação é reversível: o observer continua ativo (nunca é
- * desconectado após o primeiro disparo), então a seção volta a animar
- * toda vez que sai e reentra na tela — não só na primeira rolagem.
+ * Revela o conteúdo com fade + leve slide/scale na primeira vez que entra
+ * na viewport, e fica visível dali em diante (observer desconectado após
+ * o primeiro disparo). Não é reversível — uma versão anterior escondia a
+ * seção de novo toda vez que saía da tela, o que num dashboard consultado
+ * várias vezes por dia (não uma landing page) significava que, assim que
+ * o usuário terminava de rolar até o fim, praticamente todo o conteúdo
+ * acima ficava em opacity:0 (confirmado inspecionando o layout depois de
+ * rolar a tela inteira) — bastava rolar de volta pra cima pra tudo
+ * "sumir" e precisar reanimar de novo a cada vez.
  *
  * Usa IntersectionObserver (sem listener de scroll) e respeita
  * prefers-reduced-motion, caso em que aparece direto, sem animação.
@@ -34,9 +39,15 @@ export function Reveal({
       return () => cancelAnimationFrame(id);
     }
 
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), {
-      threshold: 0.08,
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.08 }
+    );
     observer.observe(node);
     return () => observer.disconnect();
   }, []);

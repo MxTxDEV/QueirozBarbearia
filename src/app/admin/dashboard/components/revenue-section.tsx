@@ -1,6 +1,9 @@
+"use client";
+
 import { formatCurrency } from "@/lib/utils";
 import { RevenueChart } from "./revenue-chart";
-import { ServiceDonut, SERVICE_DONUT_COLORS } from "./service-donut";
+import { ServiceDonut } from "./service-donut";
+import { useChartTheme } from "./chart-theme";
 import type { RevenuePoint, ServiceBreakdownItem } from "@/lib/data/dashboard-insights";
 
 export function RevenueSection({
@@ -12,6 +15,8 @@ export function RevenueSection({
   series: RevenuePoint[];
   services: ServiceBreakdownItem[];
 }) {
+  const chart = useChartTheme();
+
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="glass min-w-0 rounded-3xl p-6 lg:col-span-2">
@@ -43,7 +48,7 @@ export function RevenueSection({
                   <span className="flex min-w-0 items-center gap-2 text-foreground-muted">
                     <span
                       className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: SERVICE_DONUT_COLORS[i % SERVICE_DONUT_COLORS.length] }}
+                      style={{ backgroundColor: chart.categorical[i % chart.categorical.length] }}
                     />
                     <span className="truncate">{s.name}</span>
                   </span>
