@@ -19,7 +19,7 @@ export function TeamSection({
         <p className="mt-2 text-5xl font-semibold tracking-tight text-foreground">{overallPercent}%</p>
         <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-secondary to-secondary-light transition-all duration-700"
+            className="h-full rounded-full bg-gradient-to-r from-secondary to-secondary-light transition-all duration-[var(--duration-base)] motion-reduce:transition-none"
             style={{ width: `${overallPercent}%` }}
           />
         </div>
@@ -34,7 +34,7 @@ export function TeamSection({
                 </div>
                 <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]">
                   <div
-                    className="h-full rounded-full bg-secondary-light/80 transition-all duration-700"
+                    className="h-full rounded-full bg-secondary-light/80 transition-all duration-[var(--duration-base)] motion-reduce:transition-none"
                     style={{ width: `${b.percent}%` }}
                   />
                 </div>

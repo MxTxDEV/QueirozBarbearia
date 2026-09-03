@@ -100,8 +100,8 @@ export function CommandPalette() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-24" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
-      <div className="glass-strong relative w-full max-w-lg rounded-2xl border shadow-2xl">
+      <div className="anim-overlay-in absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+      <div className="anim-modal-in glass-strong relative w-full max-w-lg rounded-2xl border shadow-2xl">
         <div className="flex items-center gap-2 border-b px-4">
           <Search className="h-4 w-4 shrink-0 text-foreground-muted" />
           <input

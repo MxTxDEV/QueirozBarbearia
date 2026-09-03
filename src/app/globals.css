@@ -258,6 +258,49 @@ body {
   box-shadow: var(--shadow-1);
 }
 
+/* Entrada de overlays (modal da busca global, drawer mobile do menu) — usa
+   as mesmas duração/curva padronizadas na F0, sempre <= --duration-base.
+   Sob prefers-reduced-motion a transformação some e o elemento só aparece,
+   sem qualquer animação. */
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-scale-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+.anim-overlay-in {
+  animation: overlay-fade-in var(--duration-base) var(--ease-standard);
+}
+
+.anim-modal-in {
+  animation: modal-scale-in var(--duration-base) var(--ease-standard);
+}
+
+.anim-drawer-in {
+  animation: drawer-slide-in var(--duration-base) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-overlay-in,
+  .anim-modal-in,
+  .anim-drawer-in {
+    animation: none;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

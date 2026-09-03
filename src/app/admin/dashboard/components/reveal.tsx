@@ -56,7 +56,7 @@ export function Reveal({
     <div
       ref={ref}
       className={cn(
-        "transition-all duration-700 ease-out motion-reduce:transition-none",
+        "transition-all duration-[var(--duration-base)] ease-out motion-reduce:transition-none",
         visible ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0",
         className
       )}

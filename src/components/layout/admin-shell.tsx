@@ -67,8 +67,8 @@ export function AdminShell({
       {/* Sidebar - mobile */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
-          <aside className="glass-strong absolute left-0 top-0 flex h-full w-64 flex-col">
+          <div className="anim-overlay-in absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
+          <aside className="anim-drawer-in glass-strong absolute left-0 top-0 flex h-full w-64 flex-col">
             <div className="flex h-16 items-center justify-between border-b px-5">
               <CompanyLogo logoUrl={companyLogoUrl} name={companyName} height={24} />
               <button onClick={() => setMobileOpen(false)} aria-label="Fechar menu" className="text-foreground-muted">

@@ -89,7 +89,7 @@ function DayCarousel({ isToday, items }: { isToday: boolean; items: DayAgendaIte
               cardRefs.current[i] = el;
             }}
             data-active="false"
-            className="w-[80%] shrink-0 snap-center scale-95 opacity-70 transition-all duration-300 ease-out data-[active=true]:scale-100 data-[active=true]:opacity-100"
+            className="w-[80%] shrink-0 snap-center scale-95 opacity-70 transition-all duration-[var(--duration-base)] ease-out motion-reduce:transition-none data-[active=true]:scale-100 data-[active=true]:opacity-100"
           >
             <Card variant="solid" className={cn("space-y-3 p-4", cancelled && "opacity-60")}>
               <div className="flex items-start justify-between gap-2">
