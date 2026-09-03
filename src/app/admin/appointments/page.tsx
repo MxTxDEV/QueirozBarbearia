@@ -17,6 +17,7 @@ import { CalendarToolbar } from "./calendar/calendar-toolbar";
 import { TimeGrid, type GridAppointment } from "./calendar/time-grid";
 import { MonthGrid, type MonthAppointment } from "./calendar/month-grid";
 import { MobileDayAgenda, MobileWeekAgenda, type DayAgendaItem, type WeekDaySection } from "./calendar/mobile-day-agenda";
+import { MobileMonthGrid, type MonthDayCount } from "./calendar/mobile-month-grid";
 import {
   addDays,
   dateOnlyUTC,
@@ -110,6 +111,18 @@ export default async function AppointmentsPage({
     return `/admin/appointments?${params.toString()}`;
   }
 
+  /** Toca num dia da grade mensal (mobile) → vai direto pra visão de Dia daquela data. */
+  function buildMonthDayHref(day: Date) {
+    const params = new URLSearchParams();
+    params.set("cal", "day");
+    params.set("date", toISODate(day));
+    params.set("mday", toISODate(day));
+    if (barberId) params.set("barberId", barberId);
+    if (status) params.set("status", status);
+    if (sp.q) params.set("q", sp.q);
+    return `/admin/appointments?${params.toString()}`;
+  }
+
   const { from, to } = rangeForView(calendarView, anchor);
 
   const [appointments, barbers, mobileDayAppointments] = await Promise.all([
@@ -142,24 +155,31 @@ export default async function AppointmentsPage({
     <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} />
   );
 
-  // Visões de Semana e Mês no celular: um carrossel por dia, empilhados.
-  // No mês, dias sem agendamento são omitidos (senão seriam ~30 seções a
-  // rolar verticalmente, a maioria vazia).
-  const daySections: WeekDaySection[] = days
-    .map((day) => ({
+  // Visão de Semana no celular: um carrossel por dia, empilhados.
+  const daySections: WeekDaySection[] = days.map((day) => ({
+    day,
+    dayLabel: periodLabel("day", day),
+    isToday: isSameDay(day, today),
+    items: appointments
+      .filter((appt) => isSameDay(appt.appointmentDate, day))
+      .map<DayAgendaItem>((appt) => ({
+        block: toBlock(appt),
+        actions: renderActions(appt),
+        startTime: appt.startTime,
+        endTime: appt.endTime,
+      })),
+  }));
+
+  // Visão de Mês no celular: só a contagem por dia (grade compacta,
+  // tocar num dia leva pra visão de Dia) — não precisa dos cards inteiros.
+  const monthCounts: MonthDayCount[] = days.map((day) => {
+    const dayAppointments = appointments.filter((appt) => isSameDay(appt.appointmentDate, day));
+    return {
       day,
-      dayLabel: periodLabel("day", day),
-      isToday: isSameDay(day, today),
-      items: appointments
-        .filter((appt) => isSameDay(appt.appointmentDate, day))
-        .map<DayAgendaItem>((appt) => ({
-          block: toBlock(appt),
-          actions: renderActions(appt),
-          startTime: appt.startTime,
-          endTime: appt.endTime,
-        })),
-    }))
-    .filter((section) => calendarView !== "month" || section.items.length > 0);
+      count: dayAppointments.length,
+      hasPending: dayAppointments.some((appt) => appt.status === "PENDING"),
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -253,6 +273,14 @@ export default async function AppointmentsPage({
                 startTime: appt.startTime,
                 endTime: appt.endTime,
               }))}
+            />
+          ) : calendarView === "month" ? (
+            <MobileMonthGrid
+              days={days}
+              month={startOfMonth(anchor).getUTCMonth()}
+              today={today}
+              counts={monthCounts}
+              buildHref={buildMonthDayHref}
             />
           ) : (
             <MobileWeekAgenda days={daySections} />
