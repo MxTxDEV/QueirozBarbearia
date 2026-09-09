@@ -60,7 +60,7 @@ export function NotificationsBell({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="glass-strong absolute right-0 z-50 mt-2 w-80 max-w-[90vw] rounded-2xl p-2">
+          <div className="glass-solid absolute right-0 z-50 mt-2 w-80 max-w-[90vw] rounded-2xl p-2">
             <div className="flex items-center justify-between px-3 py-2">
               <span className="text-sm font-semibold text-foreground">Notificações</span>
               <Link href="/admin/notifications" className="text-xs text-secondary-light hover:underline" onClick={() => setOpen(false)}>
