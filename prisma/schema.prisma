@@ -119,13 +119,19 @@ model Company {
   phone          String?
   whatsapp       String?
   address        String?
+  neighborhood   String?       @map("neighborhood")
   city           String?
   state          String?
   zipCode        String?       @map("zip_code")
   logoUrl        String?       @map("logo_url")
+  coverImageUrl  String?       @map("cover_image_url")
   primaryColor   String?       @map("primary_color")
   secondaryColor String?       @map("secondary_color")
   status         CompanyStatus @default(ACTIVE)
+  // Controla a página pública /agendar e /agendar/{slug}: desligado, a
+  // empresa some da listagem e o link individual mostra indisponibilidade —
+  // não impede o uso do painel administrativo nem do portal já autenticado.
+  onlineBookingEnabled Boolean @default(true) @map("online_booking_enabled")
   plan           String        @default("FREE")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
@@ -144,6 +150,9 @@ model Company {
   auditLogs             AuditLog[]
   systemSettings        SystemSetting[]
 
+  // Acelera a query da listagem pública (/agendar): status ACTIVE +
+  // onlineBookingEnabled true é o filtro de toda visita àquela página.
+  @@index([status, onlineBookingEnabled])
   @@map("companies")
 }
 

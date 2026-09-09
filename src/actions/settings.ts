@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext, requireAdminOnly } from "@/lib/require-admin";
 import { hashPassword, verifyPassword } from "@/lib/auth";
-import { saveUploadedLogo, deleteUploadedLogo } from "@/lib/uploads";
+import { saveUploadedLogo, deleteUploadedLogo, saveUploadedCoverImage, deleteUploadedCoverImage } from "@/lib/uploads";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
 const nameSchema = z.object({ systemName: z.string().min(2, "Informe um nome.") });
@@ -60,6 +60,49 @@ export async function removeLogoAction() {
 
   revalidatePath("/admin/settings");
   revalidatePath("/admin", "layout");
+}
+
+/**
+ * Atualiza a foto de capa usada nos cards de /agendar e no topo de
+ * /agendar/{slug} — por upload de arquivo (prioridade) ou por URL externa.
+ * Independente da logo (Company.coverImageUrl é um campo separado).
+ */
+export async function updateCoverImageAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  try {
+    const user = await requireAdminOnly();
+    const file = formData.get("coverFile");
+    const urlInput = String(formData.get("coverUrl") ?? "").trim();
+
+    if (file instanceof File && file.size > 0) {
+      const current = await prisma.company.findUnique({ where: { id: user.companyId }, select: { coverImageUrl: true } });
+      const newCoverUrl = await saveUploadedCoverImage(file, user.companyId);
+      await deleteUploadedCoverImage(current?.coverImageUrl);
+      await prisma.company.update({ where: { id: user.companyId }, data: { coverImageUrl: newCoverUrl } });
+    } else if (urlInput) {
+      if (!/^https:\/\/.+/.test(urlInput)) {
+        return actionError(new Error("Informe uma URL https:// de imagem válida, ou envie um arquivo."));
+      }
+      const current = await prisma.company.findUnique({ where: { id: user.companyId }, select: { coverImageUrl: true } });
+      if (current?.coverImageUrl !== urlInput) await deleteUploadedCoverImage(current?.coverImageUrl);
+      await prisma.company.update({ where: { id: user.companyId }, data: { coverImageUrl: urlInput } });
+    }
+  } catch (error) {
+    return actionError(error);
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/agendar");
+  return actionSuccess();
+}
+
+export async function removeCoverImageAction() {
+  const user = await requireAdminOnly();
+  const current = await prisma.company.findUnique({ where: { id: user.companyId }, select: { coverImageUrl: true } });
+  await deleteUploadedCoverImage(current?.coverImageUrl);
+  await prisma.company.update({ where: { id: user.companyId }, data: { coverImageUrl: null } });
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/agendar");
 }
 
 const passwordSchema = z

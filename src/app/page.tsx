@@ -4,15 +4,8 @@ import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { prisma } from "@/lib/prisma";
 
-export default async function LandingPage() {
-  // Página de marketing da plataforma: o botão "Agendar meu horário" aponta
-  // para o portal da empresa mais antiga cadastrada (ambiente com uma única
-  // barbearia em produção). Cada barbearia real deve divulgar diretamente o
-  // link do seu próprio portal (/portal/[slug]/login).
-  const company = await prisma.company.findFirst({ orderBy: { createdAt: "asc" }, select: { slug: true } });
-
+export default function LandingPage() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-16">
       <div className="absolute right-4 top-4">
@@ -27,7 +20,7 @@ export default async function LandingPage() {
       </p>
 
       <div className="mb-12 flex flex-col gap-3 sm:flex-row">
-        <Link href={company ? `/portal/${company.slug}/login` : "/portal"}>
+        <Link href="/agendar">
           <Button size="lg" className="w-full sm:w-auto">
             Agendar meu horário
           </Button>

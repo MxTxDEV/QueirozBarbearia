@@ -25,35 +25,47 @@ const ALLOWED_TYPES: Record<string, string> = {
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 
-export function isUploadedLogoPath(logoUrl: string | null | undefined): logoUrl is string {
-  return !!logoUrl && logoUrl.startsWith("/api/uploads/logos/");
+type UploadKind = "logos" | "covers";
+
+function isUploadedImagePath(kind: UploadKind, url: string | null | undefined): url is string {
+  return !!url && url.startsWith(`/api/uploads/${kind}/`);
 }
 
-/** Salva o arquivo de logo enviado e devolve o caminho público para guardar em Company.logoUrl. */
-export async function saveUploadedLogo(file: File, companyId: string): Promise<string> {
+export function isUploadedLogoPath(logoUrl: string | null | undefined): logoUrl is string {
+  return isUploadedImagePath("logos", logoUrl);
+}
+
+/** Salva um arquivo de imagem enviado (logo ou capa) e devolve o caminho público. */
+async function saveUploadedImage(kind: UploadKind, file: File, companyId: string): Promise<string> {
   if (!(file instanceof File) || file.size === 0) throw new Error("Selecione um arquivo de imagem.");
   if (file.size > MAX_SIZE_BYTES) throw new Error("A imagem deve ter no máximo 2MB.");
 
   const ext = ALLOWED_TYPES[file.type];
   if (!ext) throw new Error("Formato não suportado. Envie PNG, JPG ou WEBP.");
 
-  const dir = path.join(getUploadRoot(), "logos");
+  const dir = path.join(getUploadRoot(), kind);
   await fs.mkdir(dir, { recursive: true });
 
   const filename = `${companyId}-${Date.now()}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(path.join(dir, filename), buffer);
 
-  return `/api/uploads/logos/${filename}`;
+  return `/api/uploads/${kind}/${filename}`;
 }
 
-/** Remove um logo enviado anteriormente (nunca mexe em logos que são URL externa). */
-export async function deleteUploadedLogo(logoUrl: string | null | undefined) {
-  if (!isUploadedLogoPath(logoUrl)) return;
+/** Remove uma imagem enviada anteriormente (nunca mexe em imagens que são URL externa). */
+async function deleteUploadedImage(kind: UploadKind, url: string | null | undefined) {
+  if (!isUploadedImagePath(kind, url)) return;
 
-  const logosDir = path.join(getUploadRoot(), "logos");
-  const filePath = path.join(logosDir, path.basename(logoUrl));
-  if (!filePath.startsWith(logosDir + path.sep)) return; // defesa extra contra path traversal
+  const dir = path.join(getUploadRoot(), kind);
+  const filePath = path.join(dir, path.basename(url));
+  if (!filePath.startsWith(dir + path.sep)) return; // defesa extra contra path traversal
 
   await fs.unlink(filePath).catch(() => {});
 }
+
+export const saveUploadedLogo = (file: File, companyId: string) => saveUploadedImage("logos", file, companyId);
+export const deleteUploadedLogo = (logoUrl: string | null | undefined) => deleteUploadedImage("logos", logoUrl);
+
+export const saveUploadedCoverImage = (file: File, companyId: string) => saveUploadedImage("covers", file, companyId);
+export const deleteUploadedCoverImage = (coverImageUrl: string | null | undefined) => deleteUploadedImage("covers", coverImageUrl);
