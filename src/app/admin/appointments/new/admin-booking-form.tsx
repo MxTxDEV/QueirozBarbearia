@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { formatCurrency, formatDuration } from "@/lib/utils";
-import { getAvailableSlotsAction } from "@/actions/availability";
+import { getAvailableSlotsForAdminAction } from "@/actions/availability";
 import { createAppointmentAsAdmin } from "@/actions/appointments";
 
 type Service = { id: string; name: string; price: number; durationMinutes: number };
@@ -49,7 +49,7 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
     setLoadingSlots(true);
     setSelectedSlot(null);
     try {
-      const result = await getAvailableSlotsAction(nextBarberId, nextDate, duration);
+      const result = await getAvailableSlotsForAdminAction(nextBarberId, nextDate, duration);
       setSlots(result);
     } finally {
       setLoadingSlots(false);
