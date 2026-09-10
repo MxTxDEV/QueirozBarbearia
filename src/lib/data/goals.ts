@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
+import { endOfGoalDay } from "@/lib/goal-date-range";
 import type { FinancialGoal } from "@prisma/client";
 
 export type GoalProgress = {
@@ -14,17 +15,6 @@ export type GoalProgress = {
   projection: number;
   status: "ACTIVE" | "ACHIEVED" | "AT_RISK" | "EXPIRED";
 };
-
-/**
- * `goal.endDate` é armazenado como meia-noite UTC do dia final (vindo de um
- * `<input type="date">`). Um filtro `lte: endDate` excluiria qualquer
- * transação/agendamento com horário posterior à meia-noite nesse mesmo dia —
- * ou seja, o dia inteiro da meta seria descontado silenciosamente. Usamos o
- * início do dia seguinte como limite exclusivo para cobrir o dia final por completo.
- */
-function endOfGoalDay(endDate: Date): Date {
-  return new Date(endDate.getTime() + 86_400_000);
-}
 
 async function computeCurrentValue(goal: FinancialGoal): Promise<number> {
   const exclusiveEnd = endOfGoalDay(goal.endDate);
