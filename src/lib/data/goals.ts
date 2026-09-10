@@ -15,12 +15,25 @@ export type GoalProgress = {
   status: "ACTIVE" | "ACHIEVED" | "AT_RISK" | "EXPIRED";
 };
 
+/**
+ * `goal.endDate` é armazenado como meia-noite UTC do dia final (vindo de um
+ * `<input type="date">`). Um filtro `lte: endDate` excluiria qualquer
+ * transação/agendamento com horário posterior à meia-noite nesse mesmo dia —
+ * ou seja, o dia inteiro da meta seria descontado silenciosamente. Usamos o
+ * início do dia seguinte como limite exclusivo para cobrir o dia final por completo.
+ */
+function endOfGoalDay(endDate: Date): Date {
+  return new Date(endDate.getTime() + 86_400_000);
+}
+
 async function computeCurrentValue(goal: FinancialGoal): Promise<number> {
+  const exclusiveEnd = endOfGoalDay(goal.endDate);
+
   if (goal.type === "APPOINTMENTS") {
     const count = await prisma.appointment.count({
       where: {
         companyId: goal.companyId,
-        appointmentDate: { gte: goal.startDate, lte: goal.endDate },
+        appointmentDate: { gte: goal.startDate, lt: exclusiveEnd },
         status: { in: ["CONFIRMED", "COMPLETED"] },
         ...(goal.barberId ? { barberId: goal.barberId } : {}),
       },
@@ -28,14 +41,16 @@ async function computeCurrentValue(goal: FinancialGoal): Promise<number> {
     return count;
   }
 
+  // barberId direto na transação (populado tanto por vendas do PDV quanto
+  // por pagamentos de agendamento — ver comentário no schema) substitui o
+  // join indireto por appointment.barberId: uma meta BARBER_REVENUE agora
+  // soma as duas origens de faturamento com a mesma condição.
   const agg = await prisma.financialTransaction.aggregate({
     where: {
       companyId: goal.companyId,
       type: "INCOME",
-      transactionDate: { gte: goal.startDate, lte: goal.endDate },
-      ...(goal.barberId
-        ? { appointment: { barberId: goal.barberId } }
-        : {}),
+      transactionDate: { gte: goal.startDate, lt: exclusiveEnd },
+      ...(goal.barberId ? { barberId: goal.barberId } : {}),
     },
     _sum: { amount: true },
   });
@@ -78,7 +93,7 @@ export async function getGoalsWithProgress(companyId: string, barberId?: string)
 
       let status: GoalProgress["status"] = "ACTIVE";
       if (currentValue >= target) status = "ACHIEVED";
-      else if (now > goal.endDate) status = "EXPIRED";
+      else if (now >= endOfGoalDay(goal.endDate)) status = "EXPIRED";
       else if (projection < target * 0.85) status = "AT_RISK";
 
       return {

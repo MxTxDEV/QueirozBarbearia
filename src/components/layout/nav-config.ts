@@ -16,6 +16,8 @@ import {
   Building2,
   ShieldCheck,
   UserCog2,
+  ShoppingCart,
+  Package,
 } from "lucide-react";
 
 export type NavItem = {
@@ -28,7 +30,12 @@ export type NavItem = {
 export type NavSection = { title?: string; items: NavItem[] };
 
 export const ADMIN_NAV_SECTIONS: NavSection[] = [
-  { items: [{ label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard }] },
+  {
+    items: [
+      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+      { label: "PDV", href: "/admin/pdv", icon: ShoppingCart },
+    ],
+  },
   {
     title: "Agenda",
     items: [
@@ -36,6 +43,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
       { label: "Clientes", href: "/admin/customers", icon: Users },
       { label: "Barbeiros", href: "/admin/barbers", icon: UserCog },
       { label: "Serviços", href: "/admin/services", icon: Scissors },
+      { label: "Produtos", href: "/admin/products", icon: Package },
     ],
   },
   {

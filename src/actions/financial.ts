@@ -64,6 +64,7 @@ export async function registerPaymentAction(
           transactionDate: paidAt,
           paymentMethod: data.paymentMethod,
           appointmentId,
+          barberId: appointment.barberId,
           customerId: appointment.customerId,
           status: "PAID",
         },

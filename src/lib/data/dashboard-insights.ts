@@ -314,7 +314,7 @@ export async function getBarberPerformance(companyId: string, period: DashboardP
         prisma.appointment.count({ where: { companyId, barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "COMPLETED" } }),
         prisma.appointment.count({ where: { companyId, barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
         prisma.financialTransaction.aggregate({
-          where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to }, appointment: { barberId: barber.id } },
+          where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to }, barberId: barber.id },
           _sum: { amount: true },
         }),
       ]);

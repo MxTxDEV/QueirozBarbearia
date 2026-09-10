@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarClock, Users, Wallet, Target, Menu } from "lucide-react";
+import { LayoutDashboard, CalendarClock, ShoppingCart, Wallet, Target, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Item = { label: string; href: string; icon: typeof LayoutDashboard };
@@ -10,22 +10,23 @@ type Item = { label: string; href: string; icon: typeof LayoutDashboard };
 const ADMIN_ITEMS: Item[] = [
   { label: "Início", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Agenda", href: "/admin/appointments", icon: CalendarClock },
-  { label: "Clientes", href: "/admin/customers", icon: Users },
+  { label: "PDV", href: "/admin/pdv", icon: ShoppingCart },
   { label: "Financeiro", href: "/admin/financial", icon: Wallet },
 ];
 
 const BARBER_ITEMS: Item[] = [
   { label: "Início", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Agenda", href: "/admin/appointments", icon: CalendarClock },
-  { label: "Clientes", href: "/admin/customers", icon: Users },
+  { label: "PDV", href: "/admin/pdv", icon: ShoppingCart },
   { label: "Metas", href: "/admin/goals", icon: Target },
 ];
 
 /**
  * As 4 seções mais usadas no dia a dia (só no mobile — o desktop já tem a
- * sidebar completa) + "Mais" abrindo o drawer com o resto. Financeiro só
- * aparece pro ADMIN — barbeiro não vê dados financeiros da empresa (mesma
- * regra do restante do painel).
+ * sidebar completa) + "Mais" abrindo o drawer com o resto (inclui Clientes,
+ * que saiu daqui pro PDV entrar — é a ação mais frequente no balcão).
+ * Financeiro só aparece pro ADMIN — barbeiro não vê dados financeiros da
+ * empresa (mesma regra do restante do painel).
  */
 export function MobileBottomNav({ isAdmin, onOpenMore }: { isAdmin: boolean; onOpenMore: () => void }) {
   const pathname = usePathname();
