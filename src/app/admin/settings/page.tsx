@@ -5,6 +5,7 @@ import { SettingsForm } from "./settings-form";
 import { ChangePasswordForm } from "./change-password-form";
 import { BookingLinkSection } from "./booking-link-section";
 import { CoverImageForm } from "./cover-image-form";
+import { ReviewLinkForm } from "./review-link-form";
 
 export default async function SettingsPage() {
   const user = await requireAdminContext();
@@ -12,7 +13,7 @@ export default async function SettingsPage() {
     prisma.systemSetting.findUnique({ where: { companyId_key: { companyId: user.companyId, key: "system_name" } } }),
     prisma.company.findUnique({
       where: { id: user.companyId },
-      select: { logoUrl: true, coverImageUrl: true, slug: true, onlineBookingEnabled: true },
+      select: { logoUrl: true, coverImageUrl: true, slug: true, onlineBookingEnabled: true, reviewLinkUrl: true },
     }),
   ]);
   const currentLogoUrl = company?.logoUrl ?? null;
@@ -53,6 +54,17 @@ export default async function SettingsPage() {
             <div className="border-t pt-6">
               <BookingLinkSection slug={company.slug} onlineBookingEnabled={company.onlineBookingEnabled} />
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {user.role === "ADMIN" && company && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Avaliação do cliente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ReviewLinkForm currentReviewLinkUrl={company.reviewLinkUrl ?? ""} />
           </CardContent>
         </Card>
       )}

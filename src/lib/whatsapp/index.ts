@@ -11,9 +11,16 @@ import {
   appointmentReminderTemplate,
   newAppointmentInternalTemplate,
   otpTemplate,
+  serviceThanksTemplate,
 } from "./templates";
 
-export { appointmentCancellationTemplate, appointmentConfirmationTemplate, appointmentReminderTemplate, newAppointmentInternalTemplate };
+export {
+  appointmentCancellationTemplate,
+  appointmentConfirmationTemplate,
+  appointmentReminderTemplate,
+  newAppointmentInternalTemplate,
+  serviceThanksTemplate,
+};
 export type { AppointmentMessageData };
 
 /** cloud_api e mock não variam por empresa — um único provedor compartilhado serve. */
@@ -169,6 +176,15 @@ export async function sendAppointmentReminder(
   data: AppointmentMessageData
 ) {
   return sendWhatsapp({ companyId, phone, customerId, message: appointmentReminderTemplate(data) });
+}
+
+export async function sendServiceThanks(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: { customerName: string; companyName: string; reviewUrl?: string }
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: serviceThanksTemplate(data) });
 }
 
 export async function sendAppointmentCancellation(

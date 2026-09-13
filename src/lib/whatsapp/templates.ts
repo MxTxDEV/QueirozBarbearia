@@ -62,6 +62,27 @@ Valor: R$ ${d.totalPrice}
 Status: ${d.status ?? "Aguardando confirmação"}`;
 }
 
+export function serviceThanksTemplate(d: { customerName: string; companyName: string; reviewUrl?: string }) {
+  const intro = `Olá, ${d.customerName}! 💈
+
+Muito obrigado pela preferência! Foi um prazer atender você na ${d.companyName}.`;
+
+  if (d.reviewUrl) {
+    return `${intro}
+
+Podemos contar com sua avaliação? Isso nos ajuda muito a melhorar:
+${d.reviewUrl}
+
+Esperamos você na próxima! 🙌`;
+  }
+
+  return `${intro}
+
+Se puder, conte pra gente o que achou do atendimento — sua opinião é muito importante!
+
+Esperamos você na próxima! 🙌`;
+}
+
 export function otpTemplate(code: string, companyName: string) {
   return `Seu código de acesso ${companyName} é: ${code}
 

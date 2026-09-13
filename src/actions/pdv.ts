@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { logAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/serialize";
+import { sendServiceThanksIfDue } from "@/lib/service-thanks";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
 const saleItemSchema = z.object({
@@ -170,6 +171,13 @@ export async function createSaleAction(input: CreateSaleInput): Promise<ActionRe
       appointmentId: data.appointmentId,
       metadata: { barberId: data.barberId, total, discount: data.discount, paymentMethod: data.paymentMethod, itemCount: lineItems.length },
     });
+
+    // A venda vinculada a um agendamento já o marca COMPLETED e cria o
+    // pagamento (se houver cliente) na mesma transação acima — as duas
+    // condições do agradecimento automático já estão satisfeitas aqui.
+    if (data.appointmentId) {
+      await sendServiceThanksIfDue(user.companyId, data.appointmentId);
+    }
 
     revalidatePath("/admin/pdv");
     revalidatePath("/admin/appointments");

@@ -105,6 +105,27 @@ export async function removeCoverImageAction() {
   revalidatePath("/agendar");
 }
 
+/**
+ * Link (Google, etc.) enviado automaticamente pro cliente por WhatsApp
+ * quando o atendimento é concluído e o pagamento é confirmado — ver
+ * sendServiceThanksIfDue. Em branco, a mensagem sai sem link de avaliação.
+ */
+export async function updateReviewLinkAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  try {
+    const user = await requireAdminOnly();
+    const raw = String(formData.get("reviewLinkUrl") ?? "").trim();
+    if (raw && !/^https:\/\/.+/.test(raw)) {
+      return actionError(new Error("Informe uma URL https:// válida, ou deixe em branco para remover."));
+    }
+    await prisma.company.update({ where: { id: user.companyId }, data: { reviewLinkUrl: raw || null } });
+  } catch (error) {
+    return actionError(error);
+  }
+
+  revalidatePath("/admin/settings");
+  return actionSuccess();
+}
+
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Informe sua senha atual."),

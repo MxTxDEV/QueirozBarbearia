@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { logAudit } from "@/lib/audit";
 import { nextRecurrenceDate } from "@/lib/recurrence";
+import { sendServiceThanksIfDue } from "@/lib/service-thanks";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 import type { PaymentMethod, RecurrenceType } from "@prisma/client";
 
@@ -80,6 +81,10 @@ export async function registerPaymentAction(
       appointmentId,
       metadata: { amount: data.amount, paymentMethod: data.paymentMethod },
     });
+
+    // Serviço já estava concluído (checado acima) e o pagamento acabou de
+    // ser confirmado — as duas condições para o agradecimento automático.
+    await sendServiceThanksIfDue(user.companyId, appointmentId);
   } catch (error) {
     return actionError(error);
   }

@@ -135,6 +135,11 @@ model Company {
   zipCode        String?       @map("zip_code")
   logoUrl        String?       @map("logo_url")
   coverImageUrl  String?       @map("cover_image_url")
+  // Link externo (Google, etc.) mandado pro cliente por WhatsApp quando o
+  // atendimento é concluído e o pagamento é confirmado — ver
+  // Appointment.reviewRequestSentAt e src/lib/service-thanks.ts. Em branco,
+  // a mensagem de agradecimento sai sem link de avaliação.
+  reviewLinkUrl  String?       @map("review_link_url")
   primaryColor   String?       @map("primary_color")
   secondaryColor String?       @map("secondary_color")
   status         CompanyStatus @default(ACTIVE)
@@ -423,6 +428,12 @@ model Appointment {
   // ganha lembretes novos automaticamente, sem precisar resetar nada.
   reminder24hSentAt DateTime? @map("reminder_24h_sent_at")
   reminder1hSentAt  DateTime? @map("reminder_1h_sent_at")
+
+  // Idempotência da mensagem de agradecimento + pedido de avaliação: null =
+  // ainda não enviada. Carimbado antes do envio (não depois), então registrar
+  // pagamento mais de uma vez para o mesmo agendamento nunca duplica a
+  // mensagem — a segunda chamada encontra o campo já preenchido e não envia.
+  reviewRequestSentAt DateTime? @map("review_request_sent_at")
 
   company               Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer              Customer                @relation(fields: [customerId], references: [id], onDelete: Restrict)
