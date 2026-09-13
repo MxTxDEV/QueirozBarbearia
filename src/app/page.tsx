@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Wallet, MessageCircle } from "lucide-react";
+import { CalendarClock, Wallet, MessageCircle, ArrowRight } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ export default function LandingPage() {
         para barbearias que querem crescer com organização.
       </p>
 
-      <div className="mb-12 flex flex-col gap-3 sm:flex-row">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row">
         <Link href="/agendar">
           <Button size="lg" className="w-full sm:w-auto">
             Agendar meu horário
@@ -31,6 +31,14 @@ export default function LandingPage() {
           </Button>
         </Link>
       </div>
+
+      <Link
+        href="/sistema"
+        className="mb-12 inline-flex items-center gap-1.5 text-sm font-medium text-secondary-light hover:underline"
+      >
+        É dono de barbearia? Conheça o sistema
+        <ArrowRight className="h-3.5 w-3.5" />
+      </Link>
 
       <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-3">
         <Card>
