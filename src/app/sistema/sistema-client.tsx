@@ -22,7 +22,7 @@ import { CombIcon, ClipperIcon, SprayBottleIcon } from "./barber-icons";
 import { cn } from "@/lib/utils";
 
 const SALES_WHATSAPP_NUMBER = "5531997184670";
-const SALES_WHATSAPP_MESSAGE = "Olá! Vi o BarberPro e quero saber mais sobre o sistema para minha barbearia.";
+const SALES_WHATSAPP_MESSAGE = "Olá! Vi o iCortes e quero saber mais sobre o sistema para minha barbearia.";
 const salesWhatsappUrl = `https://wa.me/${SALES_WHATSAPP_NUMBER}?text=${encodeURIComponent(SALES_WHATSAPP_MESSAGE)}`;
 
 const FEATURES = [
@@ -133,7 +133,7 @@ export function SistemaClient() {
       <section className="relative px-6 py-24 sm:px-10">
         <Reveal>
           <h2 className="mx-auto max-w-2xl text-center text-3xl font-bold text-foreground sm:text-4xl">
-            Por que barbearias estão migrando pro BarberPro?
+            Por que barbearias estão migrando pro iCortes?
           </h2>
         </Reveal>
 
@@ -157,7 +157,7 @@ export function SistemaClient() {
           <div className="glass mx-auto max-w-2xl rounded-3xl p-10 text-center sm:p-14">
             <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Pronto pra profissionalizar sua barbearia?</h2>
             <p className="mx-auto mt-3 max-w-md text-foreground-muted">
-              Fale com a gente agora pelo WhatsApp e veja como colocar o BarberPro pra funcionar na sua barbearia.
+              Fale com a gente agora pelo WhatsApp e veja como colocar o iCortes pra funcionar na sua barbearia.
             </p>
             <a href={salesWhatsappUrl} target="_blank" rel="noopener noreferrer" className="mt-8 inline-block">
               <Button size="lg">

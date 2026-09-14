@@ -1,4 +1,4 @@
-# Barber Pro — Gestão de Barbearia (SaaS)
+# iCortes — Gestão de Barbearia (SaaS)
 
 Sistema completo de gestão para barbearias: agendamento online com prevenção
 de conflitos, portal do cliente, comunicação por WhatsApp, financeiro

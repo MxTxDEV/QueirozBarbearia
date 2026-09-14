@@ -1,6 +1,6 @@
 {
-  "name": "Barber Pro",
-  "short_name": "Barber Pro",
+  "name": "iCortes",
+  "short_name": "iCortes",
   "description": "Gestão completa para barbearias: agenda, clientes, financeiro e equipe.",
   "start_url": "/admin/dashboard",
   "display": "standalone",

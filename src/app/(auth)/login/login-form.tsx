@@ -15,7 +15,7 @@ export function LoginForm() {
     <form action={formAction} className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="email">E-mail</Label>
-        <Input id="email" name="email" type="email" placeholder="voce@barberpro.com" required autoFocus />
+        <Input id="email" name="email" type="email" placeholder="voce@icortes.com" required autoFocus />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">Senha</Label>

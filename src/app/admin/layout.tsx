@@ -16,7 +16,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/">) {
       isAdmin={user.role === "ADMIN"}
       unreadCount={unreadCount}
       impersonatedBy={user.impersonatedBy}
-      companyName={user.companyName ?? "Barber Pro"}
+      companyName={user.companyName ?? "iCortes"}
       companyLogoUrl={user.companyLogoUrl}
       notifications={notifications.map((n) => ({
         id: n.id,

@@ -18,7 +18,7 @@ export function SuperAdminShell({ children, userName }: { children: React.ReactN
       <aside className="glass sticky top-0 hidden h-screen w-64 shrink-0 md:flex md:flex-col">
         <div className="flex h-16 items-center gap-2 border-b px-5">
           <ShieldCheck className="h-5 w-5 text-accent-light" />
-          <span className="font-semibold text-foreground">Barber Pro Admin</span>
+          <span className="font-semibold text-foreground">iCortes Admin</span>
         </div>
         <SidebarNav sections={SUPERADMIN_NAV_SECTIONS} />
         <div className="border-t p-3">
@@ -32,7 +32,7 @@ export function SuperAdminShell({ children, userName }: { children: React.ReactN
           <aside className="glass-strong absolute left-0 top-0 flex h-full w-64 flex-col">
             <div className="flex h-16 items-center justify-between border-b px-5">
               <span className="flex items-center gap-2 font-semibold text-foreground">
-                <ShieldCheck className="h-5 w-5 text-accent-light" /> Barber Pro Admin
+                <ShieldCheck className="h-5 w-5 text-accent-light" /> iCortes Admin
               </span>
               <button onClick={() => setMobileOpen(false)} aria-label="Fechar menu" className="text-foreground-muted">
                 <X className="h-5 w-5" />

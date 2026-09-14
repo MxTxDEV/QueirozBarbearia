@@ -50,7 +50,7 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <SettingsForm
-              systemName={systemNameSetting?.value ?? "Barber Pro"}
+              systemName={systemNameSetting?.value ?? "iCortes"}
               currentLogoUrl={currentLogoUrl}
               externalLogoUrl={externalLogoUrl}
             />
