@@ -126,6 +126,58 @@ export async function updateReviewLinkAction(_prev: ActionResult | undefined, fo
   return actionSuccess();
 }
 
+const locationSchema = z.object({
+  address: z.string().trim().max(200).optional(),
+  neighborhood: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(120).optional(),
+  state: z.string().trim().max(2).optional(),
+  zipCode: z.string().trim().max(20).optional(),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
+});
+
+/**
+ * Endereço (texto livre, exibido em /agendar) e coordenadas (usadas só pra
+ * ordenar /agendar por distância até o cliente). Latitude/longitude vêm
+ * preenchidas pelo botão "usar minha localização atual" no formulário —
+ * campos vazios (string "") viram undefined pelo z.coerce e não sobrescrevem
+ * o valor já salvo.
+ */
+export async function updateLocationAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  try {
+    const user = await requireAdminOnly();
+    const rawLat = String(formData.get("latitude") ?? "").trim();
+    const rawLng = String(formData.get("longitude") ?? "").trim();
+    const data = locationSchema.parse({
+      address: formData.get("address"),
+      neighborhood: formData.get("neighborhood"),
+      city: formData.get("city"),
+      state: formData.get("state"),
+      zipCode: formData.get("zipCode"),
+      latitude: rawLat || undefined,
+      longitude: rawLng || undefined,
+    });
+
+    await prisma.company.update({
+      where: { id: user.companyId },
+      data: {
+        address: data.address || null,
+        neighborhood: data.neighborhood || null,
+        city: data.city || null,
+        state: data.state || null,
+        zipCode: data.zipCode || null,
+        ...(rawLat && rawLng ? { latitude: data.latitude, longitude: data.longitude } : {}),
+      },
+    });
+  } catch (error) {
+    return actionError(error);
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/agendar");
+  return actionSuccess();
+}
+
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Informe sua senha atual."),

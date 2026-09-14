@@ -5,20 +5,43 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo } from "@/components/brand-logo";
 import { CompanyCard } from "./company-card";
+import { AgendarFilters } from "./agendar-filters";
 
 export const metadata = {
   title: "Escolha uma barbearia | Agendamento online",
   description: "Encontre a barbearia ideal e agende seu horário em poucos cliques.",
 };
 
-export default async function AgendarPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
-  const { page: pageParam } = await searchParams;
-  const page = Math.max(1, Number(pageParam) || 1);
-  const { companies, totalPages } = await listPublicCompanies(page);
+type SearchParams = { page?: string; q?: string; maxPrice?: string; lat?: string; lng?: string };
+
+export default async function AgendarPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const sp = await searchParams;
+  const page = Math.max(1, Number(sp.page) || 1);
+  const query = sp.q?.trim() || undefined;
+  const maxPrice = sp.maxPrice ? Number(sp.maxPrice) : undefined;
+  const lat = sp.lat ? Number(sp.lat) : undefined;
+  const lng = sp.lng ? Number(sp.lng) : undefined;
+  const near = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+
+  const { companies, totalPages } = await listPublicCompanies({
+    page,
+    query,
+    maxPrice: maxPrice != null && Number.isFinite(maxPrice) ? maxPrice : undefined,
+    near,
+  });
+
+  // Preserva os filtros atuais ao trocar de página.
+  const pageHref = (targetPage: number) => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (maxPrice != null) params.set("maxPrice", String(maxPrice));
+    if (near) {
+      params.set("lat", String(near.lat));
+      params.set("lng", String(near.lng));
+    }
+    params.set("page", String(targetPage));
+    return `/agendar?${params.toString()}`;
+  };
 
   return (
     <div className="min-h-screen">
@@ -35,11 +58,17 @@ export default async function AgendarPage({
           </p>
         </div>
 
+        <AgendarFilters />
+
         {companies.length === 0 ? (
           <EmptyState
             icon={Store}
-            title="Nenhuma barbearia disponível no momento"
-            description="Volte em breve — novas barbearias aparecem aqui assim que habilitam o agendamento online."
+            title={query || maxPrice != null ? "Nenhuma barbearia encontrada" : "Nenhuma barbearia disponível no momento"}
+            description={
+              query || maxPrice != null
+                ? "Tente ajustar a busca ou o filtro de preço."
+                : "Volte em breve — novas barbearias aparecem aqui assim que habilitam o agendamento online."
+            }
           />
         ) : (
           <>
@@ -52,7 +81,7 @@ export default async function AgendarPage({
             {totalPages > 1 && (
               <nav className="mt-10 flex items-center justify-center gap-2" aria-label="Paginação">
                 <Link
-                  href={`/agendar?page=${page - 1}`}
+                  href={pageHref(page - 1)}
                   aria-disabled={page <= 1}
                   className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
                     page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-[var(--surface-subtle-hover)]"
@@ -64,7 +93,7 @@ export default async function AgendarPage({
                   Página {page} de {totalPages}
                 </span>
                 <Link
-                  href={`/agendar?page=${page + 1}`}
+                  href={pageHref(page + 1)}
                   aria-disabled={page >= totalPages}
                   className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
                     page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-[var(--surface-subtle-hover)]"

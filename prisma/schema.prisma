@@ -133,6 +133,11 @@ model Company {
   city           String?
   state          String?
   zipCode        String?       @map("zip_code")
+  // Coordenadas definidas pelo próprio admin (botão "usar minha localização
+  // atual" em /admin/settings) — usadas só pra ordenar /agendar pela
+  // distância até o cliente. Nulas até o admin configurar.
+  latitude       Float?
+  longitude      Float?
   logoUrl        String?       @map("logo_url")
   coverImageUrl  String?       @map("cover_image_url")
   // Link externo (Google, etc.) mandado pro cliente por WhatsApp quando o

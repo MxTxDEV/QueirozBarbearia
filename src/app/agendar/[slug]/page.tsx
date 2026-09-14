@@ -43,6 +43,12 @@ export default async function CompanyBookingLandingPage({ params }: Props) {
 
   const { company } = resolution;
   const location = [company.neighborhood, company.city, company.state].filter(Boolean).join(", ");
+  const mapsUrl =
+    company.latitude != null && company.longitude != null
+      ? `https://www.google.com/maps/search/?api=1&query=${company.latitude},${company.longitude}`
+      : location
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([company.address, location].filter(Boolean).join(", "))}`
+        : null;
 
   return (
     <div className="min-h-screen">
@@ -77,11 +83,16 @@ export default async function CompanyBookingLandingPage({ params }: Props) {
         <p className="mt-1 text-sm text-foreground-muted">Agende seu horário de forma rápida e online.</p>
 
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-foreground-muted">
-          {location && (
-            <span className="flex items-center gap-1.5">
-              <MapPin className="h-4 w-4 shrink-0" /> {location}
-            </span>
-          )}
+          {location &&
+            (mapsUrl ? (
+              <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-foreground hover:underline">
+                <MapPin className="h-4 w-4 shrink-0" /> {location}
+              </a>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 shrink-0" /> {location}
+              </span>
+            ))}
           <span className="flex items-center gap-1.5">
             <Scissors className="h-4 w-4 shrink-0" /> {company.serviceCount} serviço{company.serviceCount === 1 ? "" : "s"}
           </span>

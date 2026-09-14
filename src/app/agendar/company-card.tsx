@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { MapPin, Scissors, Clock } from "lucide-react";
+import { MapPin, Scissors, Clock, Navigation, Tag } from "lucide-react";
 import { CompanyLogo } from "@/components/company-logo";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import type { PublicCompanyCard as PublicCompanyCardData } from "@/lib/data/public-companies";
 
 export function CompanyCard({ company }: { company: PublicCompanyCardData }) {
@@ -53,6 +53,18 @@ export function CompanyCard({ company }: { company: PublicCompanyCardData }) {
             <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 shrink-0" />
               {company.todayHoursLabel}
+            </span>
+          )}
+          {company.minServicePrice != null && (
+            <span className="flex items-center gap-1.5">
+              <Tag className="h-3.5 w-3.5 shrink-0" />
+              A partir de {formatCurrency(company.minServicePrice)}
+            </span>
+          )}
+          {company.distanceKm != null && (
+            <span className="flex items-center gap-1.5">
+              <Navigation className="h-3.5 w-3.5 shrink-0" />
+              {company.distanceKm < 1 ? `${Math.round(company.distanceKm * 1000)} m` : `${company.distanceKm.toFixed(1)} km`}
             </span>
           )}
         </div>
