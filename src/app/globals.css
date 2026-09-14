@@ -340,34 +340,29 @@ body {
   }
 }
 
-/* Ícones decorativos flutuantes da página /sistema (tesoura, pente,
-   máquina, borrifador) — puramente estéticos, contínuos, independentes do
-   scroll. Cada um usa uma curva/duração diferente pra não parecerem
-   sincronizados. Desligados sob prefers-reduced-motion, igual ao resto do
-   app. */
-@keyframes float-a {
-  0%, 100% { transform: translateY(0) rotate(-8deg); }
-  50% { transform: translateY(-20px) rotate(6deg); }
-}
-@keyframes float-b {
-  0%, 100% { transform: translateY(0) rotate(10deg); }
-  50% { transform: translateY(16px) rotate(-6deg); }
-}
-@keyframes float-c {
-  0%, 100% { transform: translateY(0) rotate(-4deg); }
-  50% { transform: translateY(-14px) rotate(12deg); }
-}
+/*
+  Identidade visual da landing page comercial (/sistema) — preto + branco +
+  vermelho, fixa e independente do tema claro/escuro usado no resto do
+  produto (o painel operacional continua "Dark Luxury" azul; a página de
+  vendas compromete com UM visual premium só, não alterna tema). Escopado
+  pela classe .ic-landing pra nunca vazar pros tokens usados no app.
+*/
+.ic-landing {
+  --ic-bg: #08090a;
+  --ic-bg-elevated: #101211;
+  --ic-card: #1a1a1a;
+  --ic-card-hover: #212121;
+  --ic-border: rgba(245, 245, 245, 0.1);
+  --ic-border-strong: rgba(245, 245, 245, 0.18);
+  --ic-red: #e11d24;
+  --ic-red-light: #ff4b46;
+  --ic-red-dark: #9f1319;
+  --ic-white: #f5f5f5;
+  --ic-muted: #9a9a9a;
+  --ic-muted-dark: #6b6b6b;
 
-.anim-float-a { animation: float-a 6.5s ease-in-out infinite; }
-.anim-float-b { animation: float-b 7.5s ease-in-out infinite; }
-.anim-float-c { animation: float-c 5.5s ease-in-out infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .anim-float-a,
-  .anim-float-b,
-  .anim-float-c {
-    animation: none;
-  }
+  background: var(--ic-bg);
+  color: var(--ic-white);
 }
 
 ::-webkit-scrollbar {
