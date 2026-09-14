@@ -30,6 +30,11 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  // Empacota só o necessário pra rodar (server + node_modules realmente
+  // usados) em .next/standalone — é o que o Dockerfile multi-stage copia
+  // pro estágio final, evitando levar node_modules inteiro (com devDeps)
+  // pra imagem de produção.
+  output: "standalone",
   experimental: {
     serverActions: {
       bodySizeLimit: "3mb",
