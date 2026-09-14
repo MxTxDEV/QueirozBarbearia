@@ -62,8 +62,8 @@ export default async function CompanyBookingLandingPage({ params }: Props) {
 
       <div className="mx-auto max-w-2xl px-4 pb-16">
         <div className="-mt-10 flex items-end gap-4 sm:-mt-12">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-background bg-[var(--background-elevated)] shadow-lg sm:h-24 sm:w-24">
-            <CompanyLogo logoUrl={company.logoUrl} name={company.name} height={56} className="max-w-[72px]" />
+          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-background bg-white p-2 shadow-lg sm:h-28 sm:w-28">
+            <CompanyLogo logoUrl={company.logoUrl} name={company.name} height={68} className="max-w-[92px] text-neutral-900" />
           </div>
           <Badge variant={company.isOpenNow ? "success" : "muted"} className="mb-2">
             {company.isOpenNow ? "Aberta agora" : "Fechada agora"}

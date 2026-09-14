@@ -27,12 +27,19 @@ export function CompanyCard({ company }: { company: PublicCompanyCardData }) {
         <div className="absolute left-3 top-3">
           <Badge variant={company.isOpenNow ? "success" : "muted"}>{company.isOpenNow ? "Aberta" : "Fechada"}</Badge>
         </div>
-        <div className="absolute -bottom-6 left-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border-2 border-background bg-[var(--background-elevated)] shadow-lg">
-          <CompanyLogo logoUrl={company.logoUrl} name={company.name} height={36} className="max-w-[48px]" />
-        </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-4 pt-8">
+      {/* A badge da logo fica FORA do container da capa (que tem
+          overflow-hidden pra recortar os cantos da foto) — puxada pra cima
+          com margem negativa, não position:absolute, senão a parte que
+          deveria "sobrar" pra fora da capa é cortada reto pelo
+          overflow-hidden do container da foto. Mesmo padrão de
+          /agendar/[slug]/page.tsx. */}
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="-mt-9 mb-1 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-background bg-white p-1.5 shadow-lg">
+          <CompanyLogo logoUrl={company.logoUrl} name={company.name} height={42} className="max-w-[56px] text-neutral-900" />
+        </div>
+
         <h3 className="truncate text-base font-semibold text-foreground">{company.name}</h3>
 
         {location && (
