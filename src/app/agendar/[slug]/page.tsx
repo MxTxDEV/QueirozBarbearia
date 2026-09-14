@@ -61,7 +61,7 @@ export default async function CompanyBookingLandingPage({ params }: Props) {
       </div>
 
       <div className="mx-auto max-w-2xl px-4 pb-16">
-        <div className="-mt-6 flex items-end gap-4 sm:-mt-7">
+        <div className="-mt-16 flex items-end gap-4 sm:-mt-20">
           <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-background bg-white p-2 shadow-lg sm:h-28 sm:w-28">
             <CompanyLogo logoUrl={company.logoUrl} name={company.name} height={68} className="max-w-[92px] text-neutral-900" />
           </div>

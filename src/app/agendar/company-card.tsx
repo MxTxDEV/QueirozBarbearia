@@ -36,7 +36,7 @@ export function CompanyCard({ company }: { company: PublicCompanyCardData }) {
           overflow-hidden do container da foto. Mesmo padrão de
           /agendar/[slug]/page.tsx. */}
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="-mt-8 mb-1 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-background bg-white p-1.5 shadow-lg">
+        <div className="-mt-16 mb-1 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-background bg-white p-1.5 shadow-lg">
           <CompanyLogo logoUrl={company.logoUrl} name={company.name} height={42} className="max-w-[56px] text-neutral-900" />
         </div>
 
