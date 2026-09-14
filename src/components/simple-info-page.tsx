@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 /**
  * Layout simples reusado pelas páginas institucionais (/sobre,
@@ -16,12 +17,15 @@ export function SimpleInfoPage({ title, children }: { title: string; children: R
     <div className="ic-landing min-h-screen">
       <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-8 sm:px-10">
         <Link href="/sistema">
-          <BrandLogo variant="light" height={24} />
+          <BrandLogo height={24} />
         </Link>
-        <Link href="/sistema" className="flex items-center gap-1.5 text-sm text-[var(--ic-muted)] hover:text-[var(--ic-white)]">
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </Link>
+        <div className="flex items-center gap-3">
+          <ThemeToggle className="text-[var(--ic-muted)] hover:bg-[var(--ic-overlay)] hover:text-[var(--ic-white)]" />
+          <Link href="/sistema" className="flex items-center gap-1.5 text-sm text-[var(--ic-muted)] hover:text-[var(--ic-white)]">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto max-w-2xl px-6 pb-24 sm:px-10">

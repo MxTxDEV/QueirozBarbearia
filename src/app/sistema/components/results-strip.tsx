@@ -10,7 +10,7 @@ const STATS = [
 /** Indicadores do próprio produto — nunca métricas de negócio/clientes inventadas. */
 export function ResultsStrip() {
   return (
-    <section className="border-y border-[var(--ic-border)] bg-white/[0.02] px-6 py-16 sm:px-10">
+    <section className="border-y border-[var(--ic-border)] bg-[var(--ic-overlay)] px-6 py-16 sm:px-10">
       <div className="mx-auto grid max-w-5xl grid-cols-2 gap-8 sm:grid-cols-4">
         {STATS.map((stat, i) => (
           <Reveal key={stat.label} delayMs={i * 70} className="text-center">

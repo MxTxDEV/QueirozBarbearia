@@ -40,7 +40,7 @@ export function Footer() {
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-[1.3fr_repeat(4,1fr)] lg:gap-8">
           <div>
-            <BrandLogo variant="light" height={26} />
+            <BrandLogo height={26} />
             <p className="mt-4 max-w-xs text-sm text-[var(--ic-muted)]">Sistema de gestão para barbearias. Mais organização, mais controle, mais tempo para crescer.</p>
           </div>
 

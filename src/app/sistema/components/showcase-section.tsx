@@ -31,7 +31,7 @@ export function ShowcaseSection({
   tint,
 }: ShowcaseSectionProps) {
   return (
-    <section id={id} className={`px-6 py-24 sm:px-10 sm:py-32 ${tint ? "bg-white/[0.02]" : ""}`}>
+    <section id={id} className={`px-6 py-24 sm:px-10 sm:py-32 ${tint ? "bg-[var(--ic-overlay)]" : ""}`}>
       <div className={`mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2 lg:gap-16 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}>
         <Reveal>
           <div className={reverse ? "lg:pl-4" : undefined}>

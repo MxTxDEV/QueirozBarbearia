@@ -14,7 +14,7 @@ export function Hero() {
       <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
         <div>
           <Reveal>
-            <span className="inline-flex items-center rounded-full border border-[var(--ic-border-strong)] bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--ic-muted)]">
+            <span className="inline-flex items-center rounded-full border border-[var(--ic-border-strong)] bg-[var(--ic-overlay)] px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--ic-muted)]">
               Sistema de gestão para barbearias
             </span>
           </Reveal>
@@ -45,7 +45,7 @@ export function Hero() {
               </a>
               <a
                 href="#como-funciona"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[var(--ic-border-strong)] px-7 text-base font-semibold text-[var(--ic-white)] transition-colors hover:bg-white/5 sm:h-14"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[var(--ic-border-strong)] px-7 text-base font-semibold text-[var(--ic-white)] transition-colors hover:bg-[var(--ic-overlay)] sm:h-14"
               >
                 Ver como funciona
                 <ChevronDown className="h-4 w-4" />
@@ -55,8 +55,8 @@ export function Hero() {
         </div>
 
         <Reveal delayMs={200} className="relative">
-          {/* Janela do produto: dashboard real do iCortes */}
-          <div className="relative rounded-2xl border border-[var(--ic-border-strong)] bg-[var(--ic-card)] p-2 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)] sm:p-2.5">
+          {/* Janela do produto: dashboard real do iCortes — flutua devagar e continuamente */}
+          <div className="ic-anim-float-screen relative rounded-2xl border border-[var(--ic-border-strong)] bg-[var(--ic-card)] p-2 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)] sm:p-2.5">
             <div className="flex items-center gap-1.5 px-2 py-2">
               <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
@@ -74,8 +74,8 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Celular flutuante, só espiando o canto inferior — pequeno o bastante pra nunca cobrir os números do dashboard atrás */}
-          <div className="absolute -bottom-6 -left-8 hidden w-[100px] rounded-[1.1rem] border border-[var(--ic-border-strong)] bg-[var(--ic-card)] p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)] sm:block sm:w-[118px]">
+          {/* Celular flutuante, só espiando o canto inferior — pequeno o bastante pra nunca cobrir os números do dashboard atrás; timing de flutuação diferente do dashboard pra não ficarem sincronizados */}
+          <div className="ic-anim-float-phone absolute -bottom-6 -left-8 hidden w-[100px] rounded-[1.1rem] border border-[var(--ic-border-strong)] bg-[var(--ic-card)] p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)] sm:block sm:w-[118px]">
             <div className="overflow-hidden rounded-[1rem] border border-[var(--ic-border)]">
               <Image
                 src="/marketing/screenshot-mobile.png"

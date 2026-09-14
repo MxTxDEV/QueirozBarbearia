@@ -342,10 +342,11 @@ body {
 
 /*
   Identidade visual da landing page comercial (/sistema) — preto + branco +
-  vermelho, fixa e independente do tema claro/escuro usado no resto do
-  produto (o painel operacional continua "Dark Luxury" azul; a página de
-  vendas compromete com UM visual premium só, não alterna tema). Escopado
-  pela classe .ic-landing pra nunca vazar pros tokens usados no app.
+  vermelho, escopada pela classe .ic-landing pra nunca vazar pros tokens
+  usados no painel operacional (que continua "Dark Luxury" azul). Segue o
+  MESMO alternador de tema do resto do app ([data-theme="light"] no
+  <html>, ver ThemeToggle/ThemeProvider) — dark é o padrão/identidade
+  principal da marca, claro é a variante dos dois blocos abaixo.
 */
 .ic-landing {
   --ic-bg: #08090a;
@@ -360,9 +361,46 @@ body {
   --ic-white: #f5f5f5;
   --ic-muted: #9a9a9a;
   --ic-muted-dark: #6b6b6b;
+  /* Tingimento sutil sobre o fundo (badges, hover de menu) — token em vez
+     de bg-white/5 fixo, que ficaria invisível no tema claro. */
+  --ic-overlay: rgba(245, 245, 245, 0.04);
 
   background: var(--ic-bg);
   color: var(--ic-white);
+}
+
+[data-theme="light"] .ic-landing {
+  --ic-bg: #ffffff;
+  --ic-bg-elevated: #f7f7f7;
+  --ic-card: #f4f4f4;
+  --ic-card-hover: #ebebeb;
+  --ic-border: rgba(8, 9, 10, 0.1);
+  --ic-border-strong: rgba(8, 9, 10, 0.16);
+  --ic-white: #0f1012;
+  --ic-muted: #5b5b5b;
+  --ic-muted-dark: #9a9a9a;
+  --ic-overlay: rgba(8, 9, 10, 0.035);
+}
+
+/* Flutuação discreta e contínua dos mockups do produto no hero (tela do
+   dashboard + celular) — cada um com timing levemente diferente pra não
+   parecerem sincronizados. Desligada sob prefers-reduced-motion. */
+@keyframes ic-float-screen {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+@keyframes ic-float-phone {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(-1.5deg); }
+}
+.ic-anim-float-screen { animation: ic-float-screen 6s ease-in-out infinite; }
+.ic-anim-float-phone { animation: ic-float-phone 5s ease-in-out infinite; animation-delay: 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ic-anim-float-screen,
+  .ic-anim-float-phone {
+    animation: none;
+  }
 }
 
 ::-webkit-scrollbar {
