@@ -58,19 +58,21 @@ export default async function CompanyBookingLandingPage({ params }: Props) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={company.coverImageUrl} alt="" className="h-full w-full object-cover" />
         )}
-      </div>
 
-      <div className="mx-auto max-w-2xl px-4 pb-16">
-        <div className="-mt-16 flex items-end gap-4 sm:-mt-20">
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-background bg-white p-2 shadow-lg sm:h-28 sm:w-28">
-            <CompanyLogo logoUrl={company.logoUrl} name={company.name} height={68} className="max-w-[92px] text-neutral-900" />
+        {/* Logo 100% dentro da capa (nunca sobra pra fora) — mesma lógica
+            do selo "Aberta agora" acima, só que ancorada embaixo. */}
+        <div className="absolute bottom-4 left-4 flex items-center gap-3 sm:bottom-6 sm:left-6">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-background bg-white p-2 shadow-lg sm:h-24 sm:w-24">
+            <CompanyLogo logoUrl={company.logoUrl} name={company.name} height={56} className="max-w-[76px] text-neutral-900" />
           </div>
-          <Badge variant={company.isOpenNow ? "success" : "muted"} className="mb-2">
+          <Badge variant={company.isOpenNow ? "success" : "muted"}>
             {company.isOpenNow ? "Aberta agora" : "Fechada agora"}
           </Badge>
         </div>
+      </div>
 
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{company.name}</h1>
+      <div className="mx-auto max-w-2xl px-4 pb-16 pt-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{company.name}</h1>
         <p className="mt-1 text-sm text-foreground-muted">Agende seu horário de forma rápida e online.</p>
 
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-foreground-muted">
