@@ -31,10 +31,6 @@ function isUploadedImagePath(kind: UploadKind, url: string | null | undefined): 
   return !!url && url.startsWith(`/api/uploads/${kind}/`);
 }
 
-export function isUploadedLogoPath(logoUrl: string | null | undefined): logoUrl is string {
-  return isUploadedImagePath("logos", logoUrl);
-}
-
 /** Salva um arquivo de imagem enviado (logo ou capa) e devolve o caminho público. */
 async function saveUploadedImage(kind: UploadKind, file: File, companyId: string): Promise<string> {
   if (!(file instanceof File) || file.size === 0) throw new Error("Selecione um arquivo de imagem.");

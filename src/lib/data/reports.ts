@@ -7,23 +7,30 @@ export async function getFinancialReport(companyId: string, period: PeriodFilter
   const { from, to } = periodToDates(period);
   const where = from && to ? { companyId, transactionDate: { gte: from, lt: to } } : { companyId };
 
-  const transactions = await prisma.financialTransaction.findMany({ where });
+  // Soma por categoria+tipo feita no banco (groupBy) em vez de trazer toda
+  // linha do período pra somar em JS — período "all" numa empresa antiga
+  // significava carregar a tabela inteira só pra agregar.
+  const grouped = await prisma.financialTransaction.groupBy({
+    by: ["category", "type"],
+    where,
+    _sum: { amount: true },
+  });
 
   const byCategory = new Map<string, { income: number; expense: number }>();
   let income = 0;
   let expense = 0;
 
-  for (const t of transactions) {
-    const amount = toNumber(t.amount);
-    const entry = byCategory.get(t.category) ?? { income: 0, expense: 0 };
-    if (t.type === "INCOME") {
+  for (const g of grouped) {
+    const amount = toNumber(g._sum.amount);
+    const entry = byCategory.get(g.category) ?? { income: 0, expense: 0 };
+    if (g.type === "INCOME") {
       income += amount;
       entry.income += amount;
     } else {
       expense += amount;
       entry.expense += amount;
     }
-    byCategory.set(t.category, entry);
+    byCategory.set(g.category, entry);
   }
 
   return {

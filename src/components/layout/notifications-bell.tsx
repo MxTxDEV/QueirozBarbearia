@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { cn, formatDate, formatTime } from "@/lib/utils";
@@ -26,6 +26,21 @@ export function NotificationsBell({
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // Fecha com Esc e devolve o foco pro botão que abriu o dropdown — sem
+  // isso, quem navega por teclado fica preso dentro do menu.
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   // Atualiza sozinho em segundo plano — o admin vê novos alertas (ex: novo
   // agendamento) sem precisar recarregar a página.
@@ -45,8 +60,11 @@ export function NotificationsBell({
   return (
     <div className="relative">
       <button
+        ref={toggleRef}
         className="relative rounded-xl p-2 text-foreground-muted transition-colors hover:bg-[var(--surface-subtle-hover)] hover:text-foreground"
-        aria-label="Notificações"
+        aria-label={unreadCount > 0 ? `Notificações, ${unreadCount} não lida${unreadCount > 1 ? "s" : ""}` : "Notificações"}
+        aria-haspopup="true"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
         <Bell className="h-5 w-5" />

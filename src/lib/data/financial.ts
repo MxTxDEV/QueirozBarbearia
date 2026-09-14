@@ -70,14 +70,3 @@ export async function listExpenses(companyId: string) {
   return prisma.expense.findMany({ where: { companyId }, orderBy: { dueDate: "desc" } });
 }
 
-export async function getMonthOverview(companyId: string) {
-  const cashFlow = await getCashFlow(companyId, "month");
-  const { from, to } = periodToDates("month");
-  const [appointmentsCount, cancelledCount] = await Promise.all([
-    prisma.appointment.count({
-      where: { companyId, appointmentDate: { gte: from, lt: to }, status: { in: ["CONFIRMED", "COMPLETED"] } },
-    }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
-  ]);
-  return { ...cashFlow, appointmentsCount, cancelledCount };
-}

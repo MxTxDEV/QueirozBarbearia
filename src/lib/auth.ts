@@ -205,10 +205,3 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 }
-
-export async function requireUser(roles?: Role[]): Promise<CurrentUser> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Não autenticado.");
-  if (roles && !roles.includes(user.role)) throw new Error("Acesso não autorizado.");
-  return user;
-}

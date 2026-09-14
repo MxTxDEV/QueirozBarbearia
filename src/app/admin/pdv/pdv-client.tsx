@@ -140,6 +140,9 @@ export function PdvClient({
   }
 
   function cancelSale(id: string) {
+    if (!confirm("Cancelar essa venda? Os pagamentos e lançamentos financeiros vinculados serão removidos. Essa ação não pode ser desfeita.")) {
+      return;
+    }
     startTransition(async () => {
       const result = await cancelSaleAction(id);
       if (!result.ok) {
@@ -356,6 +359,7 @@ export function PdvClient({
                           type="button"
                           onClick={() => changeQuantity(line.type, line.id, -1)}
                           className="flex h-6 w-6 items-center justify-center rounded-md border text-foreground-muted hover:bg-[var(--surface-subtle-hover)]"
+                          aria-label="Diminuir quantidade"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
@@ -364,6 +368,7 @@ export function PdvClient({
                           type="button"
                           onClick={() => changeQuantity(line.type, line.id, 1)}
                           className="flex h-6 w-6 items-center justify-center rounded-md border text-foreground-muted hover:bg-[var(--surface-subtle-hover)]"
+                          aria-label="Aumentar quantidade"
                         >
                           <Plus className="h-3 w-3" />
                         </button>

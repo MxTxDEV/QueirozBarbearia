@@ -82,9 +82,12 @@ export async function createSaleAction(input: CreateSaleInput): Promise<ActionRe
     const serviceMap = new Map(services.map((s) => [s.id, s]));
     const productMap = new Map(products.map((p) => [p.id, p]));
 
+    // Decimal.js (não float) do preço até o total: multiplicação/soma em
+    // ponto flutuante acumula erro de arredondamento em dinheiro (ex:
+    // 0.1 + 0.2 !== 0.3) — Decimal opera em base 10 exata, igual o banco.
     const lineItems = data.items.map((item) => {
       const source = item.type === "SERVICE" ? serviceMap.get(item.id)! : productMap.get(item.id)!;
-      const unitPrice = toNumber(source.price);
+      const unitPrice = new Prisma.Decimal(source.price);
       return {
         type: item.type,
         serviceId: item.type === "SERVICE" ? item.id : null,
@@ -92,15 +95,16 @@ export async function createSaleAction(input: CreateSaleInput): Promise<ActionRe
         name: source.name,
         unitPrice,
         quantity: item.quantity,
-        totalPrice: Math.round(unitPrice * item.quantity * 100) / 100,
+        totalPrice: unitPrice.mul(item.quantity),
       };
     });
 
-    const subtotal = Math.round(lineItems.reduce((sum, i) => sum + i.totalPrice, 0) * 100) / 100;
-    if (data.discount > subtotal) {
+    const subtotal = lineItems.reduce((sum, i) => sum.add(i.totalPrice), new Prisma.Decimal(0));
+    const discount = new Prisma.Decimal(data.discount);
+    if (discount.greaterThan(subtotal)) {
       return actionError(new Error("O desconto não pode ser maior que o subtotal."));
     }
-    const total = Math.round((subtotal - data.discount) * 100) / 100;
+    const total = subtotal.sub(discount);
     const soldAt = new Date();
 
     const sale = await prisma.$transaction(async (tx) => {
@@ -112,7 +116,7 @@ export async function createSaleAction(input: CreateSaleInput): Promise<ActionRe
           appointmentId: data.appointmentId,
           createdByUserId: user.id,
           subtotal,
-          discount: data.discount,
+          discount,
           total,
           paymentMethod: data.paymentMethod,
           status: "COMPLETED",
@@ -169,7 +173,8 @@ export async function createSaleAction(input: CreateSaleInput): Promise<ActionRe
       entityType: "sale",
       entityId: sale.id,
       appointmentId: data.appointmentId,
-      metadata: { barberId: data.barberId, total, discount: data.discount, paymentMethod: data.paymentMethod, itemCount: lineItems.length },
+      // metadata é Json — Decimal não serializa como InputJsonValue, converte pra number aqui.
+      metadata: { barberId: data.barberId, total: toNumber(total), discount: data.discount, paymentMethod: data.paymentMethod, itemCount: lineItems.length },
     });
 
     // A venda vinculada a um agendamento já o marca COMPLETED e cria o

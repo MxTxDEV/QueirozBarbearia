@@ -60,6 +60,10 @@ export async function listAppointments(
     where,
     orderBy: { startTime: "asc" },
     include: { customer: true, barber: true, services: true, payments: true },
+    // range: "all" não tem filtro de data (from/to indefinidos acima) — sem
+    // teto isso é uma query sem limite numa empresa antiga. Stopgap até a
+    // tela ganhar paginação de verdade; os demais ranges já são limitados por data.
+    ...(!from && !to ? { take: 1000 } : {}),
   });
 }
 

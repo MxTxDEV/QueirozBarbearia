@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { getGoalsWithProgress } from "@/lib/data/goals";
-import { deleteGoalAction } from "@/actions/goals";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { GOAL_STATUS_LABEL, GOAL_STATUS_VARIANT, GOAL_TYPE_LABEL } from "@/lib/labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import { GoalForm } from "./goal-form";
+import { DeleteGoalButton } from "./delete-goal-button";
 import { requireAdminContext } from "@/lib/require-admin";
 
 export default async function GoalsPage() {
@@ -79,13 +78,7 @@ export default async function GoalsPage() {
                   <p className="text-xs text-foreground-muted">
                     Projeção pelo ritmo atual: {isAppointments ? Math.round(g.projection) : formatCurrency(g.projection)}
                   </p>
-                  {isAdmin && (
-                    <form action={deleteGoalAction.bind(null, g.goal.id)}>
-                      <Button type="submit" size="sm" variant="ghost">
-                        Remover meta
-                      </Button>
-                    </form>
-                  )}
+                  {isAdmin && <DeleteGoalButton goalId={g.goal.id} goalTitle={g.goal.title} />}
                 </CardContent>
               </Card>
             );

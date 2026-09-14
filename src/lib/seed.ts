@@ -1,8 +1,14 @@
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveSeedPassword } from "@/lib/seed-credentials";
 
 const SUPERADMIN_EMAIL = "admin@barberpro.com";
+
+/** True para o erro do Prisma de violação de constraint única (P2002) — usado para tolerar corrida entre requisições concorrentes tentando criar o mesmo registro de seed. */
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
 
 /**
  * Cria o usuário SUPERADMIN da plataforma (idempotente). companyId sempre
@@ -16,15 +22,24 @@ export async function ensureSuperAdmin(): Promise<{ email: string; password: str
 
   const { password } = resolveSeedPassword("SUPERADMIN_PASSWORD");
   const passwordHash = await bcrypt.hash(password, 12);
-  await prisma.user.create({
-    data: {
-      name: "Super Admin",
-      email: SUPERADMIN_EMAIL,
-      passwordHash,
-      role: "SUPERADMIN",
-      companyId: null,
-    },
-  });
+  try {
+    await prisma.user.create({
+      data: {
+        name: "Super Admin",
+        email: SUPERADMIN_EMAIL,
+        passwordHash,
+        role: "SUPERADMIN",
+        companyId: null,
+      },
+    });
+  } catch (error) {
+    // Duas requisições concorrentes podem passar no findUnique acima ao
+    // mesmo tempo (nenhum SUPERADMIN existe ainda) e tentar criar juntas —
+    // a segunda esbarra na constraint única de e-mail. Não é um erro real:
+    // o registro já existe, só não retorna a senha pra essa chamada.
+    if (isUniqueConstraintError(error)) return { email: SUPERADMIN_EMAIL, password: null };
+    throw error;
+  }
   return { email: SUPERADMIN_EMAIL, password };
 }
 

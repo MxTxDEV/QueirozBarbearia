@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cancelAppointmentAsCustomerAction } from "@/actions/appointments";
 
@@ -16,13 +17,20 @@ export function CancelButton({ appointmentId }: { appointmentId: string }) {
         size="sm"
         variant="outline"
         disabled={pending}
-        onClick={() =>
+        onClick={() => {
+          if (!confirm("Cancelar esse agendamento? Essa ação não pode ser desfeita.")) return;
           startTransition(async () => {
             const result = await cancelAppointmentAsCustomerAction(appointmentId);
-            if (!result.ok) setError(result.error);
-            else router.refresh();
-          })
-        }
+            if (!result.ok) {
+              setError(result.error);
+              toast.error(result.error);
+            } else {
+              setError(null);
+              toast.success("Agendamento cancelado.");
+              router.refresh();
+            }
+          });
+        }}
       >
         Cancelar
       </Button>

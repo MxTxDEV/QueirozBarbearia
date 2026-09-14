@@ -253,31 +253,40 @@ export async function getOccupancyToday(
     return h * 60 + m;
   };
 
-  const perBarberRaw = await Promise.all(
-    barbers.map(async (barber) => {
-      const [workingHour, timeOff, bookedAgg] = await Promise.all([
-        prisma.barberWorkingHour.findUnique({ where: { barberId_weekday: { barberId: barber.id, weekday } } }),
-        prisma.barberTimeOff.findFirst({ where: { barberId: barber.id, startDate: { lte: today }, endDate: { gte: today } } }),
-        prisma.appointment.aggregate({
-          where: { companyId, barberId: barber.id, appointmentDate: today, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
-          _sum: { totalDurationMin: true },
-        }),
-      ]);
+  // Antes: 3 queries por barbeiro (1 + 3N no total). Agora: 3 queries fixas —
+  // working hours e folgas de todo mundo via findMany (barberId_weekday é
+  // único por barbeiro, então findMany com weekday fixo dá no máximo 1 linha
+  // por barbeiro) e a soma de minutos agendados via groupBy.
+  const barberIds = barbers.map((b) => b.id);
+  const [workingHours, timeOffs, bookedGroups] = await Promise.all([
+    prisma.barberWorkingHour.findMany({ where: { barberId: { in: barberIds }, weekday } }),
+    prisma.barberTimeOff.findMany({ where: { barberId: { in: barberIds }, startDate: { lte: today }, endDate: { gte: today } } }),
+    prisma.appointment.groupBy({
+      by: ["barberId"],
+      where: { companyId, barberId: { in: barberIds }, appointmentDate: today, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
+      _sum: { totalDurationMin: true },
+    }),
+  ]);
 
-      const working = !!workingHour && !timeOff;
-      let availableMinutes = 0;
-      if (working && workingHour) {
-        let total = toMinutes(workingHour.endTime) - toMinutes(workingHour.startTime);
-        if (workingHour.breakStart && workingHour.breakEnd) {
-          total -= toMinutes(workingHour.breakEnd) - toMinutes(workingHour.breakStart);
-        }
-        availableMinutes = Math.max(0, total);
+  const workingHourByBarber = new Map(workingHours.map((w) => [w.barberId, w]));
+  const barbersWithTimeOff = new Set(timeOffs.map((t) => t.barberId));
+  const bookedByBarber = new Map(bookedGroups.map((g) => [g.barberId, g._sum.totalDurationMin ?? 0]));
+
+  const perBarberRaw = barbers.map((barber) => {
+    const workingHour = workingHourByBarber.get(barber.id);
+    const working = !!workingHour && !barbersWithTimeOff.has(barber.id);
+    let availableMinutes = 0;
+    if (working && workingHour) {
+      let total = toMinutes(workingHour.endTime) - toMinutes(workingHour.startTime);
+      if (workingHour.breakStart && workingHour.breakEnd) {
+        total -= toMinutes(workingHour.breakEnd) - toMinutes(workingHour.breakStart);
       }
-      const bookedMinutes = bookedAgg._sum.totalDurationMin ?? 0;
+      availableMinutes = Math.max(0, total);
+    }
+    const bookedMinutes = bookedByBarber.get(barber.id) ?? 0;
 
-      return { id: barber.id, name: barber.name, working, availableMinutes, bookedMinutes };
-    })
-  );
+    return { id: barber.id, name: barber.name, working, availableMinutes, bookedMinutes };
+  });
 
   const workingBarbers = perBarberRaw.filter((b) => b.working);
   const totalAvailable = workingBarbers.reduce((s, b) => s + b.availableMinutes, 0);
@@ -303,25 +312,51 @@ export type BarberPerformanceItem = {
   avgTicket: number;
 };
 
-/** Desempenho de cada barbeiro ativo no período (faturamento, atendimentos, ticket médio). */
+/**
+ * Desempenho de cada barbeiro ativo no período (faturamento, atendimentos,
+ * ticket médio). Antes: 1 + 3N queries (3 por barbeiro). Agora: 3 queries
+ * fixas — groupBy de status por barbeiro e groupBy de receita por barbeiro.
+ */
 export async function getBarberPerformance(companyId: string, period: DashboardPeriod): Promise<BarberPerformanceItem[]> {
   const { from, to } = resolveDashboardRange(period);
   const barbers = await prisma.barber.findMany({ where: { companyId, active: true }, orderBy: { name: "asc" } });
+  const barberIds = barbers.map((b) => b.id);
 
-  const items = await Promise.all(
-    barbers.map(async (barber) => {
-      const [completed, cancelled, incomeAgg] = await Promise.all([
-        prisma.appointment.count({ where: { companyId, barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "COMPLETED" } }),
-        prisma.appointment.count({ where: { companyId, barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
-        prisma.financialTransaction.aggregate({
-          where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to }, barberId: barber.id },
-          _sum: { amount: true },
-        }),
-      ]);
-      const revenue = toNumber(incomeAgg._sum.amount);
-      return { id: barber.id, name: barber.name, revenue, completed, cancelled, avgTicket: completed > 0 ? revenue / completed : 0 };
-    })
-  );
+  const [statusCounts, incomeGroups] = await Promise.all([
+    prisma.appointment.groupBy({
+      by: ["barberId", "status"],
+      where: {
+        companyId,
+        barberId: { in: barberIds },
+        appointmentDate: { gte: from, lt: to },
+        status: { in: ["COMPLETED", "CANCELLED"] },
+      },
+      _count: { _all: true },
+    }),
+    prisma.financialTransaction.groupBy({
+      by: ["barberId"],
+      where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to }, barberId: { in: barberIds } },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const completedByBarber = new Map<string, number>();
+  const cancelledByBarber = new Map<string, number>();
+  for (const row of statusCounts) {
+    if (row.status === "COMPLETED") completedByBarber.set(row.barberId, row._count._all);
+    if (row.status === "CANCELLED") cancelledByBarber.set(row.barberId, row._count._all);
+  }
+  const revenueByBarber = new Map<string, number>();
+  for (const row of incomeGroups) {
+    if (row.barberId) revenueByBarber.set(row.barberId, toNumber(row._sum.amount));
+  }
+
+  const items = barbers.map((barber) => {
+    const completed = completedByBarber.get(barber.id) ?? 0;
+    const cancelled = cancelledByBarber.get(barber.id) ?? 0;
+    const revenue = revenueByBarber.get(barber.id) ?? 0;
+    return { id: barber.id, name: barber.name, revenue, completed, cancelled, avgTicket: completed > 0 ? revenue / completed : 0 };
+  });
 
   return items.sort((a, b) => b.revenue - a.revenue);
 }

@@ -52,7 +52,10 @@ export function AppointmentRowActions({
           size="sm"
           variant="outline"
           disabled={pending}
-          onClick={() => run(cancelAppointmentAdminAction, "Agendamento cancelado.")}
+          onClick={() => {
+            if (!confirm("Cancelar esse agendamento? Essa ação não pode ser desfeita.")) return;
+            run(cancelAppointmentAdminAction, "Agendamento cancelado.");
+          }}
         >
           Cancelar
         </Button>

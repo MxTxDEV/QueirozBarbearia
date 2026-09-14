@@ -91,7 +91,7 @@ export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; com
               {i + 1}
             </span>
             <span className={`hidden truncate sm:inline ${i === step ? "text-foreground" : ""}`}>{label}</span>
-            {i < STEPS.length - 1 && <span className="h-px w-3 shrink-0 bg-black/15 sm:mx-1 sm:w-6" />}
+            {i < STEPS.length - 1 && <span className="h-px w-3 shrink-0 bg-[var(--border-glass)] sm:mx-1 sm:w-6" />}
           </div>
         ))}
       </div>
@@ -99,25 +99,28 @@ export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; com
       {step === 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           {barbers.map((b) => (
-            <Card
+            <button
               key={b.id}
-              className={`cursor-pointer ${barberId === b.id ? "ring-2 ring-secondary" : ""}`}
+              type="button"
               onClick={() => {
                 setBarberId(b.id);
                 setServiceIds([]);
               }}
+              className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <CardContent className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-secondary-light to-secondary-dark text-xl font-semibold text-white">
-                  {b.name.slice(0, 1)}
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{b.name}</p>
-                  <p className="text-xs text-foreground-muted">{b.specialties.join(", ") || "Barbeiro"}</p>
-                </div>
-                {barberId === b.id && <Check className="ml-auto h-5 w-5 text-secondary-light" />}
-              </CardContent>
-            </Card>
+              <Card className={`cursor-pointer ${barberId === b.id ? "ring-2 ring-secondary" : ""}`}>
+                <CardContent className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-secondary-light to-secondary-dark text-xl font-semibold text-white">
+                    {b.name.slice(0, 1)}
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{b.name}</p>
+                    <p className="text-xs text-foreground-muted">{b.specialties.join(", ") || "Barbeiro"}</p>
+                  </div>
+                  {barberId === b.id && <Check className="ml-auto h-5 w-5 text-secondary-light" />}
+                </CardContent>
+              </Card>
+            </button>
           ))}
           <div className="sm:col-span-2">
             <Button disabled={!barberId} onClick={goToStep2} className="w-full sm:w-auto">
@@ -133,27 +136,30 @@ export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; com
             {barber.services.map((s) => {
               const checked = serviceIds.includes(s.id);
               return (
-                <Card
+                <button
                   key={s.id}
-                  className={`cursor-pointer ${checked ? "ring-2 ring-secondary" : ""}`}
+                  type="button"
                   onClick={() =>
                     setServiceIds((prev) => (checked ? prev.filter((id) => id !== s.id) : [...prev, s.id]))
                   }
+                  className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
-                  <CardContent className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Scissors className="h-4 w-4 text-secondary-light" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{s.name}</p>
-                        <p className="text-xs text-foreground-muted">{formatDuration(s.durationMinutes)}</p>
+                  <Card className={`cursor-pointer ${checked ? "ring-2 ring-secondary" : ""}`}>
+                    <CardContent className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Scissors className="h-4 w-4 text-secondary-light" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{s.name}</p>
+                          <p className="text-xs text-foreground-muted">{formatDuration(s.durationMinutes)}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-foreground">{formatCurrency(s.price)}</span>
-                      {checked && <Check className="h-4 w-4 text-secondary-light" />}
-                    </div>
-                  </CardContent>
-                </Card>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-foreground">{formatCurrency(s.price)}</span>
+                        {checked && <Check className="h-4 w-4 text-secondary-light" />}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </button>
               );
             })}
           </div>

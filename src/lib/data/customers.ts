@@ -21,7 +21,12 @@ export async function listCustomers(companyId: string, search?: string) {
         : {}),
     },
     orderBy: { fullName: "asc" },
-    include: { _count: { select: { appointments: true } } },
+    // Só os campos que as telas (lista de clientes e seletor do PDV)
+    // realmente usam — evita trazer email/notes/etc. de toda a base.
+    select: { id: true, fullName: true, whatsapp: true, _count: { select: { appointments: true } } },
+    // Sem paginação real ainda na tela — isso é só um teto de segurança
+    // contra custo ilimitado numa empresa com base de clientes muito grande.
+    take: 500,
   });
   return customers;
 }
@@ -70,8 +75,4 @@ export async function getCustomerProfile(id: string, companyId: string) {
     preferredBarber,
     topServices,
   };
-}
-
-export async function findCustomerByWhatsapp(companyId: string, whatsapp: string) {
-  return prisma.customer.findUnique({ where: { companyId_whatsapp: { companyId, whatsapp } } });
 }

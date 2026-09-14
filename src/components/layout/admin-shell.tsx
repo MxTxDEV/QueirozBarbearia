@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Menu, X, LogOut, ShieldAlert } from "lucide-react";
-import { BrandLogo } from "@/components/brand-logo";
 import { CompanyLogo } from "@/components/company-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { ADMIN_NAV_SECTIONS } from "./nav-config";
@@ -42,7 +40,7 @@ export function AdminShell({
     <div className="flex min-h-screen flex-col">
       <SkipLink />
       {impersonatedBy && (
-        <div className="flex flex-wrap items-center justify-center gap-2 bg-warning/90 px-4 py-2 text-center text-sm font-medium text-black">
+        <div className="flex flex-wrap items-center justify-center gap-2 border-b border-warning/30 bg-[var(--badge-warning-bg)] px-4 py-2 text-center text-sm font-medium text-warning">
           <ShieldAlert className="h-4 w-4" />
           {impersonatedBy.name} está acessando este painel como {userName}.
           <form action={stopImpersonationAction}>
@@ -119,13 +117,5 @@ export function AdminShell({
       </div>
       <MobileBottomNav isAdmin={isAdmin} onOpenMore={() => setMobileOpen(true)} />
     </div>
-  );
-}
-
-export function BrandLink() {
-  return (
-    <Link href="/admin/dashboard">
-      <BrandLogo height={24} />
-    </Link>
   );
 }

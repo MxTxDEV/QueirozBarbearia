@@ -45,7 +45,9 @@ async function createAppointmentCore(
     if (!barber || !barber.active) return actionError(new Error("Barbeiro indisponível."));
     if (services.length !== data.serviceIds.length) return actionError(new Error("Um ou mais serviços não estão disponíveis."));
 
-    const totalPrice = services.reduce((sum, s) => sum + toNumber(s.price), 0);
+    // Decimal.js em vez de soma float — evita erro de arredondamento
+    // acumulado em dinheiro antes de gravar num Decimal(10,2).
+    const totalPrice = services.reduce((sum, s) => sum.add(s.price), new Prisma.Decimal(0));
     const totalDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
 
     const startTime = new Date(data.startTimeIso);
@@ -112,7 +114,8 @@ async function createAppointmentCore(
       entityType: "appointment",
       entityId: appointment.id,
       appointmentId: appointment.id,
-      metadata: { customerId: customer.id, barberId: barber.id, totalPrice },
+      // metadata é Json — Decimal não serializa como InputJsonValue, converte pra number aqui.
+      metadata: { customerId: customer.id, barberId: barber.id, totalPrice: toNumber(totalPrice) },
     });
 
     await createNotification({

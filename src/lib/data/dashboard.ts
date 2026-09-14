@@ -7,102 +7,62 @@ function dateOnlyUTC(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-export async function getTodaySummary(companyId: string) {
-  const { from, to } = periodToDates("today");
-
-  const [appointmentsToday, confirmedToday, pendingToday, cancelledToday, incomeAgg, expenseAgg] = await Promise.all([
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to } } }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CONFIRMED" } }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "PENDING" } }),
-    prisma.appointment.count({ where: { companyId, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" } }),
-    prisma.financialTransaction.aggregate({
-      where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to } },
-      _sum: { amount: true },
-    }),
-    prisma.financialTransaction.aggregate({
-      where: { companyId, type: "EXPENSE", transactionDate: { gte: from, lt: to } },
-      _sum: { amount: true },
-    }),
-  ]);
-
-  const income = toNumber(incomeAgg._sum.amount);
-  const expense = toNumber(expenseAgg._sum.amount);
-  const completedToday = await prisma.appointment.count({
-    where: { companyId, appointmentDate: { gte: from, lt: to }, status: "COMPLETED" },
-  });
-  const ticketMedio = completedToday > 0 ? income / completedToday : 0;
-
-  return {
-    appointmentsToday,
-    confirmedToday,
-    pendingToday,
-    cancelledToday,
-    completedToday,
-    income,
-    expense,
-    balance: income - expense,
-    ticketMedio,
-  };
-}
-
-export async function getMonthSummary(companyId: string) {
-  const { from, to } = periodToDates("month");
-  const [incomeAgg, expenseAgg, activeGoal] = await Promise.all([
-    prisma.financialTransaction.aggregate({
-      where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to } },
-      _sum: { amount: true },
-    }),
-    prisma.financialTransaction.aggregate({
-      where: { companyId, type: "EXPENSE", transactionDate: { gte: from, lt: to } },
-      _sum: { amount: true },
-    }),
-    prisma.financialGoal.findFirst({
-      where: { companyId, type: "REVENUE", startDate: { lte: to }, endDate: { gte: from } },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
-
-  const income = toNumber(incomeAgg._sum.amount);
-  const expense = toNumber(expenseAgg._sum.amount);
-  const targetValue = activeGoal ? toNumber(activeGoal.targetValue) : null;
-  const goalPercent = targetValue && targetValue > 0 ? Math.min(100, (income / targetValue) * 100) : null;
-
-  return { income, expense, profit: income - expense, targetValue, goalPercent };
-}
-
+/**
+ * Comparativo de barbeiros no mês corrente (atendimentos, cancelamentos e
+ * receita). Antes: 1 query pra listar barbeiros + 3 queries por barbeiro
+ * (3N+1 no total). Agora: 1 query pra listar barbeiros + 1 groupBy de
+ * status por barbeiro + 1 findMany de transações de receita — 3 queries
+ * fixas, independente do número de barbeiros.
+ */
 export async function getBarberComparison(companyId: string) {
   const { from, to } = periodToDates("month");
   const barbers = await prisma.barber.findMany({ where: { companyId, active: true }, orderBy: { name: "asc" } });
+  const barberIds = barbers.map((b) => b.id);
 
-  return Promise.all(
-    barbers.map(async (barber) => {
-      const [completed, cancelled, incomeAgg] = await Promise.all([
-        prisma.appointment.count({
-          where: { companyId, barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "COMPLETED" },
-        }),
-        prisma.appointment.count({
-          where: { companyId, barberId: barber.id, appointmentDate: { gte: from, lt: to }, status: "CANCELLED" },
-        }),
-        prisma.financialTransaction.aggregate({
-          where: { companyId, type: "INCOME", transactionDate: { gte: from, lt: to }, appointment: { barberId: barber.id } },
-          _sum: { amount: true },
-        }),
-      ]);
+  const [statusCounts, incomeTxs] = await Promise.all([
+    prisma.appointment.groupBy({
+      by: ["barberId", "status"],
+      where: {
+        companyId,
+        barberId: { in: barberIds },
+        appointmentDate: { gte: from, lt: to },
+        status: { in: ["COMPLETED", "CANCELLED"] },
+      },
+      _count: { _all: true },
+    }),
+    // Receita fica em FinancialTransaction ligada ao agendamento (não dá pra
+    // groupBy direto pela relação), então busca tudo de uma vez e soma em JS.
+    prisma.financialTransaction.findMany({
+      where: {
+        companyId,
+        type: "INCOME",
+        transactionDate: { gte: from, lt: to },
+        appointment: { barberId: { in: barberIds } },
+      },
+      select: { amount: true, appointment: { select: { barberId: true } } },
+    }),
+  ]);
 
-      const revenue = toNumber(incomeAgg._sum.amount);
-      const avgTicket = completed > 0 ? revenue / completed : 0;
+  const completedByBarber = new Map<string, number>();
+  const cancelledByBarber = new Map<string, number>();
+  for (const row of statusCounts) {
+    if (row.status === "COMPLETED") completedByBarber.set(row.barberId, row._count._all);
+    if (row.status === "CANCELLED") cancelledByBarber.set(row.barberId, row._count._all);
+  }
 
-      return { id: barber.id, name: barber.name, completed, cancelled, revenue, avgTicket };
-    })
-  );
-}
+  const revenueByBarber = new Map<string, number>();
+  for (const tx of incomeTxs) {
+    const barberId = tx.appointment?.barberId;
+    if (!barberId) continue;
+    revenueByBarber.set(barberId, (revenueByBarber.get(barberId) ?? 0) + toNumber(tx.amount));
+  }
 
-export async function getUpcomingAppointments(companyId: string, limit = 8) {
-  return prisma.appointment.findMany({
-    where: { companyId, status: { in: ["PENDING", "CONFIRMED"] }, startTime: { gte: new Date() } },
-    orderBy: { startTime: "asc" },
-    take: limit,
-    include: { customer: true, barber: true, services: true },
+  return barbers.map((barber) => {
+    const completed = completedByBarber.get(barber.id) ?? 0;
+    const cancelled = cancelledByBarber.get(barber.id) ?? 0;
+    const revenue = revenueByBarber.get(barber.id) ?? 0;
+    const avgTicket = completed > 0 ? revenue / completed : 0;
+    return { id: barber.id, name: barber.name, completed, cancelled, revenue, avgTicket };
   });
 }
 
