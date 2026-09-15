@@ -12,6 +12,7 @@ import {
   newAppointmentInternalTemplate,
   otpTemplate,
   serviceThanksTemplate,
+  waitlistSlotOfferedTemplate,
 } from "./templates";
 
 export {
@@ -20,6 +21,7 @@ export {
   appointmentReminderTemplate,
   newAppointmentInternalTemplate,
   serviceThanksTemplate,
+  waitlistSlotOfferedTemplate,
 };
 export type { AppointmentMessageData };
 
@@ -206,6 +208,16 @@ export async function sendNewAppointmentAlertToShop(companyId: string, data: App
     return { ok: false as const, errorMessage: "Número da barbearia não configurado nem conectado." };
   }
   return sendWhatsapp({ companyId, phone, message: newAppointmentInternalTemplate(data) });
+}
+
+/** Avisa o cliente que uma vaga da lista de espera ficou disponível (HOLD ativo, com prazo pra confirmar). */
+export async function sendWaitlistSlotOffer(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: { customerName: string; serviceName: string; barberName: string; date: string; time: string; confirmByTime: string }
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: waitlistSlotOfferedTemplate(data) });
 }
 
 export async function sendCustomerOtp(companyId: string, phone: string, customerId: string, code: string, companyName: string) {

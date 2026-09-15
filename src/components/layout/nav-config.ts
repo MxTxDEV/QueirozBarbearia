@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   Package,
   KeyRound,
+  ClipboardList,
 } from "lucide-react";
 
 export type NavItem = {
@@ -41,6 +42,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     title: "Agenda",
     items: [
       { label: "Agendamentos", href: "/admin/appointments", icon: CalendarClock },
+      { label: "Lista de Espera", href: "/admin/waitlist", icon: ClipboardList },
       { label: "Clientes", href: "/admin/customers", icon: Users },
       { label: "Barbeiros", href: "/admin/barbers", icon: UserCog },
       { label: "Serviços", href: "/admin/services", icon: Scissors },

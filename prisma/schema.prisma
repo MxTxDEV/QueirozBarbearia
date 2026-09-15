@@ -39,6 +39,19 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+/// WAITING: aguardando vaga. OFFERED: uma vaga foi encontrada e está em HOLD
+/// para este cliente (ver campos offered*/holdExpiresAt em WaitlistEntry —
+/// a "reserva temporária" é modelada como estado desta própria entrada, não
+/// como uma tabela separada, pra eliminar qualquer chance de dessincronia
+/// entre duas linhas). CONFIRMED: virou um Appointment de verdade.
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
 enum PaymentMethod {
   PIX
   CASH
@@ -88,6 +101,7 @@ enum NotificationType {
   EXPENSE_OVERDUE
   EXPENSE_ABOVE_BUDGET
   PAYMENT_RECEIVED
+  WAITLIST_SLOT_OFFERED
 }
 
 enum WhatsappDirection {
@@ -171,6 +185,8 @@ model Company {
   whatsappMessages      WhatsappMessage[]
   auditLogs             AuditLog[]
   systemSettings        SystemSetting[]
+  waitlistEntries       WaitlistEntry[]
+  barberBlocks          BarberBlock[]
 
   // Acelera a query da listagem pública (/agendar): status ACTIVE +
   // onlineBookingEnabled true é o filtro de toda visita àquela página.
@@ -208,6 +224,7 @@ model User {
   // Vendas do PDV registradas por este usuário (operador do caixa) — não é
   // quem presta o serviço, ver Sale.barberId pra isso.
   salesCreated  Sale[]          @relation("SaleCreatedBy")
+  createdBarberBlocks BarberBlock[]
 
   @@index([companyId])
   @@map("users")
@@ -287,6 +304,7 @@ model Customer {
   whatsappMessages      WhatsappMessage[]
   sessions              CustomerSession[]
   otps                  CustomerOtp[]
+  waitlistEntries       WaitlistEntry[]
 
   @@unique([companyId, whatsapp])
   @@index([companyId])
@@ -313,11 +331,14 @@ model Barber {
   user         User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   workingHours BarberWorkingHour[]
   timeOffs     BarberTimeOff[]
+  blocks       BarberBlock[]
   services     BarberService[]
   appointments Appointment[]
   sales        Sale[]
   financialTransactions FinancialTransaction[]
   goals        FinancialGoal[]
+  waitlistEntries    WaitlistEntry[] @relation("WaitlistPreferredBarber")
+  waitlistOffers     WaitlistEntry[] @relation("WaitlistOfferedBarber")
 
   @@index([companyId])
   @@map("barbers")
@@ -354,6 +375,34 @@ model BarberTimeOff {
   @@map("barber_time_offs")
 }
 
+/// Bloqueio pontual de uma janela específica do dia (ex: 09:30–11:15) —
+/// diferente de BarberTimeOff, que é folga de dia inteiro. Não é ausência:
+/// é uma exceção à disponibilidade normal daquele dia, então convive com
+/// BarberWorkingHour no mesmo dia (ver getAvailableSlots em
+/// src/lib/availability.ts, que consulta os dois). Convenção de intervalo
+/// [startTime, endTime) — dois bloqueios que só se encostam não conflitam.
+model BarberBlock {
+  id              String   @id @default(cuid())
+  companyId       String   @map("company_id")
+  barberId        String   @map("barber_id")
+  date            DateTime @map("date") @db.Date
+  startTime       DateTime @map("start_time")
+  endTime         DateTime @map("end_time")
+  reason          String?
+  createdByUserId String?  @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  barber    Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([barberId, date])
+  @@index([barberId, startTime, endTime])
+  @@map("barber_blocks")
+}
+
 model Service {
   id              String   @id @default(cuid())
   companyId       String   @map("company_id")
@@ -369,6 +418,7 @@ model Service {
   barbers             BarberService[]
   appointmentServices AppointmentService[]
   saleItems           SaleItem[]
+  waitlistEntries     WaitlistEntry[]
 
   @@index([companyId])
   @@map("services")
@@ -456,6 +506,7 @@ model Appointment {
   payments              Payment[]
   financialTransactions FinancialTransaction[]
   auditLogs             AuditLog[]
+  waitlistEntry         WaitlistEntry?
 
   @@index([companyId])
   @@index([barberId, appointmentDate])
@@ -480,6 +531,61 @@ model AppointmentService {
   @@index([appointmentId])
   @@index([serviceId])
   @@map("appointment_services")
+}
+
+/// Lista de espera. Cada linha é a preferência de um cliente por uma vaga
+/// (serviço + barbeiro opcional + data + horário desejado + tolerância).
+/// A "reserva temporária" (HOLD) NÃO é uma tabela separada — é o próprio
+/// estado OFFERED desta linha: offeredBarberId/offeredStartTime/
+/// offeredEndTime descrevem a vaga oferecida e holdExpiresAt até quando ela
+/// fica reservada só pra este cliente. src/lib/availability.ts trata uma
+/// linha OFFERED com holdExpiresAt no futuro como indisponibilidade, do
+/// mesmo jeito que trata um Appointment ativo — ver getAvailableSlots e
+/// hasSchedulingConflict.
+model WaitlistEntry {
+  id               String         @id @default(cuid())
+  companyId        String         @map("company_id")
+  customerId       String         @map("customer_id")
+  barberId         String?        @map("barber_id")
+  serviceId        String         @map("service_id")
+  date             DateTime       @map("date") @db.Date
+  preferredTime    DateTime       @map("preferred_time")
+  toleranceMinutes Int            @default(60) @map("tolerance_minutes")
+  status           WaitlistStatus @default(WAITING)
+
+  // Preenchidos só enquanto status = OFFERED (o HOLD em si).
+  offeredBarberId  String?   @map("offered_barber_id")
+  offeredStartTime DateTime? @map("offered_start_time")
+  offeredEndTime   DateTime? @map("offered_end_time")
+  holdExpiresAt    DateTime? @map("hold_expires_at")
+  notifiedAt       DateTime? @map("notified_at")
+
+  // Preenchido quando o cliente confirma e a oferta vira um Appointment de
+  // verdade (fluxo normal de agendamento, sem sistema paralelo).
+  confirmedAppointmentId String? @unique @map("confirmed_appointment_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company              Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer             Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  barber               Barber?     @relation("WaitlistPreferredBarber", fields: [barberId], references: [id], onDelete: SetNull)
+  offeredBarber        Barber?     @relation("WaitlistOfferedBarber", fields: [offeredBarberId], references: [id], onDelete: SetNull)
+  service              Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  confirmedAppointment Appointment? @relation(fields: [confirmedAppointmentId], references: [id], onDelete: SetNull)
+
+  // Protege duplicidade no próprio banco (req. da lista de espera): mesmo
+  // cliente não pode ter duas entradas para a mesma combinação. Postgres
+  // trata NULL como distinto em unique constraints, então duas entradas
+  // "qualquer barbeiro" (barberId nulo) pro mesmo serviço/data/horário não
+  // são pegas por este índice — esse caso específico é checado também na
+  // action (ver joinWaitlistCore em src/lib/waitlist.ts).
+  @@unique([companyId, customerId, barberId, serviceId, date, preferredTime])
+  @@index([companyId, status, date])
+  @@index([barberId, status])
+  @@index([offeredBarberId, status])
+  @@index([holdExpiresAt])
+  @@map("waitlist_entries")
 }
 
 // ---------------------------------------------------------------------------

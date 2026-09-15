@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, formatDuration, formatDate } from "@/lib/utils";
 import { getAvailableSlotsAction } from "@/actions/availability";
 import { createAppointmentAsCustomer } from "@/actions/appointments";
+import { WaitlistJoinForm } from "./waitlist-join-form";
 
 type Service = { id: string; name: string; price: number; durationMinutes: number };
 type Barber = { id: string; name: string; photoUrl: string | null; specialties: string[]; services: Service[] };
@@ -196,8 +197,22 @@ export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; com
           </div>
 
           {loadingSlots && <p className="text-sm text-foreground-muted">Carregando horários...</p>}
-          {!loadingSlots && slots.length === 0 && (
-            <p className="text-sm text-foreground-muted">Nenhum horário disponível nesta data. Tente outro dia.</p>
+          {!loadingSlots && slots.length === 0 && barberId && selectedServices[0] && (
+            <div className="space-y-2">
+              <p className="text-sm text-foreground-muted">Nenhum horário disponível nesta data. Tente outro dia.</p>
+              {selectedServices.length > 1 && (
+                <p className="text-xs text-foreground-muted">
+                  A lista de espera funciona para um serviço por vez — sua entrada será para {selectedServices[0].name}.
+                </p>
+              )}
+              <WaitlistJoinForm
+                serviceId={selectedServices[0].id}
+                serviceName={selectedServices.map((s) => s.name).join(", ")}
+                barberId={barberId}
+                barberName={barber?.name ?? ""}
+                date={date}
+              />
+            </div>
           )}
           <div className="flex flex-wrap gap-2">
             {slots.map((slot) => (

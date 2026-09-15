@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ToggleActiveButton } from "../../services/toggle-active-button";
+import { BarberBlockForm } from "./barber-block-form";
+import { BarberBlockRow } from "./barber-block-row";
 import { requireAdminContext } from "@/lib/require-admin";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 
@@ -177,6 +179,25 @@ export default async function BarberDetailPage({ params }: { params: Promise<{ i
                       </Button>
                     </form>
                   </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Bloqueio de horário</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-foreground-muted">
+                Bloqueia um intervalo específico de um dia (ex: 14h–15h30) sem afetar o resto do horário de trabalho normal —
+                diferente de uma folga de dia inteiro.
+              </p>
+              <BarberBlockForm barberId={id} />
+              <div className="space-y-2">
+                {barber.blocks.length === 0 && <p className="text-sm text-foreground-muted">Nenhum bloqueio agendado.</p>}
+                {barber.blocks.map((b) => (
+                  <BarberBlockRow key={b.id} barberId={id} block={b} />
                 ))}
               </div>
             </CardContent>

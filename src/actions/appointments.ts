@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { hasSchedulingConflict } from "@/lib/availability";
+import { findAndOfferNextCandidate } from "@/lib/waitlist-engine";
 import { toNumber } from "@/lib/serialize";
 import { createNotification } from "@/lib/notifications";
 import { logAudit } from "@/lib/audit";
@@ -28,9 +29,18 @@ const createSchema = z.object({
 
 type CreateAppointmentInput = z.infer<typeof createSchema>;
 
-async function createAppointmentCore(
+/**
+ * Exportado para ser reaproveitado pela confirmação de oferta da lista de
+ * espera (src/actions/waitlist.ts) — a confirmação vira um agendamento de
+ * verdade pelo MESMO fluxo normal de criação, nunca um sistema paralelo.
+ * `excludeWaitlistEntryId` exclui o próprio HOLD do candidato da checagem de
+ * conflito (senão a oferta que ele está confirmando apareceria como
+ * "ocupada" por ele mesmo).
+ */
+export async function createAppointmentCore(
   input: CreateAppointmentInput,
-  companyId: string
+  companyId: string,
+  options?: { excludeWaitlistEntryId?: string }
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const data = createSchema.parse(input);
@@ -58,7 +68,12 @@ async function createAppointmentCore(
       return actionError(new Error("Não é possível agendar em um horário no passado."));
     }
 
-    const conflict = await hasSchedulingConflict({ barberId: data.barberId, startTime, endTime });
+    const conflict = await hasSchedulingConflict({
+      barberId: data.barberId,
+      startTime,
+      endTime,
+      excludeWaitlistEntryId: options?.excludeWaitlistEntryId,
+    });
     if (conflict) {
       return actionError(new Error("Esse horário acabou de ser reservado por outro cliente. Escolha outro horário."));
     }
@@ -71,15 +86,10 @@ async function createAppointmentCore(
     // abaixo como o mesmo erro amigável de horário indisponível.
     const appointment = await prisma.$transaction(
       async (tx) => {
-        const conflictInTx = await tx.appointment.findFirst({
-          where: {
-            barberId: data.barberId,
-            appointmentDate,
-            status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
-            startTime: { lt: endTime },
-            endTime: { gt: startTime },
-          },
-        });
+        const conflictInTx = await hasSchedulingConflict(
+          { barberId: data.barberId, startTime, endTime, excludeWaitlistEntryId: options?.excludeWaitlistEntryId },
+          tx
+        );
         if (conflictInTx) throw new Error("CONFLICT");
 
         return tx.appointment.create({
@@ -254,6 +264,14 @@ async function cancelAppointmentCore(appointmentId: string, companyId: string, b
     customerName: appt.customer.fullName,
     date: formatDate(appt.appointmentDate),
     time: formatTime(appt.startTime),
+  });
+
+  // O cancelamento libera uma vaga — verifica na hora se há alguém
+  // compatível na lista de espera pra oferecer. Nunca deve derrubar o
+  // cancelamento em si: um erro aqui só fica no log, o agendamento já foi
+  // cancelado normalmente acima.
+  await findAndOfferNextCandidate(companyId, appt.barberId, appt.appointmentDate).catch((error) => {
+    console.error("[waitlist] falha ao processar vaga liberada por cancelamento:", error);
   });
 
   revalidatePath("/admin/appointments");

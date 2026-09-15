@@ -83,6 +83,29 @@ Se puder, conte pra gente o que achou do atendimento — sua opinião é muito i
 Esperamos você na próxima! 🙌`;
 }
 
+export function waitlistSlotOfferedTemplate(d: {
+  customerName: string;
+  serviceName: string;
+  barberName: string;
+  date: string;
+  time: string;
+  confirmByTime: string;
+}) {
+  return `Olá, ${d.customerName}! 💈
+
+Horário disponível para você!
+
+✂️ ${d.serviceName}
+
+💈 Barbeiro: ${d.barberName}
+
+📅 Data: ${d.date}
+
+⏰ Horário: ${d.time}
+
+Você tem até ${d.confirmByTime} para confirmar, senão a vaga passa para o próximo da lista de espera.`;
+}
+
 export function otpTemplate(code: string, companyName: string) {
   return `Seu código de acesso ${companyName} é: ${code}
 

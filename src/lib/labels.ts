@@ -18,6 +18,22 @@ export const APPOINTMENT_STATUS_VARIANT: Record<string, Variant> = {
   NO_SHOW: "muted",
 };
 
+export const WAITLIST_STATUS_LABEL: Record<string, string> = {
+  WAITING: "Aguardando",
+  OFFERED: "Oferta enviada",
+  CONFIRMED: "Confirmado",
+  CANCELLED: "Cancelado",
+  EXPIRED: "Expirado",
+};
+
+export const WAITLIST_STATUS_VARIANT: Record<string, Variant> = {
+  WAITING: "warning",
+  OFFERED: "accent",
+  CONFIRMED: "success",
+  CANCELLED: "danger",
+  EXPIRED: "muted",
+};
+
 export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   PIX: "PIX",
   CASH: "Dinheiro",
