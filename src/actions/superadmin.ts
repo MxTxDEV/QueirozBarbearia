@@ -261,3 +261,124 @@ export async function stopImpersonationAction() {
   await endImpersonation();
   redirect("/superadmin/companies");
 }
+
+// ---------------------------------------------------------------------------
+// Contas SUPERADMIN da plataforma — administradas à parte dos usuários de
+// empresa (ver createCompanyUserAction acima). São as contas com mais
+// poder do sistema, então toda mutação aqui tem uma proteção extra contra
+// autoexclusão de acesso (nunca deixar a plataforma sem nenhum Super Admin
+// ativo, nunca deixar alguém se bloquear sem querer).
+// ---------------------------------------------------------------------------
+
+const createSuperAdminSchema = z.object({
+  name: z.string().min(2, "Informe o nome."),
+  email: z.string().email("E-mail inválido."),
+  password: z.string().min(6, "A senha deve ter ao menos 6 caracteres."),
+});
+
+export async function createSuperAdminAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  try {
+    const superAdmin = await requireSuperAdmin();
+    const data = createSuperAdminSchema.parse({
+      name: formData.get("name"),
+      email: formData.get("email"),
+      password: formData.get("password"),
+    });
+
+    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existing) return actionError(new Error("Já existe um usuário com este e-mail."));
+
+    const passwordHash = await hashPassword(data.password);
+    const created = await prisma.user.create({
+      data: { name: data.name, email: data.email, passwordHash, role: "SUPERADMIN", companyId: null },
+    });
+
+    await logAudit({
+      companyId: null,
+      userId: superAdmin.id,
+      action: "superadmin_created",
+      entityType: "user",
+      entityId: created.id,
+      metadata: { email: data.email },
+    });
+  } catch (error) {
+    return actionError(error);
+  }
+
+  revalidatePath("/superadmin/admins");
+  return actionSuccess();
+}
+
+const resetSuperAdminPasswordSchema = z.object({
+  password: z.string().min(6, "A senha deve ter ao menos 6 caracteres."),
+});
+
+/** Redefine a senha de uma conta SUPERADMIN (inclusive a própria) — não exige a senha atual, é uma ação administrativa. */
+export async function resetSuperAdminPasswordAction(
+  userId: string,
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const superAdmin = await requireSuperAdmin();
+    const data = resetSuperAdminPasswordSchema.parse({ password: formData.get("password") });
+
+    const target = await prisma.user.findUnique({ where: { id: userId } });
+    if (!target || target.role !== "SUPERADMIN") return actionError(new Error("Super Admin não encontrado."));
+
+    const passwordHash = await hashPassword(data.password);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    await logAudit({
+      companyId: null,
+      userId: superAdmin.id,
+      action: "superadmin_password_reset",
+      entityType: "user",
+      entityId: userId,
+      metadata: { targetEmail: target.email, self: userId === superAdmin.id },
+    });
+  } catch (error) {
+    return actionError(error);
+  }
+
+  revalidatePath("/superadmin/admins");
+  return actionSuccess();
+}
+
+/**
+ * Bloqueia/ativa o login de uma conta SUPERADMIN. Duas proteções contra
+ * ficar sem acesso à plataforma: ninguém pode bloquear a própria conta, e
+ * o último Super Admin ativo não pode ser bloqueado por ninguém.
+ */
+export async function toggleSuperAdminActiveAction(userId: string, active: boolean): Promise<ActionResult> {
+  try {
+    const superAdmin = await requireSuperAdmin();
+
+    if (!active && userId === superAdmin.id) {
+      return actionError(new Error("Você não pode bloquear sua própria conta."));
+    }
+
+    const target = await prisma.user.findUnique({ where: { id: userId } });
+    if (!target || target.role !== "SUPERADMIN") return actionError(new Error("Super Admin não encontrado."));
+
+    if (!active) {
+      const activeCount = await prisma.user.count({ where: { role: "SUPERADMIN", active: true } });
+      if (activeCount <= 1) return actionError(new Error("Não é possível bloquear o último Super Admin ativo da plataforma."));
+    }
+
+    await prisma.user.update({ where: { id: userId }, data: { active } });
+    await logAudit({
+      companyId: null,
+      userId: superAdmin.id,
+      action: active ? "superadmin_activated" : "superadmin_blocked",
+      entityType: "user",
+      entityId: userId,
+      metadata: { targetEmail: target.email },
+    });
+  } catch (error) {
+    return actionError(error);
+  }
+
+  revalidatePath("/superadmin/admins");
+  return actionSuccess();
+}

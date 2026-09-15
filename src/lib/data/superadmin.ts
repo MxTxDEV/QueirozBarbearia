@@ -84,6 +84,25 @@ export async function listAuditLog(limit = 100) {
   });
 }
 
+/** Contas SUPERADMIN da plataforma (nunca listadas junto dos usuários de empresa — ver listAllUsers). */
+export async function listSuperAdmins(search?: string) {
+  return prisma.user.findMany({
+    where: {
+      role: "SUPERADMIN",
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, email: true, active: true, createdAt: true },
+  });
+}
+
 export async function listAllUsers(search?: string) {
   return prisma.user.findMany({
     where: {

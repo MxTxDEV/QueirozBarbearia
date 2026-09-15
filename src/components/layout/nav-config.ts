@@ -18,6 +18,7 @@ import {
   UserCog2,
   ShoppingCart,
   Package,
+  KeyRound,
 } from "lucide-react";
 
 export type NavItem = {
@@ -74,6 +75,7 @@ export const SUPERADMIN_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Empresas", href: "/superadmin/companies", icon: Building2 },
       { label: "Usuários", href: "/superadmin/users", icon: Users },
+      { label: "Super Admins", href: "/superadmin/admins", icon: KeyRound },
       { label: "Auditoria", href: "/superadmin/audit", icon: ShieldCheck },
     ],
   },
