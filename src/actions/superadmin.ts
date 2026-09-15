@@ -382,3 +382,39 @@ export async function toggleSuperAdminActiveAction(userId: string, active: boole
   revalidatePath("/superadmin/admins");
   return actionSuccess();
 }
+
+/**
+ * Exclui uma empresa e, em cascata (via FK no banco), tudo que pertence a
+ * ela — usuários ADMIN/BARBER, clientes, agendamentos, serviços, produtos,
+ * vendas/PDV, financeiro, metas, notificações e mensagens de WhatsApp.
+ * Irreversível. O log de auditoria sobrevive (companyId fica nulo, ver
+ * schema.prisma) — por isso é gravado antes do delete, com o nome/slug no
+ * metadata pra continuar legível depois que a empresa não existir mais.
+ */
+export async function deleteCompanyAction(companyId: string, slugConfirmation: string): Promise<ActionResult> {
+  try {
+    const superAdmin = await requireSuperAdmin();
+
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) return actionError(new Error("Empresa não encontrada."));
+    if (slugConfirmation !== company.slug) {
+      return actionError(new Error("Identificador digitado não confere. Exclusão cancelada."));
+    }
+
+    await logAudit({
+      companyId: company.id,
+      userId: superAdmin.id,
+      action: "company_deleted",
+      entityType: "company",
+      entityId: company.id,
+      metadata: { name: company.name, slug: company.slug },
+    });
+
+    await prisma.company.delete({ where: { id: companyId } });
+  } catch (error) {
+    return actionError(error);
+  }
+
+  revalidatePath("/superadmin/companies");
+  redirect("/superadmin/companies");
+}

@@ -9,6 +9,7 @@ import { CompanyStatusActions } from "./company-status-actions";
 import { NewUserForm } from "./new-user-form";
 import { UserActiveToggle } from "./user-active-toggle";
 import { ImpersonateButton } from "./impersonate-button";
+import { DeleteCompanyButton } from "./delete-company-button";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "Ativa", SUSPENDED: "Suspensa", BLOCKED: "Bloqueada" };
@@ -42,7 +43,10 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <CompanyStatusActions companyId={company.id} status={company.status} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <CompanyStatusActions companyId={company.id} status={company.status} />
+        <DeleteCompanyButton companyId={company.id} companyName={company.name} slug={company.slug} />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
         <Card>
