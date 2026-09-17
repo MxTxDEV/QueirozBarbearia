@@ -10,6 +10,7 @@ import { formatCurrency, formatDuration, formatDate } from "@/lib/utils";
 import { getAvailableSlotsAction } from "@/actions/availability";
 import { createAppointmentAsCustomer } from "@/actions/appointments";
 import { WaitlistJoinForm } from "./waitlist-join-form";
+import { RecurringRequestPanel } from "./recurring-request-panel";
 
 type Service = { id: string; name: string; price: number; durationMinutes: number };
 type Barber = { id: string; name: string; photoUrl: string | null; specialties: string[]; services: Service[] };
@@ -31,6 +32,7 @@ export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; com
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const barber = barbers.find((b) => b.id === barberId) ?? null;
@@ -270,14 +272,36 @@ export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; com
                 <dd className="text-base font-semibold text-secondary-light">{formatCurrency(totalPrice)}</dd>
               </div>
             </dl>
+            <label className="flex items-center gap-2 text-sm text-foreground-muted">
+              <input
+                type="checkbox"
+                checked={repeatEnabled}
+                onChange={(e) => setRepeatEnabled(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Repetir este agendamento
+            </label>
+
+            {repeatEnabled && barberId && selectedServices[0] && (
+              <RecurringRequestPanel
+                barberId={barberId}
+                serviceId={selectedServices[0].id}
+                startDate={date}
+                startTime={selectedSlot.label}
+                onSuccess={() => router.push(`/portal/${companySlug}/recurring-appointments?requested=1`)}
+              />
+            )}
+
             {submitError && <p className="text-sm text-danger">{submitError}</p>}
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setStep(2)} disabled={pending}>
                 <ChevronLeft className="h-4 w-4" /> Voltar
               </Button>
-              <Button onClick={submit} disabled={pending} className="flex-1">
-                {pending ? "Enviando..." : "Solicitar agendamento"}
-              </Button>
+              {!repeatEnabled && (
+                <Button onClick={submit} disabled={pending} className="flex-1">
+                  {pending ? "Enviando..." : "Solicitar agendamento"}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

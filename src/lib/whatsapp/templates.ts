@@ -106,6 +106,68 @@ Horário disponível para você!
 Você tem até ${d.confirmByTime} para confirmar, senão a vaga passa para o próximo da lista de espera.`;
 }
 
+export function recurringRequestInternalTemplate(d: {
+  customerName: string;
+  serviceName: string;
+  barberName: string;
+  time: string;
+  frequencyLabel: string;
+  startDate: string;
+  occurrencesLabel: string;
+}) {
+  return `🔁 NOVA SOLICITAÇÃO DE RECORRÊNCIA
+
+Cliente: ${d.customerName}
+
+Serviço: ${d.serviceName}
+
+Barbeiro: ${d.barberName}
+
+Horário: ${d.time}
+
+Frequência: ${d.frequencyLabel}
+
+Início: ${d.startDate}
+
+${d.occurrencesLabel}
+
+Acesse o painel para analisar.`;
+}
+
+export function recurringApprovedTemplate(d: {
+  customerName: string;
+  serviceName: string;
+  barberName: string;
+  frequencyLabel: string;
+  confirmedCount: number;
+  conflictCount: number;
+}) {
+  const conflictLine =
+    d.conflictCount > 0
+      ? `\n\n${d.conflictCount} data(s) ficaram indisponíveis e entraram na lista de espera — avisamos assim que surgir uma vaga.`
+      : "";
+  return `Olá, ${d.customerName}! 💈
+
+Sua recorrência foi confirmada!
+
+✂️ ${d.serviceName}
+
+💈 Barbeiro: ${d.barberName}
+
+🔁 ${d.frequencyLabel}
+
+${d.confirmedCount} horário(s) já reservados na sua agenda.${conflictLine}`;
+}
+
+export function recurringRejectedTemplate(d: { customerName: string; serviceName: string; reason?: string }) {
+  const reasonLine = d.reason ? `\n\nMotivo: ${d.reason}` : "";
+  return `Olá, ${d.customerName}.
+
+Sua solicitação de recorrência para ${d.serviceName} não pôde ser confirmada pelo barbeiro.${reasonLine}
+
+Você pode agendar normalmente ou solicitar uma nova recorrência.`;
+}
+
 export function otpTemplate(code: string, companyName: string) {
   return `Seu código de acesso ${companyName} é: ${code}
 

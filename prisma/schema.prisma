@@ -52,6 +52,42 @@ enum WaitlistStatus {
   EXPIRED
 }
 
+/// Unidade do intervalo de recorrência. MONTHS usa regra de calendário
+/// (mesmo dia do mês, com clamping em meses mais curtos — 31/01 + 1 mês =
+/// 28 ou 29/02). DAYS/WEEKS usam intervalo real de dias — "a cada 30 dias"
+/// nunca é a mesma coisa que "mensal" (ver src/lib/recurring-helpers.ts).
+enum RecurringFrequencyUnit {
+  DAYS
+  WEEKS
+  MONTHS
+}
+
+/// Status da SÉRIE — independente do status de cada ocorrência individual.
+/// PENDING_APPROVAL: cliente solicitou, aguardando o barbeiro analisar.
+/// ACTIVE: aprovada (mesmo que parcialmente) e gerando ocorrências.
+enum RecurringAppointmentStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+/// Status de CADA OCORRÊNCIA — uma série ACTIVE pode ter uma ocorrência em
+/// CONFLICT ao mesmo tempo; isso é esperado, não um erro do sistema.
+/// SKIPPED: ocorrência PENDING que foi substituída por uma edição da série
+/// (regra mudou antes dela ser confirmada) — preserva o histórico em vez de
+/// apagar a linha.
+enum RecurringOccurrenceStatus {
+  PENDING
+  CONFIRMED
+  CONFLICT
+  CANCELLED
+  SKIPPED
+  WAITING_LIST
+}
+
 enum PaymentMethod {
   PIX
   CASH
@@ -102,6 +138,10 @@ enum NotificationType {
   EXPENSE_ABOVE_BUDGET
   PAYMENT_RECEIVED
   WAITLIST_SLOT_OFFERED
+  RECURRING_REQUEST
+  RECURRING_APPROVED
+  RECURRING_REJECTED
+  RECURRING_OCCURRENCE_CONFLICT
 }
 
 enum WhatsappDirection {
@@ -187,6 +227,7 @@ model Company {
   systemSettings        SystemSetting[]
   waitlistEntries       WaitlistEntry[]
   barberBlocks          BarberBlock[]
+  recurringAppointments RecurringAppointment[]
 
   // Acelera a query da listagem pública (/agendar): status ACTIVE +
   // onlineBookingEnabled true é o filtro de toda visita àquela página.
@@ -225,6 +266,8 @@ model User {
   // quem presta o serviço, ver Sale.barberId pra isso.
   salesCreated  Sale[]          @relation("SaleCreatedBy")
   createdBarberBlocks BarberBlock[]
+  createdRecurringAppointments  RecurringAppointment[] @relation("RecurringCreatedByUser")
+  approvedRecurringAppointments RecurringAppointment[] @relation("RecurringApprovedByUser")
 
   @@index([companyId])
   @@map("users")
@@ -305,6 +348,7 @@ model Customer {
   sessions              CustomerSession[]
   otps                  CustomerOtp[]
   waitlistEntries       WaitlistEntry[]
+  recurringAppointments RecurringAppointment[]
 
   @@unique([companyId, whatsapp])
   @@index([companyId])
@@ -339,6 +383,7 @@ model Barber {
   goals        FinancialGoal[]
   waitlistEntries    WaitlistEntry[] @relation("WaitlistPreferredBarber")
   waitlistOffers     WaitlistEntry[] @relation("WaitlistOfferedBarber")
+  recurringAppointments RecurringAppointment[]
 
   @@index([companyId])
   @@map("barbers")
@@ -419,6 +464,7 @@ model Service {
   appointmentServices AppointmentService[]
   saleItems           SaleItem[]
   waitlistEntries     WaitlistEntry[]
+  recurringAppointments RecurringAppointment[]
 
   @@index([companyId])
   @@map("services")
@@ -507,6 +553,7 @@ model Appointment {
   financialTransactions FinancialTransaction[]
   auditLogs             AuditLog[]
   waitlistEntry         WaitlistEntry?
+  recurringOccurrence   RecurringAppointmentOccurrence?
 
   @@index([companyId])
   @@index([barberId, appointmentDate])
@@ -573,6 +620,7 @@ model WaitlistEntry {
   offeredBarber        Barber?     @relation("WaitlistOfferedBarber", fields: [offeredBarberId], references: [id], onDelete: SetNull)
   service              Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   confirmedAppointment Appointment? @relation(fields: [confirmedAppointmentId], references: [id], onDelete: SetNull)
+  recurringOccurrence  RecurringAppointmentOccurrence?
 
   // Protege duplicidade no próprio banco (req. da lista de espera): mesmo
   // cliente não pode ter duas entradas para a mesma combinação. Postgres
@@ -586,6 +634,101 @@ model WaitlistEntry {
   @@index([offeredBarberId, status])
   @@index([holdExpiresAt])
   @@map("waitlist_entries")
+}
+
+/// A SÉRIE recorrente — a regra ("João corta com Carlos a cada 15 dias às
+/// 18:00"), não uma data específica. Nasce PENDING_APPROVAL quando o
+/// cliente solicita (createdByUserId nulo) ou já ACTIVE quando um
+/// ADMIN/BARBER cria em nome do cliente (aprovação implícita — ver
+/// createRecurringAppointmentCore). Um serviço por série, mesma
+/// simplificação já adotada pela lista de espera.
+model RecurringAppointment {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  customerId String   @map("customer_id")
+  barberId   String   @map("barber_id")
+  serviceId  String   @map("service_id")
+
+  startDate DateTime @map("start_date") @db.Date
+  startTime String   @map("start_time") // "HH:mm", mesmo padrão de BarberWorkingHour
+
+  frequencyUnit RecurringFrequencyUnit @map("frequency_unit")
+  intervalValue Int                    @map("interval_value")
+
+  // Condição de término: quantidade OU data, o que vier primeiro (Regra 10).
+  // Nenhum dos dois preenchido = sem data final (geração progressiva).
+  endDate          DateTime? @map("end_date") @db.Date
+  occurrencesLimit Int?      @map("occurrences_limit")
+
+  status RecurringAppointmentStatus @default(PENDING_APPROVAL)
+
+  // Geração progressiva (séries sem fim definido): até que data as
+  // ocorrências já foram geradas. Null = nada gerado ainda (aguardando
+  // aprovação). Ver generateProgressiveOccurrences em recurring-engine.ts.
+  generatedUntil DateTime? @map("generated_until") @db.Date
+
+  createdByUserId  String? @map("created_by_user_id") // null = solicitado pelo próprio cliente
+  approvedByUserId String? @map("approved_by_user_id")
+
+  rejectionReason String? @map("rejection_reason")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  approvedAt  DateTime? @map("approved_at")
+  rejectedAt  DateTime? @map("rejected_at")
+  pausedAt    DateTime? @map("paused_at")
+  cancelledAt DateTime? @map("cancelled_at")
+
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  barber         Barber   @relation(fields: [barberId], references: [id], onDelete: Restrict)
+  service        Service  @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  createdByUser  User?    @relation("RecurringCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedByUser User?    @relation("RecurringApprovedByUser", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  occurrences RecurringAppointmentOccurrence[]
+
+  @@index([companyId, status])
+  @@index([barberId, status])
+  @@index([customerId])
+  @@map("recurring_appointments")
+}
+
+/// Uma OCORRÊNCIA — uma data prevista pela série. Pode existir sem nunca
+/// virar um Appointment (ex: CONFLICT). status é independente do status da
+/// série: uma série ACTIVE pode ter ocorrências CONFIRMED, CONFLICT e
+/// PENDING ao mesmo tempo — isso é esperado (ver Regra 7 do pedido).
+model RecurringAppointmentOccurrence {
+  id                     String @id @default(cuid())
+  recurringAppointmentId String @map("recurring_appointment_id")
+  occurrenceNumber       Int    @map("occurrence_number")
+
+  scheduledDate      DateTime @map("scheduled_date") @db.Date
+  scheduledStartTime DateTime @map("scheduled_start_time")
+  scheduledEndTime   DateTime @map("scheduled_end_time")
+
+  status RecurringOccurrenceStatus @default(PENDING)
+
+  // Preenchido quando a ocorrência é validada e vira um agendamento de
+  // verdade pelo fluxo normal (createAppointmentCore) — nunca um sistema
+  // paralelo. waitlistEntryId preenchido quando cai na lista de espera
+  // existente em vez de uma implementação própria (Regra 21).
+  appointmentId   String? @unique @map("appointment_id")
+  waitlistEntryId String? @unique @map("waitlist_entry_id")
+
+  conflictReason String? @map("conflict_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  recurringAppointment RecurringAppointment @relation(fields: [recurringAppointmentId], references: [id], onDelete: Cascade)
+  appointment          Appointment?         @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  waitlistEntry        WaitlistEntry?       @relation(fields: [waitlistEntryId], references: [id], onDelete: SetNull)
+
+  @@unique([recurringAppointmentId, occurrenceNumber])
+  @@index([recurringAppointmentId, status])
+  @@index([scheduledDate])
+  @@map("recurring_appointment_occurrences")
 }
 
 // ---------------------------------------------------------------------------

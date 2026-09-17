@@ -20,14 +20,17 @@ const joinSchema = z.object({
   toleranceMinutes: z.coerce.number().int().min(0, "Tolerância inválida.").max(240, "Tolerância máxima de 4 horas."),
 });
 
-type JoinWaitlistInput = z.infer<typeof joinSchema>;
+export type JoinWaitlistInput = z.infer<typeof joinSchema>;
 
 /**
  * Entra na lista de espera. companyId sempre vem de quem chama (sessão do
  * cliente ou do admin), nunca do formulário — mesmo padrão de
- * createAppointmentCore em src/actions/appointments.ts.
+ * createAppointmentCore em src/actions/appointments.ts. Exportado também
+ * pra ser reaproveitado quando uma ocorrência recorrente (Regra 21) cai na
+ * lista de espera em vez de virar agendamento — mesmo motor, sem
+ * implementação paralela.
  */
-async function joinWaitlistCore(
+export async function joinWaitlistCore(
   input: JoinWaitlistInput,
   companyId: string,
   customerId: string
@@ -109,7 +112,8 @@ export async function joinWaitlistAsCustomerAction(
   return joinWaitlistCore(input, customer.companyId, customer.id);
 }
 
-async function cancelWaitlistEntryCore(entryId: string, companyId: string, customerId: string | null): Promise<ActionResult> {
+/** Exportado pro cancelamento de ocorrência recorrente reaproveitar (mesmo motor, sem duplicar). */
+export async function cancelWaitlistEntryCore(entryId: string, companyId: string, customerId: string | null): Promise<ActionResult> {
   try {
     const entry = await prisma.waitlistEntry.findFirst({
       where: { id: entryId, companyId, ...(customerId ? { customerId } : {}) },

@@ -13,6 +13,9 @@ import {
   otpTemplate,
   serviceThanksTemplate,
   waitlistSlotOfferedTemplate,
+  recurringRequestInternalTemplate,
+  recurringApprovedTemplate,
+  recurringRejectedTemplate,
 } from "./templates";
 
 export {
@@ -218,6 +221,37 @@ export async function sendWaitlistSlotOffer(
   data: { customerName: string; serviceName: string; barberName: string; date: string; time: string; confirmByTime: string }
 ) {
   return sendWhatsapp({ companyId, phone, customerId, message: waitlistSlotOfferedTemplate(data) });
+}
+
+/** Notifica o WhatsApp da barbearia sobre uma nova solicitação de recorrência aguardando análise. */
+export async function sendRecurringRequestAlertToShop(
+  companyId: string,
+  data: { customerName: string; serviceName: string; barberName: string; time: string; frequencyLabel: string; startDate: string; occurrencesLabel: string }
+) {
+  const phone = await barbershopNumber(companyId);
+  if (!phone) {
+    console.warn("[WhatsApp] Número da barbearia indisponível — alerta de recorrência não enviado.");
+    return { ok: false as const, errorMessage: "Número da barbearia não configurado nem conectado." };
+  }
+  return sendWhatsapp({ companyId, phone, message: recurringRequestInternalTemplate(data) });
+}
+
+export async function sendRecurringApproved(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: { customerName: string; serviceName: string; barberName: string; frequencyLabel: string; confirmedCount: number; conflictCount: number }
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: recurringApprovedTemplate(data) });
+}
+
+export async function sendRecurringRejected(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: { customerName: string; serviceName: string; reason?: string }
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: recurringRejectedTemplate(data) });
 }
 
 export async function sendCustomerOtp(companyId: string, phone: string, customerId: string, code: string, companyName: string) {

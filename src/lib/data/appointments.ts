@@ -59,7 +59,7 @@ export async function listAppointments(
   return prisma.appointment.findMany({
     where,
     orderBy: { startTime: "asc" },
-    include: { customer: true, barber: true, services: true, payments: true },
+    include: { customer: true, barber: true, services: true, payments: true, recurringOccurrence: true },
     // range: "all" não tem filtro de data (from/to indefinidos acima) — sem
     // teto isso é uma query sem limite numa empresa antiga. Stopgap até a
     // tela ganhar paginação de verdade; os demais ranges já são limitados por data.
@@ -95,13 +95,13 @@ export async function listAppointmentsInRange(
   return prisma.appointment.findMany({
     where,
     orderBy: { startTime: "asc" },
-    include: { customer: true, barber: true, services: true, payments: true },
+    include: { customer: true, barber: true, services: true, payments: true, recurringOccurrence: true },
   });
 }
 
 export async function getAppointmentDetail(id: string, companyId: string) {
   return prisma.appointment.findFirst({
     where: { id, companyId },
-    include: { customer: true, barber: true, services: true, payments: true },
+    include: { customer: true, barber: true, services: true, payments: true, recurringOccurrence: true },
   });
 }

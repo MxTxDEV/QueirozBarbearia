@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarPlus, CalendarClock, User, LogOut } from "lucide-react";
+import { LayoutDashboard, CalendarPlus, CalendarClock, Repeat, User, LogOut } from "lucide-react";
 import { CompanyLogo } from "@/components/company-logo";
 import { SkipLink } from "./skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -28,6 +28,7 @@ export function PortalShell({
     { label: "Início", href: `${base}/dashboard`, icon: LayoutDashboard },
     { label: "Agendar", href: `${base}/book`, icon: CalendarPlus },
     { label: "Meus horários", href: `${base}/appointments`, icon: CalendarClock },
+    { label: "Recorrências", href: `${base}/recurring-appointments`, icon: Repeat },
     { label: "Perfil", href: `${base}/profile`, icon: User },
   ];
 

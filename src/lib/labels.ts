@@ -34,6 +34,42 @@ export const WAITLIST_STATUS_VARIANT: Record<string, Variant> = {
   EXPIRED: "muted",
 };
 
+export const RECURRING_STATUS_LABEL: Record<string, string> = {
+  PENDING_APPROVAL: "Aguardando confirmação",
+  ACTIVE: "Ativa",
+  PAUSED: "Pausada",
+  REJECTED: "Recusada",
+  CANCELLED: "Cancelada",
+  COMPLETED: "Concluída",
+};
+
+export const RECURRING_STATUS_VARIANT: Record<string, Variant> = {
+  PENDING_APPROVAL: "warning",
+  ACTIVE: "success",
+  PAUSED: "muted",
+  REJECTED: "danger",
+  CANCELLED: "danger",
+  COMPLETED: "outline",
+};
+
+export const RECURRING_OCCURRENCE_STATUS_LABEL: Record<string, string> = {
+  PENDING: "Pendente",
+  CONFIRMED: "Confirmado",
+  CONFLICT: "Conflito",
+  CANCELLED: "Cancelado",
+  SKIPPED: "Substituído",
+  WAITING_LIST: "Lista de espera",
+};
+
+export const RECURRING_OCCURRENCE_STATUS_VARIANT: Record<string, Variant> = {
+  PENDING: "outline",
+  CONFIRMED: "success",
+  CONFLICT: "danger",
+  CANCELLED: "muted",
+  SKIPPED: "muted",
+  WAITING_LIST: "warning",
+};
+
 export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   PIX: "PIX",
   CASH: "Dinheiro",

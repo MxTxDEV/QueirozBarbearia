@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, List, Plus } from "lucide-react";
+import { CalendarDays, List, Plus, Repeat } from "lucide-react";
 import { listAppointments, listAppointmentsInRange, type AppointmentRangeFilter } from "@/lib/data/appointments";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate, formatTime, formatWhatsappDisplay } from "@/lib/utils";
@@ -354,9 +354,20 @@ export default async function AppointmentsPage({
                       <span className="text-xs text-foreground-muted">{formatTime(appt.startTime)}</span>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/admin/customers/${appt.customerId}`} className="font-medium text-foreground hover:underline">
-                        {appt.customer.fullName}
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Link href={`/admin/customers/${appt.customerId}`} className="font-medium text-foreground hover:underline">
+                          {appt.customer.fullName}
+                        </Link>
+                        {appt.recurringOccurrence && (
+                          <Link
+                            href={`/admin/recurring-appointments/${appt.recurringOccurrence.recurringAppointmentId}`}
+                            title="Faz parte de uma recorrência"
+                            className="text-secondary-light"
+                          >
+                            <Repeat className="h-3.5 w-3.5" />
+                          </Link>
+                        )}
+                      </div>
                       <p className="text-xs text-foreground-muted">{formatWhatsappDisplay(appt.customer.whatsapp)}</p>
                     </TableCell>
                     <TableCell className="text-foreground-muted">{appt.barber.name}</TableCell>

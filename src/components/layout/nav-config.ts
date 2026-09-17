@@ -20,6 +20,7 @@ import {
   Package,
   KeyRound,
   ClipboardList,
+  Repeat,
 } from "lucide-react";
 
 export type NavItem = {
@@ -43,6 +44,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Agendamentos", href: "/admin/appointments", icon: CalendarClock },
       { label: "Lista de Espera", href: "/admin/waitlist", icon: ClipboardList },
+      { label: "Recorrências", href: "/admin/recurring-appointments", icon: Repeat },
       { label: "Clientes", href: "/admin/customers", icon: Users },
       { label: "Barbeiros", href: "/admin/barbers", icon: UserCog },
       { label: "Serviços", href: "/admin/services", icon: Scissors },

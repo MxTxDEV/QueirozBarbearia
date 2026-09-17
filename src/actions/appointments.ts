@@ -240,7 +240,12 @@ export async function cancelAppointmentAsCustomerAction(appointmentId: string): 
   }
 }
 
-async function cancelAppointmentCore(appointmentId: string, companyId: string, byUserId: string | null) {
+/**
+ * Exportado para ser reaproveitado pelo cancelamento de uma ocorrência
+ * recorrente (src/lib/recurring-engine.ts) — mesmo fluxo normal de
+ * cancelamento, incluindo o gatilho automático da lista de espera.
+ */
+export async function cancelAppointmentCore(appointmentId: string, companyId: string, byUserId: string | null) {
   const appt = await loadAppointmentContext(appointmentId, companyId);
   if (!appt) throw new Error("Agendamento não encontrado.");
 

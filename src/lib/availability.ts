@@ -17,7 +17,10 @@ export type TimeSlot = { start: Date; label: string };
  * motor da lista de espera (src/lib/waitlist.ts) — uma única regra de
  * disponibilidade para todo mundo.
  */
-type ConflictCheckClient = Pick<typeof prisma, "appointment" | "barberBlock" | "waitlistEntry">;
+type ConflictCheckClient = Pick<
+  typeof prisma,
+  "appointment" | "barberBlock" | "waitlistEntry" | "barberWorkingHour" | "barberTimeOff"
+>;
 
 /**
  * Calcula os horários disponíveis de um barbeiro em uma data, considerando:
@@ -139,6 +142,34 @@ export async function hasSchedulingConflict(
   client: ConflictCheckClient = prisma
 ): Promise<boolean> {
   const day = dateOnly(params.startTime);
+
+  // Fora do horário de funcionamento (dia sem expediente cadastrado, ou
+  // início/fim do serviço que não cabe inteiro dentro do expediente/almoço)
+  // ou dia de folga/férias — mesma regra usada por getAvailableSlots, aqui
+  // reaplicada porque este é o único ponto de escrita real (chamado dentro
+  // da transação Serializable) e não pode confiar cegamente em o candidato
+  // ter vindo do seletor de horários da UI (ex: ocorrências de recorrência,
+  // que calculam o horário a partir da regra da série, não do seletor).
+  const weekday = day.getUTCDay();
+  const workingHour = await client.barberWorkingHour.findUnique({
+    where: { barberId_weekday: { barberId: params.barberId, weekday } },
+  });
+  if (!workingHour) return true;
+
+  const dayStart = timeOnDate(day, workingHour.startTime);
+  const dayEnd = timeOnDate(day, workingHour.endTime);
+  if (params.startTime < dayStart || params.endTime > dayEnd) return true;
+
+  if (workingHour.breakStart && workingHour.breakEnd) {
+    const breakStart = timeOnDate(day, workingHour.breakStart);
+    const breakEnd = timeOnDate(day, workingHour.breakEnd);
+    if (overlaps(params.startTime, params.endTime, breakStart, breakEnd)) return true;
+  }
+
+  const timeOff = await client.barberTimeOff.findFirst({
+    where: { barberId: params.barberId, startDate: { lte: day }, endDate: { gte: day } },
+  });
+  if (timeOff) return true;
 
   const blocking = await client.barberBlock.findFirst({
     where: {
