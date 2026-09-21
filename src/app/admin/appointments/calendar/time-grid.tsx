@@ -12,7 +12,7 @@ export type GridAppointment = {
   day: Date;
 };
 
-type PositionedAppointment = GridAppointment & { lane: number; lanes: number };
+export type PositionedAppointment = GridAppointment & { lane: number; lanes: number };
 
 /**
  * Distribui em colunas lado a lado os agendamentos que se sobrepõem no
@@ -23,7 +23,7 @@ type PositionedAppointment = GridAppointment & { lane: number; lanes: number };
  * agendamento na primeira coluna livre. A largura é dividida pelo número
  * de colunas que aquele cluster precisou.
  */
-function assignLanes(items: GridAppointment[]): PositionedAppointment[] {
+export function assignLanes(items: GridAppointment[]): PositionedAppointment[] {
   const sorted = [...items].sort(
     (a, b) => a.startTime.getTime() - b.startTime.getTime() || a.endTime.getTime() - b.endTime.getTime()
   );

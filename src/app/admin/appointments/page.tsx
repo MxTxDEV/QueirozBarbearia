@@ -15,6 +15,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { AppointmentRowActions } from "./row-actions";
 import { CalendarToolbar } from "./calendar/calendar-toolbar";
 import { TimeGrid, type GridAppointment } from "./calendar/time-grid";
+import { BarberDayGrid, type BarberDayAppointment } from "./calendar/barber-day-grid";
 import { MonthGrid, type MonthAppointment } from "./calendar/month-grid";
 import { MobileDayAgenda, MobileWeekAgenda, type DayAgendaItem, type WeekDaySection } from "./calendar/mobile-day-agenda";
 import { MobileMonthGrid, type MonthDayCount } from "./calendar/mobile-month-grid";
@@ -138,6 +139,18 @@ export default async function AppointmentsPage({
   const today = dateOnlyUTC(new Date());
   const dayCount = Math.round((to.getTime() - from.getTime()) / 86_400_000);
   const days = Array.from({ length: dayCount }, (_, i) => addDays(from, i));
+
+  // Visão de Dia: uma coluna fixa por barbeiro lado a lado (Regra: nunca
+  // misturar agendamentos de barbeiros diferentes na mesma coluna/lane).
+  // Login de barbeiro só tem a própria coluna; filtro de barbeiro específico
+  // reduz pra uma coluna só; sem filtro, mostra todos os barbeiros.
+  const dayViewBarbers = isBarberLogin
+    ? user.barberId
+      ? [{ id: user.barberId, name: user.name }]
+      : []
+    : barberId
+      ? barbers.filter((b) => b.id === barberId)
+      : barbers;
 
   const toBlock = (appt: (typeof appointments)[number]) => ({
     id: appt.id,
@@ -298,6 +311,28 @@ export default async function AppointmentsPage({
                   day: appt.appointmentDate,
                 }))}
               />
+            ) : calendarView === "day" ? (
+              (() => {
+                const { startHour, endHour } = gridHourBounds(appointments);
+                return (
+                  <BarberDayGrid
+                    barbers={dayViewBarbers}
+                    startHour={startHour}
+                    endHour={endHour}
+                    emptyBarberLabel={
+                      isBarberLogin ? "Nenhum barbeiro vinculado a este login." : "Cadastre um barbeiro pra ver a agenda por aqui."
+                    }
+                    appointments={appointments.map<BarberDayAppointment>((appt) => ({
+                      block: toBlock(appt),
+                      actions: renderActions(appt),
+                      startTime: appt.startTime,
+                      endTime: appt.endTime,
+                      day: appt.appointmentDate,
+                      barberId: appt.barberId,
+                    }))}
+                  />
+                );
+              })()
             ) : (
               (() => {
                 const { startHour, endHour } = gridHourBounds(appointments);
