@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Upload } from "lucide-react";
 import { listCustomers } from "@/lib/data/customers";
 import { formatWhatsappDisplay } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -26,11 +26,18 @@ export default async function CustomersPage({
           <h1 className="text-2xl font-semibold text-foreground">Clientes</h1>
           <p className="text-sm text-foreground-muted">{customers.length} clientes cadastrados</p>
         </div>
-        <Link href="/admin/customers/new">
-          <Button>
-            <Plus className="h-4 w-4" /> Novo cliente
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/customers/import">
+            <Button variant="outline">
+              <Upload className="h-4 w-4" /> Importar clientes
+            </Button>
+          </Link>
+          <Link href="/admin/customers/new">
+            <Button>
+              <Plus className="h-4 w-4" /> Novo cliente
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <form className="relative max-w-sm">
