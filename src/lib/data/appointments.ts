@@ -87,7 +87,9 @@ export async function listAppointmentsInRange(
     companyId,
     appointmentDate: { gte: params.from, lt: params.to },
     ...(params.barberId ? { barberId: params.barberId } : {}),
-    ...(params.status ? { status: params.status } : {}),
+    // Agendamento cancelado libera o horário e some do calendário (continua na
+    // Lista, como histórico). Só aparece aqui se alguém filtrar explicitamente por "Cancelado".
+    status: params.status ?? { not: "CANCELLED" },
     ...(params.customerQuery
       ? { customer: { fullName: { contains: params.customerQuery, mode: "insensitive" } } }
       : {}),
