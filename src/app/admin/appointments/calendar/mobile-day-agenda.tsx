@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -126,6 +126,7 @@ export function MobileDayAgenda({
   items,
   newHref,
   freeSlots,
+  closed,
 }: {
   dayLabel: string;
   isToday: boolean;
@@ -137,6 +138,8 @@ export function MobileDayAgenda({
   newHref?: string;
   /** Horários livres (de um barbeiro específico) como botões de agendamento rápido. */
   freeSlots?: { label: string; href: string }[];
+  /** Ninguém atende neste dia. */
+  closed?: boolean;
 }) {
   return (
     <div className="space-y-3 md:hidden">
@@ -165,6 +168,7 @@ export function MobileDayAgenda({
         </Link>
       </div>
 
+      {closed && <ClosedDayNote />}
       <DayCarousel isToday={isToday} items={items} />
 
       {newHref && <NewAppointmentLink href={newHref} />}
@@ -188,6 +192,14 @@ export function MobileDayAgenda({
   );
 }
 
+function ClosedDayNote() {
+  return (
+    <p className="flex items-center gap-1.5 rounded-xl border border-dashed px-3 py-2 text-sm text-foreground-muted">
+      <Lock className="h-3.5 w-3.5" /> Fechado neste dia
+    </p>
+  );
+}
+
 function NewAppointmentLink({ href }: { href: string }) {
   return (
     <Link
@@ -206,6 +218,7 @@ export type WeekDaySection = {
   items: DayAgendaItem[];
   /** Novo agendamento neste dia — ausente em dias passados. */
   newHref?: string;
+  closed?: boolean;
 };
 
 /**
@@ -226,6 +239,7 @@ export function MobileWeekAgenda({ days }: { days: WeekDaySection[] }) {
           >
             {d.dayLabel}
           </p>
+          {d.closed && <ClosedDayNote />}
           <DayCarousel isToday={d.isToday} items={d.items} />
           {d.newHref && (
             <div className="mt-2">

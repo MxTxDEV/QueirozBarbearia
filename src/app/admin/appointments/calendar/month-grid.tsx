@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Lock, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay } from "./calendar-dates";
@@ -19,6 +19,7 @@ export function MonthGrid({
   month,
   today,
   buildNewHref,
+  closedDays,
 }: {
   days: Date[];
   appointments: MonthAppointment[];
@@ -26,6 +27,8 @@ export function MonthGrid({
   today: Date;
   /** Link do botão "+" de cada dia (some em dias passados). */
   buildNewHref?: (day: Date) => string;
+  /** Dias (YYYY-MM-DD) em que nenhum barbeiro atende — ficam trancados. */
+  closedDays?: Set<string>;
 }) {
   const weeks: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
@@ -49,11 +52,21 @@ export function MonthGrid({
                 const outsideMonth = day.getUTCMonth() !== month;
                 const isToday = isSameDay(day, today);
                 const hidden = dayAppointments.length - MAX_VISIBLE_PER_DAY;
+                const closed = closedDays?.has(day.toISOString().slice(0, 10)) ?? false;
 
                 return (
                   <div
                     key={day.toISOString()}
-                    className={cn("min-h-[104px] border-b border-l p-1.5", outsideMonth && "opacity-40")}
+                    className={cn("relative min-h-[104px] border-b border-l p-1.5", outsideMonth && "opacity-40")}
+                    style={
+                      closed
+                        ? {
+                            backgroundColor: "var(--surface-subtle)",
+                            backgroundImage: "repeating-linear-gradient(135deg, var(--border-glass) 0 1px, transparent 1px 9px)",
+                          }
+                        : undefined
+                    }
+                    title={closed ? "Fechado — ninguém atende neste dia" : undefined}
                   >
                     <div className="mb-1 flex items-center justify-between">
                       <p
@@ -64,7 +77,12 @@ export function MonthGrid({
                       >
                         {day.getUTCDate()}
                       </p>
-                      {buildNewHref && day.getTime() >= today.getTime() && (
+                      {closed && (
+                        <span className="flex h-6 w-6 items-center justify-center text-foreground-muted/70" aria-label="Fechado">
+                          <Lock className="h-3.5 w-3.5" />
+                        </span>
+                      )}
+                      {!closed && buildNewHref && day.getTime() >= today.getTime() && (
                         <Link
                           href={buildNewHref(day)}
                           aria-label={`Novo agendamento em ${day.getUTCDate()}/${day.getUTCMonth() + 1}`}

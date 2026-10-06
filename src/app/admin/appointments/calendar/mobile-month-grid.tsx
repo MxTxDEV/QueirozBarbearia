@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEKDAY_SHORT, isSameDay } from "./calendar-dates";
 
@@ -19,12 +20,15 @@ export function MobileMonthGrid({
   today,
   counts,
   buildHref,
+  closedDays,
 }: {
   days: Date[];
   month: number;
   today: Date;
   counts: MonthDayCount[];
   buildHref: (day: Date) => string;
+  /** Dias (YYYY-MM-DD) em que ninguém atende. */
+  closedDays?: Set<string>;
 }) {
   const countMap = new Map(counts.map((c) => [c.day.toISOString(), c]));
 
@@ -41,6 +45,7 @@ export function MobileMonthGrid({
           const isToday = isSameDay(day, today);
           const info = countMap.get(day.toISOString());
           const hasItems = !!info && info.count > 0;
+          const closed = closedDays?.has(day.toISOString().slice(0, 10)) ?? false;
 
           return (
             <Link
@@ -53,6 +58,9 @@ export function MobileMonthGrid({
               )}
             >
               <span>{day.getUTCDate()}</span>
+              {closed && !hasItems ? (
+                <Lock className="h-2.5 w-2.5 text-foreground-muted/60" aria-label="Fechado" />
+              ) : (
               <span
                 className={cn(
                   "h-1.5 w-1.5 rounded-full",
@@ -62,6 +70,7 @@ export function MobileMonthGrid({
                   hasItems && !isToday && !info!.hasPending && "bg-secondary-light"
                 )}
               />
+              )}
             </Link>
           );
         })}

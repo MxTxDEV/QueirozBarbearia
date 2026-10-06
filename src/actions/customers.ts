@@ -55,6 +55,43 @@ export async function createCustomerAction(_prev: ActionResult | undefined, form
   redirect(`/admin/customers/${newCustomerId}`);
 }
 
+const quickCustomerSchema = z.object({
+  fullName: z.string().trim().min(2, "Informe o nome completo.").max(120),
+  whatsapp: z.string().min(8, "Informe um WhatsApp válido."),
+});
+
+export type QuickCustomer = { id: string; fullName: string; whatsapp: string; alreadyExisted: boolean };
+
+/**
+ * Cadastro rápido de cliente a partir do novo agendamento (só nome + WhatsApp),
+ * sem sair da tela nem perder o horário escolhido. Se o WhatsApp já pertence a
+ * um cliente da empresa, devolve esse cliente (alreadyExisted) em vez de
+ * falhar — o agendamento segue com ele, sem duplicar nem sobrescrever dados.
+ */
+export async function quickCreateCustomerAction(input: { fullName: string; whatsapp: string }): Promise<ActionResult<QuickCustomer>> {
+  try {
+    const user = await requireAdminContext();
+    const parsed = quickCustomerSchema.parse(input);
+    const whatsapp = normalizeWhatsapp(parsed.whatsapp);
+    if (!whatsapp) return actionError(new Error("Número de WhatsApp inválido. Use o formato (DD) 9XXXX-XXXX."));
+
+    const existing = await prisma.customer.findUnique({ where: { companyId_whatsapp: { companyId: user.companyId, whatsapp } } });
+    if (existing) {
+      return actionSuccess({ id: existing.id, fullName: existing.fullName, whatsapp: existing.whatsapp, alreadyExisted: true });
+    }
+
+    const created = await prisma.customer.create({ data: { companyId: user.companyId, fullName: parsed.fullName, whatsapp } });
+    revalidatePath("/admin/customers");
+    return actionSuccess({ id: created.id, fullName: created.fullName, whatsapp: created.whatsapp, alreadyExisted: false });
+  } catch (error) {
+    // Corrida entre dois cadastros do mesmo WhatsApp: a unique constraint do banco pega o segundo.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return actionError(new Error("Já existe um cliente com este WhatsApp. Selecione-o na lista."));
+    }
+    return actionError(error);
+  }
+}
+
 export async function updateCustomerAction(
   id: string,
   _prev: ActionResult | undefined,

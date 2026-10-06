@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency, formatDuration } from "@/lib/utils";
 import { getAvailableSlotsForAdminAction } from "@/actions/availability";
 import { createAppointmentAsAdmin } from "@/actions/appointments";
+import { quickCreateCustomerAction } from "@/actions/customers";
 
 type Service = { id: string; name: string; price: number; durationMinutes: number };
 type Barber = { id: string; name: string; services: Service[] };
@@ -25,7 +27,7 @@ export type BookingPrefill = { date?: string; time?: string; barberId?: string }
 
 export function AdminBookingForm({
   barbers,
-  customers,
+  customers: initialCustomers,
   prefill,
 }: {
   barbers: Barber[];
@@ -34,7 +36,13 @@ export function AdminBookingForm({
   prefill?: BookingPrefill;
 }) {
   const router = useRouter();
+  const [customers, setCustomers] = useState(initialCustomers);
   const [customerId, setCustomerId] = useState("");
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newWhatsapp, setNewWhatsapp] = useState("");
+  const [customerError, setCustomerError] = useState<string | null>(null);
+  const [savingCustomer, startCustomerTransition] = useTransition();
   const [walkIn, setWalkIn] = useState(false);
   const [walkInName, setWalkInName] = useState("");
   const [notes, setNotes] = useState("");
@@ -78,6 +86,30 @@ export function AdminBookingForm({
     } finally {
       setLoadingSlots(false);
     }
+  }
+
+  function createCustomer() {
+    setCustomerError(null);
+    startCustomerTransition(async () => {
+      const result = await quickCreateCustomerAction({ fullName: newName, whatsapp: newWhatsapp });
+      if (!result.ok || !result.data) {
+        setCustomerError(result.ok ? "Erro inesperado." : result.error);
+        return;
+      }
+      const created = result.data;
+      setCustomers((prev) =>
+        prev.some((c) => c.id === created.id)
+          ? prev
+          : [...prev, { id: created.id, fullName: created.fullName, whatsapp: created.whatsapp }].sort((a, b) =>
+              a.fullName.localeCompare(b.fullName, "pt-BR")
+            )
+      );
+      setCustomerId(created.id);
+      setCreatingCustomer(false);
+      setNewName("");
+      setNewWhatsapp("");
+      toast.success(created.alreadyExisted ? `${created.fullName} já era cliente — selecionado.` : `${created.fullName} cadastrado e selecionado.`);
+    });
   }
 
   function submit() {
@@ -124,15 +156,52 @@ export function AdminBookingForm({
                   ))}
                 </Select>
               )}
-              <label className="flex items-center gap-2 pt-1 text-xs text-foreground-muted">
-                <input
-                  type="checkbox"
-                  checked={walkIn}
-                  onChange={(e) => setWalkIn(e.target.checked)}
-                  className="h-3.5 w-3.5"
-                />
-                Cliente não cadastrado (só o nome)
-              </label>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 pt-1">
+                <label className="flex items-center gap-2 text-xs text-foreground-muted">
+                  <input
+                    type="checkbox"
+                    checked={walkIn}
+                    onChange={(e) => {
+                      setWalkIn(e.target.checked);
+                      setCreatingCustomer(false);
+                    }}
+                    className="h-3.5 w-3.5"
+                  />
+                  Cliente não cadastrado (só o nome)
+                </label>
+                {!walkIn && (
+                  <button
+                    type="button"
+                    onClick={() => setCreatingCustomer((open) => !open)}
+                    className="flex items-center gap-1 text-xs text-secondary-light hover:underline"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" /> {creatingCustomer ? "Fechar" : "Novo cliente"}
+                  </button>
+                )}
+              </div>
+              {creatingCustomer && !walkIn && (
+                <div className="mt-2 space-y-2 rounded-xl border p-3">
+                  <p className="text-xs font-medium text-foreground">Cadastrar novo cliente</p>
+                  <Input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="Nome completo"
+                    aria-label="Nome do novo cliente"
+                    maxLength={120}
+                  />
+                  <Input
+                    value={newWhatsapp}
+                    onChange={(e) => setNewWhatsapp(e.target.value)}
+                    placeholder="WhatsApp (DD) 9XXXX-XXXX"
+                    aria-label="WhatsApp do novo cliente"
+                    inputMode="tel"
+                  />
+                  {customerError && <p className="text-xs text-danger">{customerError}</p>}
+                  <Button type="button" size="sm" onClick={createCustomer} disabled={savingCustomer || newName.trim().length < 2 || newWhatsapp.trim().length < 8}>
+                    {savingCustomer ? "Cadastrando..." : "Cadastrar e selecionar"}
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="booking-barber">Barbeiro</Label>

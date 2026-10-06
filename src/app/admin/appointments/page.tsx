@@ -34,8 +34,11 @@ import {
 import type { AppointmentStatus } from "@prisma/client";
 import { requireAdminContext } from "@/lib/require-admin";
 import { appointmentClientName } from "@/lib/appointment-client";
-import { getOpenIntervals } from "@/lib/data/calendar-availability";
-import { openSlotStarts, minutesToHHMM } from "@/lib/quick-slots";
+import { getOpenIntervals, type DayAvailability } from "@/lib/data/calendar-availability";
+import { openSlotStarts, minutesToHHMM, intersectSegments, coversWholeDay, type ClosedSegment } from "@/lib/quick-slots";
+
+/** Os botões "+" do calendário são de 15 em 15 minutos — o mesmo passo do motor de disponibilidade. */
+const QUICK_SLOT_STEP = 15;
 
 const RANGES: { value: AppointmentRangeFilter; label: string }[] = [
   { value: "today", label: "Hoje" },
@@ -162,25 +165,38 @@ export default async function AppointmentsPage({
       ? [barberId]
       : barbers.map((b) => b.id);
   const openIntervals =
-    isCalendar && calendarView !== "month" && quickBarberIds.length > 0
+    isCalendar && quickBarberIds.length > 0
       ? await getOpenIntervals(user.companyId, quickBarberIds, from, to)
-      : new Map();
+      : new Map<string, DayAvailability>();
   const nowUtc = new Date();
   /** Minuto a partir do qual um dia ainda aceita agendamento: nada em dias passados, só o futuro hoje. */
   const notBeforeMinute = (day: Date) =>
     day.getTime() < today.getTime() ? Infinity : isSameDay(day, today) ? nowUtc.getUTCHours() * 60 + nowUtc.getUTCMinutes() : 0;
 
+  /** Trechos fechados de um dia que valem pra TODOS os barbeiros considerados (se um atende, o horário não é trancado). */
+  const closedForAllBarbers = (availability: Map<string, DayAvailability>, day: Date): ClosedSegment[] => {
+    const perBarber = quickBarberIds.map((id) => availability.get(`${id}|${toISODate(day)}`)?.closed ?? []);
+    if (perBarber.length === 0) return [];
+    return perBarber.reduce((acc, segs) => intersectSegments(acc, segs));
+  };
+
   const dayOpenSlots: Record<string, number[]> = {};
+  const dayClosedSegments: Record<string, ClosedSegment[]> = {};
   const weekOpenSlots: Record<string, { minute: number; barberId?: string }[]> = {};
+  const weekClosedSegments: Record<string, ClosedSegment[]> = {};
+  const closedDayKeys = new Set<string>();
   if (calendarView === "day") {
     for (const id of quickBarberIds) {
-      dayOpenSlots[id] = openSlotStarts(openIntervals.get(`${id}|${toISODate(from)}`) ?? [], 30, notBeforeMinute(from));
+      const info = openIntervals.get(`${id}|${toISODate(from)}`);
+      dayOpenSlots[id] = openSlotStarts(info?.open ?? [], QUICK_SLOT_STEP, notBeforeMinute(from));
+      dayClosedSegments[id] = info?.closed ?? [];
     }
   } else if (calendarView === "week") {
     for (const day of days) {
       const firstBarberByMinute = new Map<number, string>();
       for (const id of quickBarberIds) {
-        for (const minute of openSlotStarts(openIntervals.get(`${id}|${toISODate(day)}`) ?? [], 30, notBeforeMinute(day))) {
+        const open = openIntervals.get(`${id}|${toISODate(day)}`)?.open ?? [];
+        for (const minute of openSlotStarts(open, QUICK_SLOT_STEP, notBeforeMinute(day))) {
           if (!firstBarberByMinute.has(minute)) firstBarberByMinute.set(minute, id);
         }
       }
@@ -188,18 +204,30 @@ export default async function AppointmentsPage({
         .sort((a, b) => a[0] - b[0])
         // Com um barbeiro só no filtro o form já o recebe pelo próprio filtro; sem filtro, pré-seleciona o 1º livre.
         .map(([minute, id]) => ({ minute, barberId: id }));
+      weekClosedSegments[toISODate(day)] = closedForAllBarbers(openIntervals, day);
     }
   }
+  for (const day of days) {
+    if (coversWholeDay(closedForAllBarbers(openIntervals, day))) closedDayKeys.add(toISODate(day));
+  }
 
-  // Celular, visão de Dia, de UM barbeiro: chips com os horários livres do dia exibido.
+  // Celular, visão de Dia: disponibilidade do dia exibido (pode ser outro dia que o do desktop).
+  const mobileAvailability =
+    isCalendar && calendarView === "day" && quickBarberIds.length > 0
+      ? await getOpenIntervals(user.companyId, quickBarberIds, mobileDay, addDays(mobileDay, 1))
+      : new Map<string, DayAvailability>();
+  const mobileDayClosed = calendarView === "day" && coversWholeDay(closedForAllBarbers(mobileAvailability, mobileDay));
+  // Chips com os horários livres, só quando o contexto é de UM barbeiro.
   const mobileFreeSlots =
     calendarView === "day" && quickBarberIds.length === 1 && mobileDay.getTime() >= today.getTime()
-      ? [...(await getOpenIntervals(user.companyId, quickBarberIds, mobileDay, addDays(mobileDay, 1))).entries()]
-          .flatMap(([, intervals]) => openSlotStarts(intervals, 30, notBeforeMinute(mobileDay)))
-          .map((m) => ({
-            label: minutesToHHMM(m),
-            href: buildNewHref({ date: toISODate(mobileDay), time: minutesToHHMM(m), barberId: quickBarberIds[0] }),
-          }))
+      ? openSlotStarts(
+          mobileAvailability.get(`${quickBarberIds[0]}|${toISODate(mobileDay)}`)?.open ?? [],
+          QUICK_SLOT_STEP,
+          notBeforeMinute(mobileDay)
+        ).map((m) => ({
+          label: minutesToHHMM(m),
+          href: buildNewHref({ date: toISODate(mobileDay), time: minutesToHHMM(m), barberId: quickBarberIds[0] }),
+        }))
       : [];
 
   // Visão de Dia: uma coluna fixa por barbeiro lado a lado (Regra: nunca
@@ -236,7 +264,8 @@ export default async function AppointmentsPage({
     day,
     dayLabel: periodLabel("day", day),
     isToday: isSameDay(day, today),
-    newHref: day.getTime() >= today.getTime() ? buildNewHref({ date: toISODate(day) }) : undefined,
+    newHref: day.getTime() >= today.getTime() && !closedDayKeys.has(toISODate(day)) ? buildNewHref({ date: toISODate(day) }) : undefined,
+    closed: closedDayKeys.has(toISODate(day)),
     items: appointments
       .filter((appt) => isSameDay(appt.appointmentDate, day))
       .map<DayAgendaItem>((appt) => ({
@@ -344,8 +373,9 @@ export default async function AppointmentsPage({
               prevHref={buildMobileDayHref(addDays(mobileDay, -1))}
               nextHref={buildMobileDayHref(addDays(mobileDay, 1))}
               todayHref={buildMobileDayHref(today)}
-              newHref={mobileDay.getTime() >= today.getTime() ? buildNewHref({ date: toISODate(mobileDay) }) : undefined}
+              newHref={mobileDay.getTime() >= today.getTime() && !mobileDayClosed ? buildNewHref({ date: toISODate(mobileDay) }) : undefined}
               freeSlots={mobileFreeSlots}
+              closed={mobileDayClosed}
               items={mobileDayAppointments.map<DayAgendaItem>((appt) => ({
                 block: toBlock(appt),
                 actions: renderActions(appt),
@@ -359,6 +389,7 @@ export default async function AppointmentsPage({
               month={startOfMonth(anchor).getUTCMonth()}
               today={today}
               counts={monthCounts}
+              closedDays={closedDayKeys}
               buildHref={buildMonthDayHref}
             />
           ) : (
@@ -372,6 +403,7 @@ export default async function AppointmentsPage({
                 month={startOfMonth(anchor).getUTCMonth()}
                 today={today}
                 buildNewHref={(day) => buildNewHref({ date: toISODate(day) })}
+                closedDays={closedDayKeys}
                 appointments={appointments.map<MonthAppointment>((appt) => ({
                   block: toBlock(appt),
                   actions: renderActions(appt),
@@ -387,6 +419,7 @@ export default async function AppointmentsPage({
                     startHour={startHour}
                     endHour={endHour}
                     openSlots={dayOpenSlots}
+                    closedSegments={dayClosedSegments}
                     buildNewHref={({ time, barberId: slotBarberId }) =>
                       buildNewHref({ date: toISODate(from), time, barberId: slotBarberId })
                     }
@@ -414,6 +447,7 @@ export default async function AppointmentsPage({
                     endHour={endHour}
                     today={today}
                     openSlots={weekOpenSlots}
+                    closedSegments={weekClosedSegments}
                     buildNewHref={buildNewHref}
                     appointments={appointments.map<GridAppointment>((appt) => ({
                       block: toBlock(appt),

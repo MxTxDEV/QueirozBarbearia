@@ -2,9 +2,10 @@ import { cn } from "@/lib/utils";
 import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay, minutesFromMidnight } from "./calendar-dates";
 import { QuickAddSlot } from "./quick-add-slot";
-import { minutesToHHMM } from "@/lib/quick-slots";
+import { ClosedOverlay } from "./closed-overlay";
+import { minutesToHHMM, type ClosedSegment } from "@/lib/quick-slots";
 
-const HOUR_HEIGHT = 56; // px por hora — define a escala vertical da grade
+const HOUR_HEIGHT = 80; // px por hora — define a escala vertical da grade
 
 export type GridAppointment = {
   block: BlockData;
@@ -71,6 +72,7 @@ export function TimeGrid({
   endHour,
   today,
   openSlots,
+  closedSegments,
   buildNewHref,
 }: {
   days: Date[];
@@ -78,8 +80,10 @@ export function TimeGrid({
   startHour: number;
   endHour: number;
   today: Date;
-  /** Por dia (YYYY-MM-DD): células de 30min livres e, se houver, um barbeiro livre nela. */
+  /** Por dia (YYYY-MM-DD): células de 15min livres e, se houver, um barbeiro livre nela. */
   openSlots?: Record<string, { minute: number; barberId?: string }[]>;
+  /** Por dia (YYYY-MM-DD): trechos fechados pra TODOS os barbeiros considerados. */
+  closedSegments?: Record<string, ClosedSegment[]>;
   buildNewHref?: (args: { date: string; time: string; barberId?: string }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
@@ -128,7 +132,15 @@ export function TimeGrid({
             return (
               <div key={day.toISOString()} className="relative flex-1 border-l">
                 {hours.map((h) => (
-                  <div key={h} className="border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }} />
+                  <div key={h} className="relative border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }}>
+                    {[25, 50, 75].map((pct) => (
+                      <span key={pct} className="absolute inset-x-0 border-t border-dashed border-foreground/[0.04]" style={{ top: `${pct}%` }} />
+                    ))}
+                  </div>
+                ))}
+
+                {(closedSegments?.[day.toISOString().slice(0, 10)] ?? []).map((segment) => (
+                  <ClosedOverlay key={`${segment.start}-${segment.reason}`} segment={segment} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
                 ))}
 
                 {buildNewHref &&
@@ -139,7 +151,7 @@ export function TimeGrid({
                         key={s.minute}
                         href={buildNewHref({ date: day.toISOString().slice(0, 10), time: minutesToHHMM(s.minute), barberId: s.barberId })}
                         label={`Agendar ${minutesToHHMM(s.minute)}`}
-                        style={{ top: ((s.minute - startHour * 60) / 60) * HOUR_HEIGHT + 1, height: HOUR_HEIGHT / 2 - 2 }}
+                        style={{ top: ((s.minute - startHour * 60) / 60) * HOUR_HEIGHT + 1, height: HOUR_HEIGHT / 4 - 2 }}
                       />
                     ))}
 

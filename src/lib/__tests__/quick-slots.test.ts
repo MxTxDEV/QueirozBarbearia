@@ -58,3 +58,60 @@ describe("HH:MM helpers", () => {
     expect(hhmmToMinutes("00:30")).toBe(30);
   });
 });
+
+import { buildClosedSegments, intersectSegments, coversWholeDay } from "@/lib/quick-slots";
+
+describe("buildClosedSegments", () => {
+  it("closes the whole day when the barber does not work that weekday", () => {
+    const segs = buildClosedSegments({ working: null });
+    expect(segs).toEqual([{ start: 0, end: 1440, reason: "Não atende neste dia" }]);
+    expect(coversWholeDay(segs)).toBe(true);
+  });
+
+  it("time off beats everything", () => {
+    const segs = buildClosedSegments({ working: { start: 540, end: 1140 }, timeOff: true });
+    expect(segs).toEqual([{ start: 0, end: 1440, reason: "Folga" }]);
+  });
+
+  it("closes before opening, lunch and after closing", () => {
+    const segs = buildClosedSegments({
+      working: { start: 540, end: 1140 },
+      breakInterval: { start: 720, end: 780 },
+    });
+    expect(segs).toEqual([
+      { start: 0, end: 540, reason: "Fora do expediente" },
+      { start: 720, end: 780, reason: "Intervalo" },
+      { start: 1140, end: 1440, reason: "Fora do expediente" },
+    ]);
+    expect(coversWholeDay(segs)).toBe(false);
+  });
+
+  it("uses the block reason, falls back to 'Bloqueado', and does not double-paint lunch", () => {
+    const segs = buildClosedSegments({
+      working: { start: 540, end: 1140 },
+      breakInterval: { start: 720, end: 780 },
+      blocks: [
+        { start: 700, end: 800, reason: "Médico" },
+        { start: 900, end: 960, reason: "  " },
+      ],
+    });
+    expect(segs.filter((s) => s.start >= 540 && s.end <= 1140)).toEqual([
+      { start: 700, end: 720, reason: "Médico" },
+      { start: 720, end: 780, reason: "Intervalo" },
+      { start: 780, end: 800, reason: "Médico" },
+      { start: 900, end: 960, reason: "Bloqueado" },
+    ]);
+  });
+});
+
+describe("intersectSegments", () => {
+  it("keeps only what is closed for both", () => {
+    const a = [{ start: 0, end: 600, reason: "Fora do expediente" }];
+    const b = [{ start: 540, end: 700, reason: "Intervalo" }];
+    expect(intersectSegments(a, b)).toEqual([{ start: 540, end: 600, reason: "Fora do expediente" }]);
+  });
+
+  it("is empty when one barber is open", () => {
+    expect(intersectSegments([{ start: 0, end: 600, reason: "x" }], [])).toEqual([]);
+  });
+});

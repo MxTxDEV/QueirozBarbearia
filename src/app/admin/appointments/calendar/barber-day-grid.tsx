@@ -2,9 +2,10 @@ import { AppointmentBlock } from "./appointment-block";
 import { assignLanes, type GridAppointment } from "./time-grid";
 import { minutesFromMidnight } from "./calendar-dates";
 import { QuickAddSlot } from "./quick-add-slot";
-import { minutesToHHMM } from "@/lib/quick-slots";
+import { ClosedOverlay } from "./closed-overlay";
+import { minutesToHHMM, type ClosedSegment } from "@/lib/quick-slots";
 
-const HOUR_HEIGHT = 56; // px por hora — mesma escala do TimeGrid, pra ficar consistente entre as visões
+const HOUR_HEIGHT = 80; // px por hora — mesma escala do TimeGrid, pra ficar consistente entre as visões
 const MIN_COLUMN_WIDTH = 200; // px — abaixo disso os blocos ficam ilegíveis com 2 linhas
 
 export type BarberDayAppointment = GridAppointment & { barberId: string };
@@ -23,6 +24,7 @@ export function BarberDayGrid({
   endHour,
   emptyBarberLabel = "Sem barbeiros cadastrados.",
   openSlots,
+  closedSegments,
   buildNewHref,
 }: {
   barbers: { id: string; name: string }[];
@@ -30,8 +32,10 @@ export function BarberDayGrid({
   startHour: number;
   endHour: number;
   emptyBarberLabel?: string;
-  /** Início (minutos do dia) de cada célula de 30min livre, por barbeiro. */
+  /** Início (minutos do dia) de cada célula de 15min livre, por barbeiro. */
   openSlots?: Record<string, number[]>;
+  /** Trechos fechados (fora do expediente, intervalo, folga, bloqueio), por barbeiro. */
+  closedSegments?: Record<string, ClosedSegment[]>;
   buildNewHref?: (args: { time: string; barberId: string }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
@@ -71,7 +75,15 @@ export function BarberDayGrid({
             return (
               <div key={barber.id} className="relative flex-1 border-l">
                 {hours.map((h) => (
-                  <div key={h} className="border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }} />
+                  <div key={h} className="relative border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }}>
+                    {[25, 50, 75].map((pct) => (
+                      <span key={pct} className="absolute inset-x-0 border-t border-dashed border-foreground/[0.04]" style={{ top: `${pct}%` }} />
+                    ))}
+                  </div>
+                ))}
+
+                {(closedSegments?.[barber.id] ?? []).map((segment) => (
+                  <ClosedOverlay key={`${segment.start}-${segment.reason}`} segment={segment} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
                 ))}
 
                 {buildNewHref &&
@@ -82,7 +94,7 @@ export function BarberDayGrid({
                         key={m}
                         href={buildNewHref({ time: minutesToHHMM(m), barberId: barber.id })}
                         label={`Agendar ${minutesToHHMM(m)} com ${barber.name}`}
-                        style={{ top: ((m - startHour * 60) / 60) * HOUR_HEIGHT + 1, height: HOUR_HEIGHT / 2 - 2 }}
+                        style={{ top: ((m - startHour * 60) / 60) * HOUR_HEIGHT + 1, height: HOUR_HEIGHT / 4 - 2 }}
                       />
                     ))}
 
