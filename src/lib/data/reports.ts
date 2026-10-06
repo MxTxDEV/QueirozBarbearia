@@ -66,7 +66,8 @@ export async function getCustomerReport(companyId: string, period: PeriodFilter)
     prisma.customer.count({ where: from && to ? { companyId, createdAt: { gte: from, lt: to } } : { companyId } }),
     prisma.payment.groupBy({
       by: ["customerId"],
-      where: { companyId },
+      // "Maiores clientes" é só de clientes cadastrados — pagamentos de cliente avulso ficam de fora.
+      where: { companyId, customerId: { not: null } },
       _sum: { amount: true },
       orderBy: { _sum: { amount: "desc" } },
       take: 10,
@@ -74,12 +75,12 @@ export async function getCustomerReport(companyId: string, period: PeriodFilter)
   ]);
 
   const customers = await prisma.customer.findMany({
-    where: { companyId, id: { in: topSpendersRaw.map((t) => t.customerId) } },
+    where: { companyId, id: { in: topSpendersRaw.flatMap((t) => (t.customerId ? [t.customerId] : [])) } },
   });
   const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   const topSpenders = topSpendersRaw.map((t) => ({
-    customer: customerMap.get(t.customerId),
+    customer: t.customerId ? customerMap.get(t.customerId) : undefined,
     total: toNumber(t._sum.amount),
   }));
 

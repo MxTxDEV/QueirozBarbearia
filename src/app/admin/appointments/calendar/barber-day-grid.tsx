@@ -1,6 +1,8 @@
 import { AppointmentBlock } from "./appointment-block";
 import { assignLanes, type GridAppointment } from "./time-grid";
 import { minutesFromMidnight } from "./calendar-dates";
+import { QuickAddSlot } from "./quick-add-slot";
+import { minutesToHHMM } from "@/lib/quick-slots";
 
 const HOUR_HEIGHT = 56; // px por hora — mesma escala do TimeGrid, pra ficar consistente entre as visões
 const MIN_COLUMN_WIDTH = 200; // px — abaixo disso os blocos ficam ilegíveis com 2 linhas
@@ -20,12 +22,17 @@ export function BarberDayGrid({
   startHour,
   endHour,
   emptyBarberLabel = "Sem barbeiros cadastrados.",
+  openSlots,
+  buildNewHref,
 }: {
   barbers: { id: string; name: string }[];
   appointments: BarberDayAppointment[];
   startHour: number;
   endHour: number;
   emptyBarberLabel?: string;
+  /** Início (minutos do dia) de cada célula de 30min livre, por barbeiro. */
+  openSlots?: Record<string, number[]>;
+  buildNewHref?: (args: { time: string; barberId: string }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const gridHeight = hours.length * HOUR_HEIGHT;
@@ -66,6 +73,18 @@ export function BarberDayGrid({
                 {hours.map((h) => (
                   <div key={h} className="border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }} />
                 ))}
+
+                {buildNewHref &&
+                  (openSlots?.[barber.id] ?? [])
+                    .filter((m) => m >= startHour * 60 && m < endHour * 60)
+                    .map((m) => (
+                      <QuickAddSlot
+                        key={m}
+                        href={buildNewHref({ time: minutesToHHMM(m), barberId: barber.id })}
+                        label={`Agendar ${minutesToHHMM(m)} com ${barber.name}`}
+                        style={{ top: ((m - startHour * 60) / 60) * HOUR_HEIGHT + 1, height: HOUR_HEIGHT / 2 - 2 }}
+                      />
+                    ))}
 
                 {barberAppointments.map((appt) => {
                   const top = ((minutesFromMidnight(appt.startTime) - startHour * 60) / 60) * HOUR_HEIGHT;

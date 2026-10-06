@@ -6,8 +6,11 @@ import { cn } from "@/lib/utils";
 
 export type BlockData = {
   id: string;
-  customerId: string;
+  /** Nulo = cliente avulso (sem cadastro) — não há perfil pra abrir. */
+  customerId: string | null;
   customerName: string;
+  /** Observação do agendamento (onde costuma ir o nome/detalhes de cliente avulso). */
+  notes?: string | null;
   barberName: string;
   services: string;
   status: string;
@@ -97,16 +100,21 @@ export function AppointmentBlock({
               <Row label="Barbeiro" value={data.barberName} />
               <Row label="Valor" value={data.price} />
               <Row label="Status" value={data.statusLabel} />
+              {data.notes && <Row label="Observação" value={data.notes} />}
             </dl>
 
             {actions && <div className="mt-4 border-t pt-4">{actions}</div>}
 
-            <Link
-              href={`/admin/customers/${data.customerId}`}
-              className="mt-4 inline-block text-sm text-secondary-light hover:underline"
-            >
-              Ver perfil do cliente
-            </Link>
+            {data.customerId ? (
+              <Link
+                href={`/admin/customers/${data.customerId}`}
+                className="mt-4 inline-block text-sm text-secondary-light hover:underline"
+              >
+                Ver perfil do cliente
+              </Link>
+            ) : (
+              <p className="mt-4 text-xs text-foreground-muted">Cliente avulso — sem cadastro.</p>
+            )}
           </div>
         </div>
       )}

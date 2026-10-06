@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay } from "./calendar-dates";
@@ -16,11 +18,14 @@ export function MonthGrid({
   appointments,
   month,
   today,
+  buildNewHref,
 }: {
   days: Date[];
   appointments: MonthAppointment[];
   month: number;
   today: Date;
+  /** Link do botão "+" de cada dia (some em dias passados). */
+  buildNewHref?: (day: Date) => string;
 }) {
   const weeks: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
@@ -50,14 +55,26 @@ export function MonthGrid({
                     key={day.toISOString()}
                     className={cn("min-h-[104px] border-b border-l p-1.5", outsideMonth && "opacity-40")}
                   >
-                    <p
-                      className={cn(
-                        "mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
-                        isToday ? "bg-secondary-dark text-white" : "text-foreground-muted"
+                    <div className="mb-1 flex items-center justify-between">
+                      <p
+                        className={cn(
+                          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+                          isToday ? "bg-secondary-dark text-white" : "text-foreground-muted"
+                        )}
+                      >
+                        {day.getUTCDate()}
+                      </p>
+                      {buildNewHref && day.getTime() >= today.getTime() && (
+                        <Link
+                          href={buildNewHref(day)}
+                          aria-label={`Novo agendamento em ${day.getUTCDate()}/${day.getUTCMonth() + 1}`}
+                          title="Novo agendamento neste dia"
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-secondary-light opacity-40 transition hover:bg-secondary/15 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Link>
                       )}
-                    >
-                      {day.getUTCDate()}
-                    </p>
+                    </div>
                     <div className="space-y-1">
                       {dayAppointments.slice(0, MAX_VISIBLE_PER_DAY).map((appt) => (
                         <AppointmentBlock key={appt.block.id} data={appt.block} actions={appt.actions} compact />

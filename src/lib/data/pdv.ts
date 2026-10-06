@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
+import { appointmentClientName } from "@/lib/appointment-client";
 
 /** Dados pra montar a tela do PDV: catálogo ativo + agendamentos de hoje que ainda podem virar uma venda. */
 export async function getPdvBootstrapData(companyId: string, barberId?: string) {
@@ -30,7 +31,7 @@ export async function getPdvBootstrapData(companyId: string, barberId?: string) 
     todayAppointments: todayAppointments.map((a) => ({
       id: a.id,
       customerId: a.customerId,
-      customerName: a.customer.fullName,
+      customerName: appointmentClientName(a),
       barberId: a.barberId,
       barberName: a.barber.name,
       startTime: a.startTime.toISOString(),

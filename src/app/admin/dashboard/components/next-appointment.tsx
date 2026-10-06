@@ -1,8 +1,9 @@
 import { Clock } from "lucide-react";
 import type { Appointment, AppointmentService, Barber, Customer } from "@prisma/client";
 import { formatTime } from "@/lib/utils";
+import { appointmentClientName } from "@/lib/appointment-client";
 
-type NextAppointmentData = (Appointment & { customer: Customer; barber: Barber; services: AppointmentService[] }) | null;
+type NextAppointmentData = (Appointment & { customer: Customer | null; barber: Barber; services: AppointmentService[] }) | null;
 
 function minutesUntil(date: Date) {
   return Math.max(0, Math.round((date.getTime() - Date.now()) / 60000));
@@ -34,7 +35,7 @@ export function NextAppointment({ appointment }: { appointment: NextAppointmentD
       <p className="relative mt-3 text-3xl font-semibold tracking-tight text-foreground">{formatTime(appointment.startTime)}</p>
       <p className="relative mt-0.5 text-sm text-foreground-muted">{when}</p>
       <div className="relative mt-4 space-y-1">
-        <p className="text-base font-medium text-foreground">{appointment.customer.fullName}</p>
+        <p className="text-base font-medium text-foreground">{appointmentClientName(appointment)}</p>
         <p className="text-sm text-foreground-muted">{appointment.services.map((s) => s.serviceName).join(", ")}</p>
         <p className="text-sm text-foreground-muted">
           Barbeiro: <span className="text-foreground">{appointment.barber.name}</span>

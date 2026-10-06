@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
 import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay, minutesFromMidnight } from "./calendar-dates";
+import { QuickAddSlot } from "./quick-add-slot";
+import { minutesToHHMM } from "@/lib/quick-slots";
 
 const HOUR_HEIGHT = 56; // px por hora — define a escala vertical da grade
 
@@ -68,12 +70,17 @@ export function TimeGrid({
   startHour,
   endHour,
   today,
+  openSlots,
+  buildNewHref,
 }: {
   days: Date[];
   appointments: GridAppointment[];
   startHour: number;
   endHour: number;
   today: Date;
+  /** Por dia (YYYY-MM-DD): células de 30min livres e, se houver, um barbeiro livre nela. */
+  openSlots?: Record<string, { minute: number; barberId?: string }[]>;
+  buildNewHref?: (args: { date: string; time: string; barberId?: string }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const gridHeight = hours.length * HOUR_HEIGHT;
@@ -123,6 +130,18 @@ export function TimeGrid({
                 {hours.map((h) => (
                   <div key={h} className="border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }} />
                 ))}
+
+                {buildNewHref &&
+                  (openSlots?.[day.toISOString().slice(0, 10)] ?? [])
+                    .filter((s) => s.minute >= startHour * 60 && s.minute < endHour * 60)
+                    .map((s) => (
+                      <QuickAddSlot
+                        key={s.minute}
+                        href={buildNewHref({ date: day.toISOString().slice(0, 10), time: minutesToHHMM(s.minute), barberId: s.barberId })}
+                        label={`Agendar ${minutesToHHMM(s.minute)}`}
+                        style={{ top: ((s.minute - startHour * 60) / 60) * HOUR_HEIGHT + 1, height: HOUR_HEIGHT / 2 - 2 }}
+                      />
+                    ))}
 
                 {dayAppointments.map((appt) => {
                   const top = ((minutesFromMidnight(appt.startTime) - startHour * 60) / 60) * HOUR_HEIGHT;

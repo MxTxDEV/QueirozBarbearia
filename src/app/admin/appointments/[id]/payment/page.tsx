@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PaymentForm } from "./payment-form";
 import { requireAdminContext } from "@/lib/require-admin";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { appointmentClientName } from "@/lib/appointment-client";
 
 export default async function RegisterPaymentPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdminContext();
@@ -18,7 +19,7 @@ export default async function RegisterPaymentPage({ params }: { params: Promise<
       <Breadcrumb
         items={[
           { label: "Agendamentos", href: "/admin/appointments" },
-          { label: appointment.customer.fullName },
+          { label: appointmentClientName(appointment) },
           { label: "Pagamento" },
         ]}
       />
@@ -26,7 +27,7 @@ export default async function RegisterPaymentPage({ params }: { params: Promise<
       <Card>
         <CardHeader>
           <CardTitle>
-            {appointment.customer.fullName} — {formatDate(appointment.appointmentDate)}
+            {appointmentClientName(appointment)} — {formatDate(appointment.appointmentDate)}
           </CardTitle>
           <p className="text-sm text-foreground-muted">
             {appointment.services.map((s) => s.serviceName).join(", ")} · Valor do agendamento:{" "}

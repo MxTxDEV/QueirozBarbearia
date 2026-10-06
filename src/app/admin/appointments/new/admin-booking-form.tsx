@@ -21,12 +21,30 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; customers: Customer[] }) {
+export type BookingPrefill = { date?: string; time?: string; barberId?: string };
+
+export function AdminBookingForm({
+  barbers,
+  customers,
+  prefill,
+}: {
+  barbers: Barber[];
+  customers: Customer[];
+  /** Vem do clique num horário livre do calendário. */
+  prefill?: BookingPrefill;
+}) {
   const router = useRouter();
   const [customerId, setCustomerId] = useState("");
-  const [barberId, setBarberId] = useState("");
+  const [walkIn, setWalkIn] = useState(false);
+  const [walkInName, setWalkInName] = useState("");
+  const [notes, setNotes] = useState("");
+  const [barberId, setBarberId] = useState(prefill?.barberId ?? "");
   const [serviceIds, setServiceIds] = useState<string[]>([]);
-  const [date, setDate] = useState(todayIso());
+  const [date, setDate] = useState(prefill?.date ?? todayIso());
+  // Horário pedido pelo calendário: assim que os serviços definem a duração e
+  // os horários livres carregam, seleciona o que bate com ele (se couber).
+  const desiredTime = prefill?.time ?? null;
+  const [desiredMissed, setDesiredMissed] = useState(false);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -38,6 +56,7 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
     () => barber?.services.filter((s) => serviceIds.includes(s.id)) ?? [],
     [barber, serviceIds]
   );
+  const hasClient = walkIn ? walkInName.trim().length >= 2 : Boolean(customerId);
   const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMinutes, 0);
 
@@ -51,16 +70,27 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
     try {
       const result = await getAvailableSlotsForAdminAction(nextBarberId, nextDate, duration);
       setSlots(result);
+      if (desiredTime && nextDate === (prefill?.date ?? nextDate)) {
+        const match = result.find((slot) => slot.label === desiredTime) ?? null;
+        setSelectedSlot(match);
+        setDesiredMissed(!match);
+      }
     } finally {
       setLoadingSlots(false);
     }
   }
 
   function submit() {
-    if (!customerId || !barberId || !selectedSlot || serviceIds.length === 0) return;
+    if (!hasClient || !barberId || !selectedSlot || serviceIds.length === 0) return;
     setError(null);
     startTransition(async () => {
-      const result = await createAppointmentAsAdmin({ customerId, barberId, serviceIds, startTimeIso: selectedSlot.iso });
+      const result = await createAppointmentAsAdmin({
+        ...(walkIn ? { walkInName: walkInName.trim() } : { customerId }),
+        barberId,
+        serviceIds,
+        startTimeIso: selectedSlot.iso,
+        notes: notes.trim() || undefined,
+      });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -75,15 +105,34 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
         <CardContent className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="booking-customer">Cliente</Label>
-              <Select id="booking-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-                <option value="">Selecione um cliente</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.fullName} — {c.whatsapp}
-                  </option>
-                ))}
-              </Select>
+              <Label htmlFor={walkIn ? "booking-walkin" : "booking-customer"}>Cliente</Label>
+              {walkIn ? (
+                <Input
+                  id="booking-walkin"
+                  value={walkInName}
+                  onChange={(e) => setWalkInName(e.target.value)}
+                  placeholder="Nome do cliente (sem cadastro)"
+                  maxLength={120}
+                />
+              ) : (
+                <Select id="booking-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                  <option value="">Selecione um cliente</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.fullName} — {c.whatsapp}
+                    </option>
+                  ))}
+                </Select>
+              )}
+              <label className="flex items-center gap-2 pt-1 text-xs text-foreground-muted">
+                <input
+                  type="checkbox"
+                  checked={walkIn}
+                  onChange={(e) => setWalkIn(e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                Cliente não cadastrado (só o nome)
+              </label>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="booking-barber">Barbeiro</Label>
@@ -178,8 +227,32 @@ export function AdminBookingForm({ barbers, customers }: { barbers: Barber[]; cu
             </div>
           )}
 
+          <div className="space-y-1.5">
+            <Label htmlFor="booking-notes">Observação</Label>
+            <textarea
+              id="booking-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              maxLength={500}
+              placeholder={walkIn ? "Ex.: telefone, detalhes do atendimento (opcional)" : "Opcional"}
+              className="w-full rounded-xl border bg-[var(--surface-subtle)] p-3 text-sm text-foreground placeholder:text-foreground-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+            />
+          </div>
+
+          {desiredTime && !selectedSlot && serviceIds.length === 0 && (
+            <p className="text-sm text-foreground-muted">
+              Horário escolhido no calendário: <strong className="text-foreground">{desiredTime}</strong> — selecione os serviços pra confirmar.
+            </p>
+          )}
+          {desiredMissed && (
+            <p className="text-sm text-warning">
+              O horário {desiredTime} não comporta esses serviços. Escolha outro horário abaixo.
+            </p>
+          )}
+
           {error && <p className="text-sm text-danger">{error}</p>}
-          <Button onClick={submit} disabled={pending || !selectedSlot || !customerId} className="w-full sm:w-auto">
+          <Button onClick={submit} disabled={pending || !selectedSlot || !hasClient} className="w-full sm:w-auto">
             {pending ? "Criando..." : "Criar agendamento"}
           </Button>
         </CardContent>

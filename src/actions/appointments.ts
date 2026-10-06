@@ -11,6 +11,7 @@ import { findAndOfferNextCandidate } from "@/lib/waitlist-engine";
 import { toNumber } from "@/lib/serialize";
 import { createNotification } from "@/lib/notifications";
 import { logAudit } from "@/lib/audit";
+import { appointmentClientName } from "@/lib/appointment-client";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import {
   sendAppointmentCancellation,
@@ -19,13 +20,21 @@ import {
 } from "@/lib/whatsapp";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
-const createSchema = z.object({
-  customerId: z.string().min(1),
-  barberId: z.string().min(1),
-  serviceIds: z.array(z.string().min(1)).min(1, "Selecione ao menos um serviço."),
-  startTimeIso: z.string().min(1),
-  notes: z.string().optional(),
-});
+const createSchema = z
+  .object({
+    customerId: z.string().min(1).optional(),
+    // Cliente não cadastrado (só o admin/barbeiro cria assim): o nome vai
+    // direto no agendamento, sem registro em Customer.
+    walkInName: z.string().trim().min(2, "Informe o nome do cliente.").max(120).optional(),
+    barberId: z.string().min(1),
+    serviceIds: z.array(z.string().min(1)).min(1, "Selecione ao menos um serviço."),
+    startTimeIso: z.string().min(1),
+    notes: z.string().optional(),
+  })
+  .refine((v) => Boolean(v.customerId) !== Boolean(v.walkInName), {
+    message: "Informe um cliente cadastrado ou o nome de um cliente avulso.",
+    path: ["customerId"],
+  });
 
 type CreateAppointmentInput = z.infer<typeof createSchema>;
 
@@ -46,12 +55,12 @@ export async function createAppointmentCore(
     const data = createSchema.parse(input);
 
     const [customer, barber, services] = await Promise.all([
-      prisma.customer.findFirst({ where: { id: data.customerId, companyId } }),
+      data.customerId ? prisma.customer.findFirst({ where: { id: data.customerId, companyId } }) : Promise.resolve(null),
       prisma.barber.findFirst({ where: { id: data.barberId, companyId } }),
       prisma.service.findMany({ where: { id: { in: data.serviceIds }, companyId, active: true } }),
     ]);
 
-    if (!customer) return actionError(new Error("Cliente não encontrado."));
+    if (data.customerId && !customer) return actionError(new Error("Cliente não encontrado."));
     if (!barber || !barber.active) return actionError(new Error("Barbeiro indisponível."));
     if (services.length !== data.serviceIds.length) return actionError(new Error("Um ou mais serviços não estão disponíveis."));
 
@@ -96,6 +105,7 @@ export async function createAppointmentCore(
           data: {
             companyId,
             customerId: data.customerId,
+            walkInName: data.walkInName,
             barberId: data.barberId,
             appointmentDate,
             startTime,
@@ -118,6 +128,8 @@ export async function createAppointmentCore(
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
 
+    const clientName = customer?.fullName ?? data.walkInName ?? "Cliente avulso";
+
     await logAudit({
       companyId,
       action: "appointment_created",
@@ -125,20 +137,20 @@ export async function createAppointmentCore(
       entityId: appointment.id,
       appointmentId: appointment.id,
       // metadata é Json — Decimal não serializa como InputJsonValue, converte pra number aqui.
-      metadata: { customerId: customer.id, barberId: barber.id, totalPrice: toNumber(totalPrice) },
+      metadata: { customerId: customer?.id ?? null, walkInName: data.walkInName ?? null, barberId: barber.id, totalPrice: toNumber(totalPrice) },
     });
 
     await createNotification({
       companyId,
       title: "🔔 Novo agendamento",
-      message: `${customer.fullName} solicitou horário com ${barber.name} em ${formatDate(appointmentDate)} às ${formatTime(startTime)}.`,
+      message: `${clientName} solicitou horário com ${barber.name} em ${formatDate(appointmentDate)} às ${formatTime(startTime)}.`,
       type: "NEW_APPOINTMENT",
       relatedEntityType: "appointment",
       relatedEntityId: appointment.id,
     });
 
     await sendNewAppointmentAlertToShop(companyId, {
-      customerName: customer.fullName,
+      customerName: clientName,
       date: formatDate(appointmentDate),
       time: formatTime(startTime),
       barberName: barber.name,
@@ -164,7 +176,7 @@ export async function createAppointmentCore(
 
 /** Usado pelo portal do cliente — o customerId vem da sessão autenticada, nunca do cliente. */
 export async function createAppointmentAsCustomer(
-  input: Omit<CreateAppointmentInput, "customerId">
+  input: Omit<CreateAppointmentInput, "customerId" | "walkInName">
 ): Promise<ActionResult<{ id: string }>> {
   const customer = await getCurrentCustomer();
   if (!customer) return actionError(new Error("Sessão expirada. Faça login novamente."));
@@ -199,20 +211,23 @@ export async function confirmAppointmentAction(appointmentId: string) {
   await createNotification({
     companyId: user.companyId,
     title: "Agendamento confirmado",
-    message: `Agendamento de ${appt.customer.fullName} confirmado para ${formatDate(appt.appointmentDate)}.`,
+    message: `Agendamento de ${appointmentClientName(appt)} confirmado para ${formatDate(appt.appointmentDate)}.`,
     type: "APPOINTMENT_CONFIRMED",
     relatedEntityType: "appointment",
     relatedEntityId: appointmentId,
   });
 
-  await sendAppointmentConfirmation(user.companyId, appt.customer.whatsapp, appt.customer.id, {
-    customerName: appt.customer.fullName,
-    date: formatDate(appt.appointmentDate),
-    time: formatTime(appt.startTime),
-    barberName: appt.barber.name,
-    services: appt.services.map((s) => s.serviceName),
-    totalPrice: formatCurrency(appt.totalPrice.toString()).replace("R$", "").trim(),
-  });
+  // Cliente avulso não tem WhatsApp cadastrado — não há a quem enviar.
+  if (appt.customer) {
+    await sendAppointmentConfirmation(user.companyId, appt.customer.whatsapp, appt.customer.id, {
+      customerName: appt.customer.fullName,
+      date: formatDate(appt.appointmentDate),
+      time: formatTime(appt.startTime),
+      barberName: appt.barber.name,
+      services: appt.services.map((s) => s.serviceName),
+      totalPrice: formatCurrency(appt.totalPrice.toString()).replace("R$", "").trim(),
+    });
+  }
 
   revalidatePath("/admin/appointments");
   revalidatePath("/portal/[company]", "layout");
@@ -259,17 +274,19 @@ export async function cancelAppointmentCore(appointmentId: string, companyId: st
   await createNotification({
     companyId,
     title: "Agendamento cancelado",
-    message: `Agendamento de ${appt.customer.fullName} em ${formatDate(appt.appointmentDate)} foi cancelado.`,
+    message: `Agendamento de ${appointmentClientName(appt)} em ${formatDate(appt.appointmentDate)} foi cancelado.`,
     type: "APPOINTMENT_CANCELLED",
     relatedEntityType: "appointment",
     relatedEntityId: appointmentId,
   });
 
-  await sendAppointmentCancellation(companyId, appt.customer.whatsapp, appt.customer.id, {
-    customerName: appt.customer.fullName,
-    date: formatDate(appt.appointmentDate),
-    time: formatTime(appt.startTime),
-  });
+  if (appt.customer) {
+    await sendAppointmentCancellation(companyId, appt.customer.whatsapp, appt.customer.id, {
+      customerName: appt.customer.fullName,
+      date: formatDate(appt.appointmentDate),
+      time: formatTime(appt.startTime),
+    });
+  }
 
   // O cancelamento libera uma vaga — verifica na hora se há alguém
   // compatível na lista de espera pra oferecer. Nunca deve derrubar o

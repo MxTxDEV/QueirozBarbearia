@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/require-admin";
 import { logAudit } from "@/lib/audit";
+import { appointmentClientName } from "@/lib/appointment-client";
 import { nextRecurrenceDate } from "@/lib/recurrence";
 import { sendServiceThanksIfDue } from "@/lib/service-thanks";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
@@ -49,7 +50,7 @@ export async function registerPaymentAction(
         data: {
           companyId: user.companyId,
           appointmentId,
-          customerId: appointment.customerId,
+          customerId: appointment.customerId ?? undefined,
           amount: data.amount,
           paymentMethod: data.paymentMethod,
           paidAt,
@@ -60,13 +61,13 @@ export async function registerPaymentAction(
           companyId: user.companyId,
           type: "INCOME",
           category: "Serviços",
-          description: `Pagamento — ${appointment.customer.fullName}`,
+          description: `Pagamento — ${appointmentClientName(appointment)}`,
           amount: data.amount,
           transactionDate: paidAt,
           paymentMethod: data.paymentMethod,
           appointmentId,
           barberId: appointment.barberId,
-          customerId: appointment.customerId,
+          customerId: appointment.customerId ?? undefined,
           status: "PAID",
         },
       }),

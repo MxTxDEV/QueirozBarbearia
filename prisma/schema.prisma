@@ -513,7 +513,10 @@ model BarberService {
 model Appointment {
   id                String            @id @default(cuid())
   companyId         String            @map("company_id")
-  customerId        String            @map("customer_id")
+  // Nulo = agendamento de cliente não cadastrado (avulso): o nome vai em
+  // walkInName e não há WhatsApp/lembrete/histórico de cliente associado.
+  customerId        String?           @map("customer_id")
+  walkInName        String?           @map("walk_in_name")
   barberId          String            @map("barber_id")
   appointmentDate   DateTime          @map("appointment_date") @db.Date
   startTime         DateTime          @map("start_time")
@@ -545,7 +548,7 @@ model Appointment {
   reviewRequestSentAt DateTime? @map("review_request_sent_at")
 
   company               Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer              Customer                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customer              Customer?               @relation(fields: [customerId], references: [id], onDelete: Restrict)
   barber                Barber                  @relation(fields: [barberId], references: [id], onDelete: Restrict)
   services              AppointmentService[]
   sale                  Sale?
@@ -806,7 +809,8 @@ model Payment {
   companyId     String        @map("company_id")
   appointmentId String?       @map("appointment_id")
   saleId        String?       @map("sale_id")
-  customerId    String        @map("customer_id")
+  // Nulo quando o atendimento foi de um cliente avulso (sem cadastro).
+  customerId    String?       @map("customer_id")
   amount        Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod @map("payment_method")
   paidAt        DateTime      @map("paid_at")
@@ -815,7 +819,7 @@ model Payment {
   company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   sale        Sale?        @relation(fields: [saleId], references: [id], onDelete: SetNull)
-  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
   @@index([customerId])

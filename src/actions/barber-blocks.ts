@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminContext, type CompanyUser } from "@/lib/require-admin";
 import { dateOnly, timeOnDate } from "@/lib/availability";
 import { findAndOfferNextCandidate } from "@/lib/waitlist-engine";
+import { appointmentClientName } from "@/lib/appointment-client";
 import { formatTime } from "@/lib/utils";
 import { logAudit } from "@/lib/audit";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
@@ -79,7 +80,7 @@ async function validateAndBuildBlockWindow(
     take: 5,
   });
   if (affectedAppointments.length > 0) {
-    const names = affectedAppointments.map((a) => `${a.customer.fullName} às ${formatTime(a.startTime)}`).join(", ");
+    const names = affectedAppointments.map((a) => `${appointmentClientName(a)} às ${formatTime(a.startTime)}`).join(", ");
     return {
       ok: false,
       error: `Não é possível bloquear: há agendamento(s) nesse período (${names}). Cancele ou remarque antes de bloquear.`,

@@ -17,7 +17,7 @@ type Barber = { id: string; name: string };
 type CatalogItem = { id: string; name: string; price: number; durationMinutes?: number };
 type Appointment = {
   id: string;
-  customerId: string;
+  customerId: string | null;
   customerName: string;
   barberId: string;
   barberName: string;
@@ -101,7 +101,7 @@ export function PdvClient({
 
   function startFromAppointment(appt: Appointment) {
     setBarberId(appt.barberId);
-    setCustomerId(appt.customerId);
+    setCustomerId(appt.customerId ?? "");
     setAppointmentId(appt.id);
     const lines: CartLine[] = appt.serviceIds
       .map((id) => services.find((s) => s.id === id))

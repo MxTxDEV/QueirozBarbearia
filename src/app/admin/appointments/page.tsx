@@ -33,6 +33,9 @@ import {
 } from "./calendar/calendar-dates";
 import type { AppointmentStatus } from "@prisma/client";
 import { requireAdminContext } from "@/lib/require-admin";
+import { appointmentClientName } from "@/lib/appointment-client";
+import { getOpenIntervals } from "@/lib/data/calendar-availability";
+import { openSlotStarts, minutesToHHMM } from "@/lib/quick-slots";
 
 const RANGES: { value: AppointmentRangeFilter; label: string }[] = [
   { value: "today", label: "Hoje" },
@@ -124,6 +127,15 @@ export default async function AppointmentsPage({
     return `/admin/appointments?${params.toString()}`;
   }
 
+  /** Atalho do calendário: abre "Novo agendamento" já com data/hora/barbeiro preenchidos. */
+  function buildNewHref(args: { date: string; time?: string; barberId?: string }) {
+    const params = new URLSearchParams({ date: args.date });
+    if (args.time) params.set("time", args.time);
+    const targetBarber = args.barberId ?? barberId;
+    if (targetBarber) params.set("barberId", targetBarber);
+    return `/admin/appointments/new?${params.toString()}`;
+  }
+
   const { from, to } = rangeForView(calendarView, anchor);
 
   const [appointments, barbers, mobileDayAppointments] = await Promise.all([
@@ -140,6 +152,56 @@ export default async function AppointmentsPage({
   const dayCount = Math.round((to.getTime() - from.getTime()) / 86_400_000);
   const days = Array.from({ length: dayCount }, (_, i) => addDays(from, i));
 
+  // Horários livres pros botões de agendamento rápido (Dia e Semana). Uma
+  // consulta por fonte pro período todo — ver getOpenIntervals.
+  const quickBarberIds = isBarberLogin
+    ? user.barberId
+      ? [user.barberId]
+      : []
+    : barberId
+      ? [barberId]
+      : barbers.map((b) => b.id);
+  const openIntervals =
+    isCalendar && calendarView !== "month" && quickBarberIds.length > 0
+      ? await getOpenIntervals(user.companyId, quickBarberIds, from, to)
+      : new Map();
+  const nowUtc = new Date();
+  /** Minuto a partir do qual um dia ainda aceita agendamento: nada em dias passados, só o futuro hoje. */
+  const notBeforeMinute = (day: Date) =>
+    day.getTime() < today.getTime() ? Infinity : isSameDay(day, today) ? nowUtc.getUTCHours() * 60 + nowUtc.getUTCMinutes() : 0;
+
+  const dayOpenSlots: Record<string, number[]> = {};
+  const weekOpenSlots: Record<string, { minute: number; barberId?: string }[]> = {};
+  if (calendarView === "day") {
+    for (const id of quickBarberIds) {
+      dayOpenSlots[id] = openSlotStarts(openIntervals.get(`${id}|${toISODate(from)}`) ?? [], 30, notBeforeMinute(from));
+    }
+  } else if (calendarView === "week") {
+    for (const day of days) {
+      const firstBarberByMinute = new Map<number, string>();
+      for (const id of quickBarberIds) {
+        for (const minute of openSlotStarts(openIntervals.get(`${id}|${toISODate(day)}`) ?? [], 30, notBeforeMinute(day))) {
+          if (!firstBarberByMinute.has(minute)) firstBarberByMinute.set(minute, id);
+        }
+      }
+      weekOpenSlots[toISODate(day)] = [...firstBarberByMinute.entries()]
+        .sort((a, b) => a[0] - b[0])
+        // Com um barbeiro só no filtro o form já o recebe pelo próprio filtro; sem filtro, pré-seleciona o 1º livre.
+        .map(([minute, id]) => ({ minute, barberId: id }));
+    }
+  }
+
+  // Celular, visão de Dia, de UM barbeiro: chips com os horários livres do dia exibido.
+  const mobileFreeSlots =
+    calendarView === "day" && quickBarberIds.length === 1 && mobileDay.getTime() >= today.getTime()
+      ? [...(await getOpenIntervals(user.companyId, quickBarberIds, mobileDay, addDays(mobileDay, 1))).entries()]
+          .flatMap(([, intervals]) => openSlotStarts(intervals, 30, notBeforeMinute(mobileDay)))
+          .map((m) => ({
+            label: minutesToHHMM(m),
+            href: buildNewHref({ date: toISODate(mobileDay), time: minutesToHHMM(m), barberId: quickBarberIds[0] }),
+          }))
+      : [];
+
   // Visão de Dia: uma coluna fixa por barbeiro lado a lado (Regra: nunca
   // misturar agendamentos de barbeiros diferentes na mesma coluna/lane).
   // Login de barbeiro só tem a própria coluna; filtro de barbeiro específico
@@ -155,7 +217,8 @@ export default async function AppointmentsPage({
   const toBlock = (appt: (typeof appointments)[number]) => ({
     id: appt.id,
     customerId: appt.customerId,
-    customerName: appt.customer.fullName,
+    customerName: appointmentClientName(appt),
+    notes: appt.notes,
     barberName: appt.barber.name,
     services: appt.services.map((s) => s.serviceName).join(", "),
     status: appt.status,
@@ -173,6 +236,7 @@ export default async function AppointmentsPage({
     day,
     dayLabel: periodLabel("day", day),
     isToday: isSameDay(day, today),
+    newHref: day.getTime() >= today.getTime() ? buildNewHref({ date: toISODate(day) }) : undefined,
     items: appointments
       .filter((appt) => isSameDay(appt.appointmentDate, day))
       .map<DayAgendaItem>((appt) => ({
@@ -280,6 +344,8 @@ export default async function AppointmentsPage({
               prevHref={buildMobileDayHref(addDays(mobileDay, -1))}
               nextHref={buildMobileDayHref(addDays(mobileDay, 1))}
               todayHref={buildMobileDayHref(today)}
+              newHref={mobileDay.getTime() >= today.getTime() ? buildNewHref({ date: toISODate(mobileDay) }) : undefined}
+              freeSlots={mobileFreeSlots}
               items={mobileDayAppointments.map<DayAgendaItem>((appt) => ({
                 block: toBlock(appt),
                 actions: renderActions(appt),
@@ -305,6 +371,7 @@ export default async function AppointmentsPage({
                 days={days}
                 month={startOfMonth(anchor).getUTCMonth()}
                 today={today}
+                buildNewHref={(day) => buildNewHref({ date: toISODate(day) })}
                 appointments={appointments.map<MonthAppointment>((appt) => ({
                   block: toBlock(appt),
                   actions: renderActions(appt),
@@ -319,6 +386,10 @@ export default async function AppointmentsPage({
                     barbers={dayViewBarbers}
                     startHour={startHour}
                     endHour={endHour}
+                    openSlots={dayOpenSlots}
+                    buildNewHref={({ time, barberId: slotBarberId }) =>
+                      buildNewHref({ date: toISODate(from), time, barberId: slotBarberId })
+                    }
                     emptyBarberLabel={
                       isBarberLogin ? "Nenhum barbeiro vinculado a este login." : "Cadastre um barbeiro pra ver a agenda por aqui."
                     }
@@ -342,6 +413,8 @@ export default async function AppointmentsPage({
                     startHour={startHour}
                     endHour={endHour}
                     today={today}
+                    openSlots={weekOpenSlots}
+                    buildNewHref={buildNewHref}
                     appointments={appointments.map<GridAppointment>((appt) => ({
                       block: toBlock(appt),
                       actions: renderActions(appt),
@@ -390,9 +463,13 @@ export default async function AppointmentsPage({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <Link href={`/admin/customers/${appt.customerId}`} className="font-medium text-foreground hover:underline">
-                          {appt.customer.fullName}
-                        </Link>
+                        {appt.customerId ? (
+                          <Link href={`/admin/customers/${appt.customerId}`} className="font-medium text-foreground hover:underline">
+                            {appointmentClientName(appt)}
+                          </Link>
+                        ) : (
+                          <span className="font-medium text-foreground">{appointmentClientName(appt)}</span>
+                        )}
                         {appt.recurringOccurrence && (
                           <Link
                             href={`/admin/recurring-appointments/${appt.recurringOccurrence.recurringAppointmentId}`}
@@ -403,7 +480,10 @@ export default async function AppointmentsPage({
                           </Link>
                         )}
                       </div>
-                      <p className="text-xs text-foreground-muted">{formatWhatsappDisplay(appt.customer.whatsapp)}</p>
+                      <p className="text-xs text-foreground-muted">
+                        {appt.customer ? formatWhatsappDisplay(appt.customer.whatsapp) : "Cliente avulso"}
+                        {appt.notes ? ` · ${appt.notes}` : ""}
+                      </p>
                     </TableCell>
                     <TableCell className="text-foreground-muted">{appt.barber.name}</TableCell>
                     <TableCell className="text-foreground-muted">

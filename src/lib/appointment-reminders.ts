@@ -60,6 +60,8 @@ export async function sendDueAppointmentReminders() {
   const due24h = await prisma.appointment.findMany({
     where: {
       reminder24hSentAt: null,
+      // Cliente avulso (sem cadastro) não tem WhatsApp — nunca recebe lembrete.
+      customerId: { not: null },
       status: { in: ACTIVE_STATUSES },
       startTime: { gt: in1h, lte: in24h },
     },
@@ -68,6 +70,7 @@ export async function sendDueAppointmentReminders() {
   const due1h = await prisma.appointment.findMany({
     where: {
       reminder1hSentAt: null,
+      customerId: { not: null },
       status: { in: ACTIVE_STATUSES },
       startTime: { gt: now, lte: in1h },
     },
@@ -79,12 +82,14 @@ export async function sendDueAppointmentReminders() {
   let failed = 0;
 
   for (const appt of due24h) {
-    const ok = await sendReminderAndStamp(appt, "24h");
+    if (!appt.customer) continue;
+    const ok = await sendReminderAndStamp({ ...appt, customer: appt.customer }, "24h");
     if (ok) sent24h++;
     else failed++;
   }
   for (const appt of due1h) {
-    const ok = await sendReminderAndStamp(appt, "1h");
+    if (!appt.customer) continue;
+    const ok = await sendReminderAndStamp({ ...appt, customer: appt.customer }, "1h");
     if (ok) sent1h++;
     else failed++;
   }

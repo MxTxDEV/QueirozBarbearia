@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -124,6 +124,8 @@ export function MobileDayAgenda({
   nextHref,
   todayHref,
   items,
+  newHref,
+  freeSlots,
 }: {
   dayLabel: string;
   isToday: boolean;
@@ -131,6 +133,10 @@ export function MobileDayAgenda({
   nextHref: string;
   todayHref: string;
   items: DayAgendaItem[];
+  /** Novo agendamento neste dia (sem horário definido). */
+  newHref?: string;
+  /** Horários livres (de um barbeiro específico) como botões de agendamento rápido. */
+  freeSlots?: { label: string; href: string }[];
 }) {
   return (
     <div className="space-y-3 md:hidden">
@@ -160,7 +166,36 @@ export function MobileDayAgenda({
       </div>
 
       <DayCarousel isToday={isToday} items={items} />
+
+      {newHref && <NewAppointmentLink href={newHref} />}
+      {freeSlots && freeSlots.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-foreground-muted">Horários livres — toque para agendar</p>
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {freeSlots.map((slot) => (
+              <Link
+                key={slot.href}
+                href={slot.href}
+                className="shrink-0 rounded-full border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-[var(--surface-subtle-hover)]"
+              >
+                {slot.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function NewAppointmentLink({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm text-secondary-light transition-colors hover:bg-[var(--surface-subtle-hover)]"
+    >
+      <Plus className="h-3.5 w-3.5" /> Novo agendamento neste dia
+    </Link>
   );
 }
 
@@ -169,6 +204,8 @@ export type WeekDaySection = {
   dayLabel: string;
   isToday: boolean;
   items: DayAgendaItem[];
+  /** Novo agendamento neste dia — ausente em dias passados. */
+  newHref?: string;
 };
 
 /**
@@ -190,6 +227,11 @@ export function MobileWeekAgenda({ days }: { days: WeekDaySection[] }) {
             {d.dayLabel}
           </p>
           <DayCarousel isToday={d.isToday} items={d.items} />
+          {d.newHref && (
+            <div className="mt-2">
+              <NewAppointmentLink href={d.newHref} />
+            </div>
+          )}
         </div>
       ))}
     </div>

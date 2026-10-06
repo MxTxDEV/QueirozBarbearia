@@ -2,8 +2,9 @@ import type { Appointment, AppointmentService, Barber, Customer } from "@prisma/
 import { formatTime } from "@/lib/utils";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
+import { appointmentClientName } from "@/lib/appointment-client";
 
-type AgendaAppointment = Appointment & { customer: Customer; barber: Barber; services: AppointmentService[] };
+type AgendaAppointment = Appointment & { customer: Customer | null; barber: Barber; services: AppointmentService[] };
 
 export function TodayAgenda({ appointments }: { appointments: AgendaAppointment[] }) {
   if (appointments.length === 0) {
@@ -29,7 +30,7 @@ export function TodayAgenda({ appointments }: { appointments: AgendaAppointment[
           >
             <div className="w-14 shrink-0 text-sm font-semibold text-foreground">{formatTime(appt.startTime)}</div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">{appt.customer.fullName}</p>
+              <p className="truncate text-sm font-medium text-foreground">{appointmentClientName(appt)}</p>
               <p className="truncate text-xs text-foreground-muted">
                 {appt.services.map((s) => s.serviceName).join(", ")} · {appt.barber.name}
               </p>

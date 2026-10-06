@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
+import { appointmentClientName } from "@/lib/appointment-client";
 
 /**
  * Camada de dados exclusiva do novo Dashboard. Isolada de
@@ -385,7 +386,7 @@ export async function getCustomerInsights(companyId: string, period: DashboardPe
     }),
   ]);
 
-  const servedIds = servedDistinct.map((a) => a.customerId);
+  const servedIds = servedDistinct.map((a) => a.customerId).filter((id): id is string => id !== null);
   let returningCount = 0;
   if (servedIds.length > 0) {
     const priorVisits = await prisma.appointment.findMany({
@@ -446,7 +447,7 @@ export async function getRecentActivity(companyId: string, limit = 8, barberId?:
       id: `pay-${p.id}`,
       kind: "payment" as const,
       title: "Pagamento recebido",
-      subtitle: p.customer.fullName,
+      subtitle: p.customer?.fullName ?? "Cliente avulso",
       at: p.createdAt.toISOString(),
       amount: toNumber(p.amount),
     })),
@@ -454,14 +455,14 @@ export async function getRecentActivity(companyId: string, limit = 8, barberId?:
       id: `apt-${a.id}`,
       kind: "created" as const,
       title: "Novo agendamento",
-      subtitle: a.customer.fullName,
+      subtitle: appointmentClientName(a),
       at: a.createdAt.toISOString(),
     })),
     ...completed.map((a) => ({
       id: `cmp-${a.id}`,
       kind: "completed" as const,
       title: "Atendimento concluído",
-      subtitle: a.customer.fullName,
+      subtitle: appointmentClientName(a),
       at: (a.completedAt as Date).toISOString(),
     })),
     ...customers.map((c) => ({

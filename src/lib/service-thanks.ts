@@ -20,7 +20,8 @@ export async function sendServiceThanksIfDue(companyId: string, appointmentId: s
     where: { id: appointmentId, companyId, status: "COMPLETED", reviewRequestSentAt: null },
     include: { customer: true },
   });
-  if (!appointment) return;
+  // Cliente avulso não tem WhatsApp — não há a quem agradecer.
+  if (!appointment || !appointment.customer) return;
 
   const stamped = await prisma.appointment.updateMany({
     where: { id: appointmentId, reviewRequestSentAt: null },
