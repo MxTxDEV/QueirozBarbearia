@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
@@ -51,7 +52,7 @@ async function sendReminderAndStamp(appt: AppointmentWithRelations, kind: "24h" 
  * nunca mais aparece nesta busca, e o novo ganha lembretes normalmente.
  */
 export async function sendDueAppointmentReminders() {
-  const now = new Date();
+  const now = shopNow();
   const in1h = new Date(now.getTime() + 60 * 60_000);
   const in24h = new Date(now.getTime() + 24 * 60 * 60_000);
 

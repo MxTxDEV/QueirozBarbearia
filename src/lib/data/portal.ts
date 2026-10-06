@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 
@@ -7,7 +8,7 @@ export async function getCustomerNextAppointment(customerId: string, companyId: 
       customerId,
       companyId,
       status: { in: ["PENDING", "CONFIRMED"] },
-      startTime: { gte: new Date() },
+      startTime: { gte: shopNow() },
     },
     orderBy: { startTime: "asc" },
     include: { barber: true, services: true },

@@ -1,5 +1,6 @@
 "use client";
 
+import { shopNow } from "@/lib/shop-time";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Scissors } from "lucide-react";
@@ -19,7 +20,7 @@ type Slot = { iso: string; label: string };
 const STEPS = ["Barbeiro", "Serviços", "Data e hora", "Resumo"] as const;
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return shopNow().toISOString().slice(0, 10);
 }
 
 export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; companySlug: string }) {

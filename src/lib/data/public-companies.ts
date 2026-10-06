@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -39,7 +40,7 @@ export type PublicCompanyFilters = {
 };
 
 function currentWeekdayAndTime() {
-  const now = new Date();
+  const now = shopNow();
   // Mesma convenção de horário usada no resto do sistema (src/lib/availability.ts,
   // BarberWorkingHour): getUTCDay()/HH:MM em UTC, sem conversão de fuso — os
   // valores "09:00"/"19:00" cadastrados já usam essa mesma referência.

@@ -5,6 +5,7 @@
  * deslocaria os blocos na grade.
  */
 
+import { shopNow } from "@/lib/shop-time";
 export type CalendarView = "week" | "day" | "month";
 
 export const CALENDAR_VIEW_LABEL: Record<CalendarView, string> = {
@@ -33,7 +34,7 @@ export function parseAnchor(raw?: string): Date {
     const parsed = new Date(`${raw}T00:00:00.000Z`);
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
-  return dateOnlyUTC(new Date());
+  return dateOnlyUTC(shopNow());
 }
 
 /** Domingo da semana da data informada (0 = domingo, igual ao weekday de BarberWorkingHour). */

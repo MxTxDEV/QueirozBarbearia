@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
@@ -9,7 +10,7 @@ function dateOnlyUTC(d: Date) {
 }
 
 export function periodToDates(period: PeriodFilter): { from?: Date; to?: Date } {
-  const today = dateOnlyUTC(new Date());
+  const today = dateOnlyUTC(shopNow());
   const to = new Date(today);
   to.setUTCDate(to.getUTCDate() + 1);
 

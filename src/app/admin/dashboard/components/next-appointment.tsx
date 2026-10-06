@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import { Clock } from "lucide-react";
 import type { Appointment, AppointmentService, Barber, Customer } from "@prisma/client";
 import { formatTime } from "@/lib/utils";
@@ -6,7 +7,7 @@ import { appointmentClientName } from "@/lib/appointment-client";
 type NextAppointmentData = (Appointment & { customer: Customer | null; barber: Barber; services: AppointmentService[] }) | null;
 
 function minutesUntil(date: Date) {
-  return Math.max(0, Math.round((date.getTime() - Date.now()) / 60000));
+  return Math.max(0, Math.round((date.getTime() - shopNow().getTime()) / 60000));
 }
 
 export function NextAppointment({ appointment }: { appointment: NextAppointmentData }) {

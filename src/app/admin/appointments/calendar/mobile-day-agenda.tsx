@@ -1,5 +1,6 @@
 "use client";
 
+import { shopNow } from "@/lib/shop-time";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Lock, Plus } from "lucide-react";
@@ -41,7 +42,7 @@ function DayCarousel({ isToday, items }: { isToday: boolean; items: DayAgendaIte
   // simplesmente começa do primeiro card.
   useEffect(() => {
     if (!isToday || items.length === 0) return;
-    const now = Date.now();
+    const now = shopNow().getTime();
     let targetIndex = items.findIndex((i) => i.startTime.getTime() <= now && now < i.endTime.getTime());
     if (targetIndex === -1) targetIndex = items.findIndex((i) => i.startTime.getTime() > now);
     if (targetIndex === -1) targetIndex = items.length - 1;

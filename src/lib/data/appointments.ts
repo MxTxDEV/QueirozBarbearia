@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { AppointmentStatus, Prisma } from "@prisma/client";
@@ -9,7 +10,7 @@ function dateOnlyUTC(d: Date) {
 }
 
 export function rangeToDates(range: AppointmentRangeFilter): { from?: Date; to?: Date } {
-  const today = dateOnlyUTC(new Date());
+  const today = dateOnlyUTC(shopNow());
   if (range === "today") {
     const to = new Date(today);
     to.setUTCDate(to.getUTCDate() + 1);
@@ -104,4 +105,36 @@ export async function getAppointmentDetail(id: string, companyId: string) {
     where: { id, companyId },
     include: { customer: true, barber: true, services: true, payments: true, recurringOccurrence: true },
   });
+}
+
+export type DayCount = { count: number; hasPending: boolean };
+
+/**
+ * Quantos agendamentos ativos há em cada dia do período (e se algum ainda
+ * aguarda confirmação) — alimenta os pontinhos do mini calendário lateral.
+ * Respeita o filtro de barbeiro; cancelados e faltas não contam.
+ */
+export async function getAppointmentDayCounts(
+  companyId: string,
+  params: { from: Date; to: Date; barberId?: string }
+): Promise<Record<string, DayCount>> {
+  const rows = await prisma.appointment.findMany({
+    where: {
+      companyId,
+      appointmentDate: { gte: params.from, lt: params.to },
+      status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+      ...(params.barberId ? { barberId: params.barberId } : {}),
+    },
+    select: { appointmentDate: true, status: true },
+  });
+
+  const counts: Record<string, DayCount> = {};
+  for (const row of rows) {
+    const key = row.appointmentDate.toISOString().slice(0, 10);
+    const entry = counts[key] ?? { count: 0, hasPending: false };
+    entry.count += 1;
+    if (row.status === "PENDING") entry.hasPending = true;
+    counts[key] = entry;
+  }
+  return counts;
 }

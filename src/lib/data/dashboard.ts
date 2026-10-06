@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
@@ -67,7 +68,7 @@ export async function getBarberComparison(companyId: string) {
 }
 
 export async function getDashboardAlerts(companyId: string, barberId?: string) {
-  const today = dateOnlyUTC(new Date());
+  const today = dateOnlyUTC(shopNow());
 
   const [pendingConfirmation, overdueExpenses, goalsAtRiskCount, unpaidCompleted] = await Promise.all([
     prisma.appointment.count({ where: { companyId, status: "PENDING", ...(barberId ? { barberId } : {}) } }),

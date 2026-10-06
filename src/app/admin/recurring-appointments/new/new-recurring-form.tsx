@@ -1,5 +1,6 @@
 "use client";
 
+import { shopNow } from "@/lib/shop-time";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createRecurringAppointmentAsAdminAction } from "@/actions/recurring-appointments";
@@ -18,7 +19,7 @@ type Customer = { id: string; fullName: string; whatsapp: string };
 type EndMode = "count" | "date" | "none";
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return shopNow().toISOString().slice(0, 10);
 }
 
 export function NewRecurringForm({ barbers, customers }: { barbers: Barber[]; customers: Customer[] }) {

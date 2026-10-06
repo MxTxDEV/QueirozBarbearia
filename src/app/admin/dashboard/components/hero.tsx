@@ -1,10 +1,11 @@
+import { shopNow } from "@/lib/shop-time";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { CountUp } from "./count-up";
 import { PeriodSelector } from "./period-selector";
 import type { DashboardOverview, DashboardPeriod } from "@/lib/data/dashboard-insights";
 
 function greeting() {
-  const h = new Date().getHours();
+  const h = shopNow().getUTCHours();
   if (h < 12) return "Bom dia";
   if (h < 18) return "Boa tarde";
   return "Boa noite";

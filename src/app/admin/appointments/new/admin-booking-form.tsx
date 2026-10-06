@@ -1,5 +1,6 @@
 "use client";
 
+import { shopNow } from "@/lib/shop-time";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, UserPlus } from "lucide-react";
@@ -20,7 +21,7 @@ type Customer = { id: string; fullName: string; whatsapp: string };
 type Slot = { iso: string; label: string };
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return shopNow().toISOString().slice(0, 10);
 }
 
 export type BookingPrefill = { date?: string; time?: string; barberId?: string };

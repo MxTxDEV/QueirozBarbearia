@@ -1,6 +1,7 @@
+import { shopNow } from "@/lib/shop-time";
 import Link from "next/link";
 import { CalendarDays, List, Plus, Repeat } from "lucide-react";
-import { listAppointments, listAppointmentsInRange, type AppointmentRangeFilter } from "@/lib/data/appointments";
+import { getAppointmentDayCounts, listAppointments, listAppointmentsInRange, type AppointmentRangeFilter } from "@/lib/data/appointments";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate, formatTime, formatWhatsappDisplay } from "@/lib/utils";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
@@ -28,12 +29,14 @@ import {
   periodLabel,
   rangeForView,
   startOfMonth,
+  startOfWeek,
   toISODate,
   type CalendarView,
 } from "./calendar/calendar-dates";
 import type { AppointmentStatus } from "@prisma/client";
 import { requireAdminContext } from "@/lib/require-admin";
 import { appointmentClientName } from "@/lib/appointment-client";
+import { MiniCalendar } from "./calendar/mini-calendar";
 import { getOpenIntervals, type DayAvailability } from "@/lib/data/calendar-availability";
 import { openSlotStarts, minutesToHHMM, intersectSegments, coversWholeDay, type ClosedSegment } from "@/lib/quick-slots";
 
@@ -63,6 +66,7 @@ export default async function AppointmentsPage({
     barberId?: string;
     status?: string;
     q?: string;
+    mini?: string;
   }>;
 }) {
   const user = await requireAdminContext();
@@ -141,7 +145,20 @@ export default async function AppointmentsPage({
 
   const { from, to } = rangeForView(calendarView, anchor);
 
-  const [appointments, barbers, mobileDayAppointments] = await Promise.all([
+  // Mini calendário lateral: mês exibido (padrão: o da data em foco) e os dias com agendamento.
+  const miniMonth =
+    sp.mini && /^\d{4}-\d{2}$/.test(sp.mini) ? startOfMonth(new Date(`${sp.mini}-01T00:00:00.000Z`)) : startOfMonth(anchor);
+  const miniMonthKey = (d: Date) => toISODate(startOfMonth(d)).slice(0, 7);
+  const miniGridStart = startOfWeek(miniMonth);
+  /** Troca só o mês do mini calendário, preservando visão, data e filtros da agenda principal. */
+  function buildMiniHref(target: Date) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) if (value) params.set(key, value);
+    params.set("mini", miniMonthKey(target));
+    return `/admin/appointments?${params.toString()}`;
+  }
+
+  const [appointments, barbers, mobileDayAppointments, miniCounts] = await Promise.all([
     isCalendar
       ? listAppointmentsInRange(user.companyId, { from, to, barberId, status, customerQuery: sp.q })
       : listAppointments(user.companyId, { range, barberId, status, customerQuery: sp.q }),
@@ -149,9 +166,12 @@ export default async function AppointmentsPage({
     isCalendar && calendarView === "day"
       ? listAppointmentsInRange(user.companyId, { from: mobileDay, to: addDays(mobileDay, 1), barberId, status, customerQuery: sp.q })
       : Promise.resolve([]),
+    isCalendar
+      ? getAppointmentDayCounts(user.companyId, { from: miniGridStart, to: addDays(miniGridStart, 42), barberId })
+      : Promise.resolve({}),
   ]);
 
-  const today = dateOnlyUTC(new Date());
+  const today = dateOnlyUTC(shopNow());
   const dayCount = Math.round((to.getTime() - from.getTime()) / 86_400_000);
   const days = Array.from({ length: dayCount }, (_, i) => addDays(from, i));
 
@@ -168,7 +188,7 @@ export default async function AppointmentsPage({
     isCalendar && quickBarberIds.length > 0
       ? await getOpenIntervals(user.companyId, quickBarberIds, from, to)
       : new Map<string, DayAvailability>();
-  const nowUtc = new Date();
+  const nowUtc = shopNow();
   /** Minuto a partir do qual um dia ainda aceita agendamento: nada em dias passados, só o futuro hoje. */
   const notBeforeMinute = (day: Date) =>
     day.getTime() < today.getTime() ? Infinity : isSameDay(day, today) ? nowUtc.getUTCHours() * 60 + nowUtc.getUTCMinutes() : 0;
@@ -363,7 +383,8 @@ export default async function AppointmentsPage({
       </form>
 
       {isCalendar ? (
-        <div className="space-y-4">
+        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start xl:gap-6">
+        <div className="min-w-0 space-y-4">
           <CalendarToolbar view={calendarView} anchor={anchor} buildHref={buildHref} />
 
           {calendarView === "day" ? (
@@ -461,6 +482,19 @@ export default async function AppointmentsPage({
               })()
             )}
           </Card>
+        </div>
+        <aside className="hidden xl:sticky xl:top-4 xl:block">
+          <MiniCalendar
+            month={miniMonth}
+            selected={anchor}
+            today={today}
+            counts={miniCounts}
+            prevHref={buildMiniHref(addDays(miniMonth, -1))}
+            nextHref={buildMiniHref(addDays(miniMonth, 32))}
+            todayHref={buildHref({ date: toISODate(today) })}
+            buildDayHref={(day) => buildHref({ date: toISODate(day) })}
+          />
+        </aside>
         </div>
       ) : (
         <>

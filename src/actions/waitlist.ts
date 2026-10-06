@@ -1,5 +1,6 @@
 "use server";
 
+import { shopNow } from "@/lib/shop-time";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -41,7 +42,7 @@ export async function joinWaitlistCore(
     const preferredTime = timeOnDate(day, data.preferredTime);
     const barberId = data.barberId || null;
 
-    if (preferredTime.getTime() < Date.now() - 24 * 60 * 60_000) {
+    if (preferredTime.getTime() < shopNow().getTime() - 24 * 60 * 60_000) {
       return actionError(new Error("Não é possível entrar na lista de espera para uma data já passada."));
     }
 

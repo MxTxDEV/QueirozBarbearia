@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
@@ -5,7 +6,7 @@ import { appointmentClientName } from "@/lib/appointment-client";
 
 /** Dados pra montar a tela do PDV: catálogo ativo + agendamentos de hoje que ainda podem virar uma venda. */
 export async function getPdvBootstrapData(companyId: string, barberId?: string) {
-  const today = new Date();
+  const today = shopNow();
   const dateOnly = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
 
   const [barbers, services, products, todayAppointments] = await Promise.all([

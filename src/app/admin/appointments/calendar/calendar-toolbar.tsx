@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,7 +24,7 @@ export function CalendarToolbar({
   anchor: Date;
   buildHref: (params: { view?: CalendarView; date?: string }) => string;
 }) {
-  const today = dateOnlyUTC(new Date());
+  const today = dateOnlyUTC(shopNow());
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">

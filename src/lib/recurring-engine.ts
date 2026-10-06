@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { Barber, Customer, RecurringAppointment, RecurringAppointmentOccurrence, Service } from "@prisma/client";
@@ -255,7 +256,7 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
     if (!service) return actionError(new Error("Serviço indisponível."));
 
     const startDate = dateOnly(params.startDate);
-    if (startDate.getTime() < dateOnly(new Date()).getTime()) {
+    if (startDate.getTime() < dateOnly(shopNow()).getTime()) {
       return actionError(new Error("A data de início não pode estar no passado."));
     }
 
@@ -567,7 +568,7 @@ export async function generateProgressiveOccurrences() {
 
 async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
   const count = await prisma.recurringAppointmentOccurrence.count({ where: { recurringAppointmentId: series.id } });
-  const horizonDate = addMonthsForHorizon(dateOnly(new Date()));
+  const horizonDate = addMonthsForHorizon(dateOnly(shopNow()));
 
   const dates = generateOccurrenceDates({
     startDate: series.startDate,
@@ -903,7 +904,7 @@ export async function cancelRecurringAppointmentCore(params: {
       data: { status: "CANCELLED" },
     });
 
-    const now = new Date();
+    const now = shopNow();
     let appointmentsCancelled = 0;
     for (const occ of series.occurrences) {
       if (occ.status === "WAITING_LIST" && occ.waitlistEntryId) {

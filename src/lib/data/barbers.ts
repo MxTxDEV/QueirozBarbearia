@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { dateOnly } from "@/lib/availability-helpers";
@@ -19,7 +20,7 @@ export async function getBarberDetail(id: string, companyId: string) {
       services: { include: { service: true } },
       // Só bloqueios de hoje em diante — os passados não importam mais pra
       // gestão da agenda (histórico fica preservado no banco/auditoria).
-      blocks: { where: { date: { gte: dateOnly(new Date()) } }, orderBy: [{ date: "asc" }, { startTime: "asc" }] },
+      blocks: { where: { date: { gte: dateOnly(shopNow()) } }, orderBy: [{ date: "asc" }, { startTime: "asc" }] },
     },
   });
 }

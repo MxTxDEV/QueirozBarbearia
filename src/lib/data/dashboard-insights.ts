@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
@@ -28,7 +29,7 @@ function dateOnlyUTC(d: Date) {
 
 /** Intervalo do período selecionado + o intervalo anterior de mesmo tamanho, para comparação. */
 export function resolveDashboardRange(period: DashboardPeriod) {
-  const today = dateOnlyUTC(new Date());
+  const today = dateOnlyUTC(shopNow());
   const to = new Date(today);
   to.setUTCDate(to.getUTCDate() + 1);
 
@@ -208,7 +209,7 @@ export async function getServiceBreakdown(companyId: string, period: DashboardPe
 
 /** Agenda completa de hoje (todos os status), para a visão do dia. */
 export async function getTodayAgenda(companyId: string, barberId?: string) {
-  const today = dateOnlyUTC(new Date());
+  const today = dateOnlyUTC(shopNow());
   return prisma.appointment.findMany({
     where: { companyId, appointmentDate: today, ...(barberId ? { barberId } : {}) },
     orderBy: { startTime: "asc" },
@@ -222,7 +223,7 @@ export async function getNextAppointment(companyId: string, barberId?: string) {
     where: {
       companyId,
       status: { in: ["PENDING", "CONFIRMED"] },
-      startTime: { gte: new Date() },
+      startTime: { gte: shopNow() },
       ...(barberId ? { barberId } : {}),
     },
     orderBy: { startTime: "asc" },
@@ -242,7 +243,7 @@ export async function getOccupancyToday(
   companyId: string,
   barberId?: string
 ): Promise<{ overallPercent: number; perBarber: BarberOccupancy[] }> {
-  const today = dateOnlyUTC(new Date());
+  const today = dateOnlyUTC(shopNow());
   const weekday = today.getUTCDay();
   const barbers = await prisma.barber.findMany({
     where: { companyId, active: true, ...(barberId ? { id: barberId } : {}) },

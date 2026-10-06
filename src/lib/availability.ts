@@ -1,3 +1,4 @@
+import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { timeOnDate, dateOnly, overlaps } from "@/lib/availability-helpers";
@@ -56,7 +57,8 @@ export async function getAvailableSlots(params: {
   const breakStart = workingHour.breakStart ? timeOnDate(day, workingHour.breakStart) : null;
   const breakEnd = workingHour.breakEnd ? timeOnDate(day, workingHour.breakEnd) : null;
 
-  const now = new Date();
+  // Horários são guardados como relógio de parede em UTC: compara com o relógio da barbearia, não o do servidor.
+  const now = shopNow();
 
   const [existingAppointments, blocks, activeHolds] = await Promise.all([
     prisma.appointment.findMany({

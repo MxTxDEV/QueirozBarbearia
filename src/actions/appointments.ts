@@ -1,5 +1,6 @@
 "use server";
 
+import { shopNow } from "@/lib/shop-time";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -73,7 +74,7 @@ export async function createAppointmentCore(
     const endTime = new Date(startTime.getTime() + totalDuration * 60_000);
     const appointmentDate = new Date(Date.UTC(startTime.getUTCFullYear(), startTime.getUTCMonth(), startTime.getUTCDate()));
 
-    if (startTime.getTime() < Date.now() - 60_000) {
+    if (startTime.getTime() < shopNow().getTime() - 60_000) {
       return actionError(new Error("Não é possível agendar em um horário no passado."));
     }
 
