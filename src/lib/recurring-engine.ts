@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { Barber, Customer, RecurringAppointment, RecurringAppointmentOccurrence, Service } from "@prisma/client";
 import { dateOnly, timeOnDate } from "@/lib/availability";
+import { resolveBreak } from "@/lib/availability-helpers";
 import { generateOccurrenceDates, RECURRING_GENERATION_HORIZON_MONTHS, describeFrequency } from "@/lib/recurring-helpers";
 import { createAppointmentCore, cancelAppointmentCore } from "@/actions/appointments";
 import { joinWaitlistCore, cancelWaitlistEntryCore } from "@/actions/waitlist";
@@ -53,10 +54,11 @@ export async function previewOccurrenceAvailability(barberId: string, startTime:
 
   const dayStart = timeOnDate(day, workingHour.startTime);
   const dayEnd = timeOnDate(day, workingHour.endTime);
-  const withinBreak =
-    workingHour.breakStart && workingHour.breakEnd
-      ? startTime < timeOnDate(day, workingHour.breakEnd) && endTime > timeOnDate(day, workingHour.breakStart)
-      : false;
+  const breakOverride = await prisma.barberBreakOverride.findUnique({ where: { barberId_date: { barberId, date: day } } });
+  const dayBreak = resolveBreak(workingHour, breakOverride);
+  const withinBreak = dayBreak
+    ? startTime < timeOnDate(day, dayBreak.end) && endTime > timeOnDate(day, dayBreak.start)
+    : false;
   if (startTime < dayStart || endTime > dayEnd || withinBreak) return "OUTSIDE_WORKING_HOURS";
 
   const timeOff = await prisma.barberTimeOff.findFirst({

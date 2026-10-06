@@ -12,11 +12,14 @@ export function ClosedOverlay({
   startHour,
   endHour,
   hourHeight,
+  hint,
 }: {
   segment: ClosedSegment;
   startHour: number;
   endHour: number;
   hourHeight: number;
+  /** Complemento do tooltip (ex.: como mover o intervalo). */
+  hint?: string;
 }) {
   const start = Math.max(segment.start, startHour * 60);
   const end = Math.min(segment.end, endHour * 60);
@@ -29,7 +32,7 @@ export function ClosedOverlay({
     <div
       role="img"
       aria-label={`Fechado: ${segment.reason}`}
-      title={`Fechado — ${segment.reason}`}
+      title={`Fechado — ${segment.reason}${hint ? ` (${hint})` : ""}`}
       style={{
         top,
         height,

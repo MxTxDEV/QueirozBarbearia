@@ -3,6 +3,8 @@ import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay, minutesFromMidnight } from "./calendar-dates";
 import { QuickAddSlot } from "./quick-add-slot";
 import { ClosedOverlay } from "./closed-overlay";
+import { DraggableBreak } from "./draggable-break";
+import type { BreakInfo } from "./break-types";
 import { minutesToHHMM, type ClosedSegment } from "@/lib/quick-slots";
 
 const HOUR_HEIGHT = 80; // px por hora — define a escala vertical da grade
@@ -73,6 +75,8 @@ export function TimeGrid({
   today,
   openSlots,
   closedSegments,
+  breakInfo,
+  breakMoveHint,
   buildNewHref,
 }: {
   days: Date[];
@@ -84,6 +88,10 @@ export function TimeGrid({
   openSlots?: Record<string, { minute: number; barberId?: string }[]>;
   /** Por dia (YYYY-MM-DD): trechos fechados pra TODOS os barbeiros considerados. */
   closedSegments?: Record<string, ClosedSegment[]>;
+  /** Por dia (YYYY-MM-DD): intervalo arrastável — só quando a semana mostra UM barbeiro. */
+  breakInfo?: Record<string, BreakInfo | undefined>;
+  /** Dica quando o intervalo não é arrastável (vários barbeiros na mesma coluna). */
+  breakMoveHint?: string;
   buildNewHref?: (args: { date: string; time: string; barberId?: string }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
@@ -139,9 +147,21 @@ export function TimeGrid({
                   </div>
                 ))}
 
-                {(closedSegments?.[day.toISOString().slice(0, 10)] ?? []).map((segment) => (
-                  <ClosedOverlay key={`${segment.start}-${segment.reason}`} segment={segment} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
-                ))}
+                {(closedSegments?.[day.toISOString().slice(0, 10)] ?? [])
+                  .filter((segment) => !(breakInfo?.[day.toISOString().slice(0, 10)] && segment.reason === "Intervalo"))
+                  .map((segment) => (
+                    <ClosedOverlay
+                      key={`${segment.start}-${segment.reason}`}
+                      segment={segment}
+                      startHour={startHour}
+                      endHour={endHour}
+                      hourHeight={HOUR_HEIGHT}
+                      hint={segment.reason === "Intervalo" ? breakMoveHint : undefined}
+                    />
+                  ))}
+                {breakInfo?.[day.toISOString().slice(0, 10)] && (
+                  <DraggableBreak info={breakInfo[day.toISOString().slice(0, 10)]!} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
+                )}
 
                 {buildNewHref &&
                   (openSlots?.[day.toISOString().slice(0, 10)] ?? [])

@@ -376,6 +376,7 @@ model Barber {
   workingHours BarberWorkingHour[]
   timeOffs     BarberTimeOff[]
   blocks       BarberBlock[]
+  breakOverrides BarberBreakOverride[]
   services     BarberService[]
   appointments Appointment[]
   sales        Sale[]
@@ -403,6 +404,26 @@ model BarberWorkingHour {
 
   @@unique([barberId, weekday])
   @@map("barber_working_hours")
+}
+
+/// Exceção do intervalo (almoço) de UM dia específico: no calendário o
+/// intervalo pode ser arrastado pra outro horário só naquele dia, sem mexer no
+/// padrão semanal de BarberWorkingHour. Tem precedência sobre o padrão da
+/// semana naquela data (ver resolveBreak em src/lib/availability-helpers.ts).
+/// breakStart/breakEnd nulos = sem intervalo naquele dia.
+model BarberBreakOverride {
+  id         String   @id @default(cuid())
+  barberId   String   @map("barber_id")
+  date       DateTime @db.Date
+  breakStart String?  @map("break_start") // "13:30"
+  breakEnd   String?  @map("break_end") // "14:30"
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  barber Barber @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@unique([barberId, date])
+  @@map("barber_break_overrides")
 }
 
 /// Folgas, férias e bloqueios pontuais de agenda.

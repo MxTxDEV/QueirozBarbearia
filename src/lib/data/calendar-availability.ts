@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { resolveBreak } from "@/lib/availability-helpers";
 import { buildClosedSegments, hhmmToMinutes, subtractIntervals, type ClosedSegment, type Interval } from "@/lib/quick-slots";
 
 const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED"] as const;
@@ -17,6 +18,14 @@ export type DayAvailability = {
   open: Interval[];
   /** Trechos em que o barbeiro não atende (fora do expediente, almoço, folga, bloqueio) — o calendário tranca. */
   closed: ClosedSegment[];
+  /** Expediente do dia (null = não atende / folga). */
+  working: Interval | null;
+  /** Intervalo (almoço) efetivo do dia, já considerando a exceção arrastada no calendário. */
+  breakWindow: Interval | null;
+  /** O intervalo veio de uma exceção só desse dia (e não do padrão semanal). */
+  breakIsOverride: boolean;
+  /** Agendamentos e HOLDs do dia — o intervalo não pode ser arrastado por cima deles. */
+  busy: Interval[];
 };
 
 /**
@@ -38,7 +47,7 @@ export async function getOpenIntervals(
   const result = new Map<string, DayAvailability>();
   if (barberIds.length === 0) return result;
 
-  const [workingHours, timeOffs, blocks, appointments, holds] = await Promise.all([
+  const [workingHours, timeOffs, blocks, appointments, holds, breakOverrides] = await Promise.all([
     prisma.barberWorkingHour.findMany({ where: { barberId: { in: barberIds }, barber: { companyId } } }),
     prisma.barberTimeOff.findMany({
       where: { barberId: { in: barberIds }, barber: { companyId }, startDate: { lt: to }, endDate: { gte: from } },
@@ -58,7 +67,9 @@ export async function getOpenIntervals(
       },
       select: { offeredBarberId: true, offeredStartTime: true, offeredEndTime: true },
     }),
+    prisma.barberBreakOverride.findMany({ where: { barberId: { in: barberIds }, date: { gte: from, lt: to } } }),
   ]);
+  const overrideByKey = new Map(breakOverrides.map((o) => [`${o.barberId}|${isoDay(o.date)}`, o]));
 
   const blocksByKey = new Map<string, (Interval & { reason: string | null })[]>();
   for (const b of blocks) {
@@ -92,7 +103,9 @@ export async function getOpenIntervals(
       const wh = hoursByBarberWeekday.get(`${barberId}|${day.getUTCDay()}`);
       const onTimeOff = timeOffs.some((t) => t.barberId === barberId && t.startDate <= day && t.endDate >= day);
       const working = wh ? { start: hhmmToMinutes(wh.startTime), end: hhmmToMinutes(wh.endTime) } : null;
-      const breakInterval = wh?.breakStart && wh?.breakEnd ? { start: hhmmToMinutes(wh.breakStart), end: hhmmToMinutes(wh.breakEnd) } : null;
+      const override = overrideByKey.get(`${barberId}|${dayKey}`) ?? null;
+      const resolvedBreak = wh ? resolveBreak(wh, override) : null;
+      const breakInterval = resolvedBreak ? { start: hhmmToMinutes(resolvedBreak.start), end: hhmmToMinutes(resolvedBreak.end) } : null;
       const dayBlocks = blocksByKey.get(`${barberId}|${dayKey}`) ?? [];
 
       const closed = buildClosedSegments({ working, timeOff: onTimeOff, breakInterval, blocks: dayBlocks });
@@ -101,7 +114,14 @@ export async function getOpenIntervals(
           ? []
           : subtractIntervals([working], [...(busyByKey.get(`${barberId}|${dayKey}`) ?? []), ...closed]);
 
-      result.set(`${barberId}|${dayKey}`, { open, closed });
+      result.set(`${barberId}|${dayKey}`, {
+        open,
+        closed,
+        working: onTimeOff ? null : working,
+        breakWindow: onTimeOff ? null : breakInterval,
+        breakIsOverride: !!override && !onTimeOff,
+        busy: busyByKey.get(`${barberId}|${dayKey}`) ?? [],
+      });
     }
   }
   return result;

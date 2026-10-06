@@ -1,7 +1,7 @@
 import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { timeOnDate, dateOnly, overlaps } from "@/lib/availability-helpers";
+import { timeOnDate, dateOnly, overlaps, resolveBreak } from "@/lib/availability-helpers";
 
 export { timeOnDate, dateOnly, overlaps };
 
@@ -20,7 +20,7 @@ export type TimeSlot = { start: Date; label: string };
  */
 type ConflictCheckClient = Pick<
   typeof prisma,
-  "appointment" | "barberBlock" | "waitlistEntry" | "barberWorkingHour" | "barberTimeOff"
+  "appointment" | "barberBlock" | "waitlistEntry" | "barberWorkingHour" | "barberTimeOff" | "barberBreakOverride"
 >;
 
 /**
@@ -54,8 +54,13 @@ export async function getAvailableSlots(params: {
 
   const dayStart = timeOnDate(day, workingHour.startTime);
   const dayEnd = timeOnDate(day, workingHour.endTime);
-  const breakStart = workingHour.breakStart ? timeOnDate(day, workingHour.breakStart) : null;
-  const breakEnd = workingHour.breakEnd ? timeOnDate(day, workingHour.breakEnd) : null;
+  // Intervalo do dia: a exceção daquela data (arrastada no calendário) vence o padrão da semana.
+  const breakOverride = await prisma.barberBreakOverride.findUnique({
+    where: { barberId_date: { barberId: params.barberId, date: day } },
+  });
+  const dayBreak = resolveBreak(workingHour, breakOverride);
+  const breakStart = dayBreak ? timeOnDate(day, dayBreak.start) : null;
+  const breakEnd = dayBreak ? timeOnDate(day, dayBreak.end) : null;
 
   // Horários são guardados como relógio de parede em UTC: compara com o relógio da barbearia, não o do servidor.
   const now = shopNow();
@@ -162,9 +167,13 @@ export async function hasSchedulingConflict(
   const dayEnd = timeOnDate(day, workingHour.endTime);
   if (params.startTime < dayStart || params.endTime > dayEnd) return true;
 
-  if (workingHour.breakStart && workingHour.breakEnd) {
-    const breakStart = timeOnDate(day, workingHour.breakStart);
-    const breakEnd = timeOnDate(day, workingHour.breakEnd);
+  const breakOverride = await client.barberBreakOverride.findUnique({
+    where: { barberId_date: { barberId: params.barberId, date: day } },
+  });
+  const dayBreak = resolveBreak(workingHour, breakOverride);
+  if (dayBreak) {
+    const breakStart = timeOnDate(day, dayBreak.start);
+    const breakEnd = timeOnDate(day, dayBreak.end);
     if (overlaps(params.startTime, params.endTime, breakStart, breakEnd)) return true;
   }
 

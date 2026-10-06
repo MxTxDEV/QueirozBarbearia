@@ -19,3 +19,16 @@ export function dateOnly(date: Date): Date {
 export function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
+
+export type BreakTimes = { breakStart: string | null; breakEnd: string | null };
+
+/**
+ * Intervalo (almoço) efetivo de um barbeiro numa data: a exceção daquele dia
+ * (BarberBreakOverride) tem precedência sobre o padrão da semana
+ * (BarberWorkingHour) — mesmo que a exceção diga "sem intervalo" (nulos).
+ * Devolve "HH:MM" de início/fim, ou null se não há intervalo.
+ */
+export function resolveBreak(weekly: BreakTimes, override?: BreakTimes | null): { start: string; end: string } | null {
+  const source = override ?? weekly;
+  return source.breakStart && source.breakEnd ? { start: source.breakStart, end: source.breakEnd } : null;
+}

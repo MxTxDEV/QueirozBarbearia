@@ -3,6 +3,8 @@ import { assignLanes, type GridAppointment } from "./time-grid";
 import { minutesFromMidnight } from "./calendar-dates";
 import { QuickAddSlot } from "./quick-add-slot";
 import { ClosedOverlay } from "./closed-overlay";
+import { DraggableBreak } from "./draggable-break";
+import type { BreakInfo } from "./break-types";
 import { minutesToHHMM, type ClosedSegment } from "@/lib/quick-slots";
 
 const HOUR_HEIGHT = 80; // px por hora — mesma escala do TimeGrid, pra ficar consistente entre as visões
@@ -25,6 +27,7 @@ export function BarberDayGrid({
   emptyBarberLabel = "Sem barbeiros cadastrados.",
   openSlots,
   closedSegments,
+  breakInfo,
   buildNewHref,
 }: {
   barbers: { id: string; name: string }[];
@@ -36,6 +39,8 @@ export function BarberDayGrid({
   openSlots?: Record<string, number[]>;
   /** Trechos fechados (fora do expediente, intervalo, folga, bloqueio), por barbeiro. */
   closedSegments?: Record<string, ClosedSegment[]>;
+  /** Intervalo arrastável de cada barbeiro neste dia (ausente = não dá pra mover). */
+  breakInfo?: Record<string, BreakInfo | undefined>;
   buildNewHref?: (args: { time: string; barberId: string }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
@@ -82,9 +87,14 @@ export function BarberDayGrid({
                   </div>
                 ))}
 
-                {(closedSegments?.[barber.id] ?? []).map((segment) => (
-                  <ClosedOverlay key={`${segment.start}-${segment.reason}`} segment={segment} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
-                ))}
+                {(closedSegments?.[barber.id] ?? [])
+                  .filter((segment) => !(breakInfo?.[barber.id] && segment.reason === "Intervalo"))
+                  .map((segment) => (
+                    <ClosedOverlay key={`${segment.start}-${segment.reason}`} segment={segment} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
+                  ))}
+                {breakInfo?.[barber.id] && (
+                  <DraggableBreak info={breakInfo[barber.id]!} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
+                )}
 
                 {buildNewHref &&
                   (openSlots?.[barber.id] ?? [])

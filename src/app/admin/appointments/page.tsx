@@ -37,6 +37,7 @@ import type { AppointmentStatus } from "@prisma/client";
 import { requireAdminContext } from "@/lib/require-admin";
 import { appointmentClientName } from "@/lib/appointment-client";
 import { MiniCalendar } from "./calendar/mini-calendar";
+import type { BreakInfo } from "./calendar/break-types";
 import { getOpenIntervals, type DayAvailability } from "@/lib/data/calendar-availability";
 import { openSlotStarts, minutesToHHMM, intersectSegments, coversWholeDay, type ClosedSegment } from "@/lib/quick-slots";
 
@@ -205,6 +206,35 @@ export default async function AppointmentsPage({
   const weekOpenSlots: Record<string, { minute: number; barberId?: string }[]> = {};
   const weekClosedSegments: Record<string, ClosedSegment[]> = {};
   const closedDayKeys = new Set<string>();
+
+  // Intervalo (almoço) arrastável: Dia = um por barbeiro/coluna; Semana e Mês só quando há UM barbeiro no contexto
+  // (com vários numa mesma coluna não dá pra saber de quem é o intervalo que se está movendo).
+  const barberNameById = new Map<string, string>(barbers.map((b) => [b.id, b.name]));
+  if (isBarberLogin && user.barberId) barberNameById.set(user.barberId, user.name);
+  const breakInfoFor = (id: string, day: Date): BreakInfo | undefined => {
+    if (day.getTime() < today.getTime()) return undefined;
+    const a = openIntervals.get(`${id}|${toISODate(day)}`);
+    if (!a?.working || !a.breakWindow) return undefined;
+    return {
+      barberId: id,
+      barberName: barberNameById.get(id) ?? "Barbeiro",
+      date: toISODate(day),
+      start: a.breakWindow.start,
+      end: a.breakWindow.end,
+      workStart: a.working.start,
+      workEnd: a.working.end,
+      busy: a.busy,
+      isOverride: a.breakIsOverride,
+    };
+  };
+  const singleBarberId = quickBarberIds.length === 1 ? quickBarberIds[0] : null;
+  const dayBreakInfo: Record<string, BreakInfo | undefined> = {};
+  const rangeBreakInfo: Record<string, BreakInfo | undefined> = {};
+  if (calendarView === "day") {
+    for (const id of quickBarberIds) dayBreakInfo[id] = breakInfoFor(id, from);
+  } else if (singleBarberId) {
+    for (const day of days) rangeBreakInfo[toISODate(day)] = breakInfoFor(singleBarberId, day);
+  }
   if (calendarView === "day") {
     for (const id of quickBarberIds) {
       const info = openIntervals.get(`${id}|${toISODate(from)}`);
@@ -276,7 +306,7 @@ export default async function AppointmentsPage({
   });
 
   const renderActions = (appt: (typeof appointments)[number]) => (
-    <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} />
+    <AppointmentRowActions key={appt.id} id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} />
   );
 
   // Visão de Semana no celular: um carrossel por dia, empilhados.
@@ -425,6 +455,7 @@ export default async function AppointmentsPage({
                 today={today}
                 buildNewHref={(day) => buildNewHref({ date: toISODate(day) })}
                 closedDays={closedDayKeys}
+                breakInfo={rangeBreakInfo}
                 appointments={appointments.map<MonthAppointment>((appt) => ({
                   block: toBlock(appt),
                   actions: renderActions(appt),
@@ -441,6 +472,7 @@ export default async function AppointmentsPage({
                     endHour={endHour}
                     openSlots={dayOpenSlots}
                     closedSegments={dayClosedSegments}
+                    breakInfo={dayBreakInfo}
                     buildNewHref={({ time, barberId: slotBarberId }) =>
                       buildNewHref({ date: toISODate(from), time, barberId: slotBarberId })
                     }
@@ -469,6 +501,8 @@ export default async function AppointmentsPage({
                     today={today}
                     openSlots={weekOpenSlots}
                     closedSegments={weekClosedSegments}
+                    breakInfo={rangeBreakInfo}
+                    breakMoveHint={singleBarberId ? undefined : "filtre um barbeiro para mover o intervalo"}
                     buildNewHref={buildNewHref}
                     appointments={appointments.map<GridAppointment>((appt) => ({
                       block: toBlock(appt),

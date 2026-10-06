@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Lock, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BreakChip } from "./break-chip";
+import type { BreakInfo } from "./break-types";
 import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay } from "./calendar-dates";
 
@@ -20,6 +22,7 @@ export function MonthGrid({
   today,
   buildNewHref,
   closedDays,
+  breakInfo,
 }: {
   days: Date[];
   appointments: MonthAppointment[];
@@ -29,6 +32,8 @@ export function MonthGrid({
   buildNewHref?: (day: Date) => string;
   /** Dias (YYYY-MM-DD) em que nenhum barbeiro atende — ficam trancados. */
   closedDays?: Set<string>;
+  /** Por dia (YYYY-MM-DD): intervalo editável — só quando o mês mostra UM barbeiro. */
+  breakInfo?: Record<string, BreakInfo | undefined>;
 }) {
   const weeks: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
@@ -94,6 +99,9 @@ export function MonthGrid({
                       )}
                     </div>
                     <div className="space-y-1">
+                      {!closed && breakInfo?.[day.toISOString().slice(0, 10)] && (
+                        <BreakChip info={breakInfo[day.toISOString().slice(0, 10)]!} />
+                      )}
                       {dayAppointments.slice(0, MAX_VISIBLE_PER_DAY).map((appt) => (
                         <AppointmentBlock key={appt.block.id} data={appt.block} actions={appt.actions} compact />
                       ))}
