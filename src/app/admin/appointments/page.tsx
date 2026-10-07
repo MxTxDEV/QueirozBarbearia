@@ -430,6 +430,10 @@ export default async function AppointmentsPage({
         <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start xl:gap-6">
         <div className="min-w-0 space-y-4">
           <CalendarToolbar view={calendarView} anchor={anchor} buildHref={buildHref} />
+          <p className="hidden text-xs text-foreground-muted md:block">
+            Dica: arraste um agendamento <strong className="font-medium text-foreground">sobre outro</strong> para trocar os horários dos dois, ou{" "}
+            <strong className="font-medium text-foreground">para um espaço livre</strong> da agenda para mudar o horário.
+          </p>
 
           {calendarView === "day" ? (
             <MobileDayAgenda
@@ -548,6 +552,10 @@ export default async function AppointmentsPage({
         </div>
       ) : (
         <>
+          <p className="text-xs text-foreground-muted">
+            Dica: arraste um agendamento <strong className="font-medium text-foreground">sobre outro</strong> para trocar os horários dos dois. Para mudar
+            para um horário livre, use a visão de calendário.
+          </p>
           <div className="flex flex-wrap gap-2">
             {RANGES.map((r) => (
               <Link key={r.value} href={buildHref({ mode: "list", range: r.value })}>
@@ -592,7 +600,7 @@ export default async function AppointmentsPage({
                     <TableCell>
                       <div className="flex items-center gap-1.5">
                         {appt.customerId ? (
-                          <Link href={`/admin/customers/${appt.customerId}`} className="font-medium text-foreground hover:underline">
+                          <Link href={`/admin/customers/${appt.customerId}`} draggable={false} className="font-medium text-foreground hover:underline">
                             {appointmentClientName(appt)}
                           </Link>
                         ) : (
@@ -601,6 +609,7 @@ export default async function AppointmentsPage({
                         {appt.recurringOccurrence && (
                           <Link
                             href={`/admin/recurring-appointments/${appt.recurringOccurrence.recurringAppointmentId}`}
+                            draggable={false}
                             title="Faz parte de uma recorrência"
                             className="text-secondary-light"
                           >

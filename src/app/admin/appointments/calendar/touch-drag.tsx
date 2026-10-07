@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Arrastar com o dedo (celular/tablet). O arrastar nativo do navegador (HTML5)
+ * Arrastar com o dedo (celular/tablet) — e com o mouse, quando o computador cai no layout de cards (janela estreita). O arrastar nativo do navegador (HTML5)
  * não funciona de forma confiável com toque, então aqui é um "segurar e
  * arrastar": segure o card ~0,4 s (vibra de leve), e então arraste — soltar em
  * cima de outro card troca os dois; soltar numa área de dia/horário muda o horário.
@@ -22,6 +22,7 @@ export type TouchDropTarget =
 
 const LONG_PRESS_MS = 400;
 const MOVE_TOLERANCE_PX = 10;
+const MOUSE_DRAG_THRESHOLD_PX = 6;
 const EDGE_SCROLL_ZONE_PX = 72;
 const EDGE_SCROLL_STEP_PX = 14;
 const TARGET_SELECTOR = "[data-touch-drop]";
@@ -112,6 +113,8 @@ export function TouchDraggable({
     function cleanup() {
       if (timer) clearTimeout(timer);
       if (scrollTimer) clearInterval(scrollTimer);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
       timer = scrollTimer = null;
       ghost?.remove();
       ghost = null;
@@ -184,6 +187,36 @@ export function TouchDraggable({
       if (hit) dropRef.current(id, hit.target);
     }
 
+    // Mouse (janela estreita no computador cai neste layout de cards): arrasta direto, sem precisar segurar.
+    function onMouseDown(event: MouseEvent) {
+      if (event.button !== 0 || (event.target as Element).closest("button, a, input, select, textarea, label")) return;
+      startX = lastX = event.clientX;
+      startY = lastY = event.clientY;
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    }
+
+    function onMouseMove(event: MouseEvent) {
+      lastX = event.clientX;
+      lastY = event.clientY;
+      if (!active) {
+        if (Math.hypot(lastX - startX, lastY - startY) <= MOUSE_DRAG_THRESHOLD_PX) return;
+        activate();
+      }
+      event.preventDefault(); // sem selecionar texto enquanto arrasta
+      refreshHover();
+    }
+
+    function onMouseUp() {
+      const wasActive = active;
+      const hit = wasActive ? targetAt(lastX, lastY, id) : null;
+      cleanup();
+      if (!wasActive) return;
+      // O clique que o navegador gera ao soltar não deve abrir/ativar nada no card.
+      window.addEventListener("click", (clickEvent) => clickEvent.stopPropagation(), { capture: true, once: true });
+      if (hit) dropRef.current(id, hit.target);
+    }
+
     // Só o toque longo no CARD dispara; menu de contexto/seleção de texto do segurar ficam desligados.
     const onContextMenu = (event: Event) => event.preventDefault();
 
@@ -191,6 +224,7 @@ export function TouchDraggable({
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd, { passive: false });
     el.addEventListener("touchcancel", cleanup);
+    el.addEventListener("mousedown", onMouseDown);
     el.addEventListener("contextmenu", onContextMenu);
     return () => {
       cleanup();
@@ -198,6 +232,7 @@ export function TouchDraggable({
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", cleanup);
+      el.removeEventListener("mousedown", onMouseDown);
       el.removeEventListener("contextmenu", onContextMenu);
     };
   }, [id, label, enabled]);
