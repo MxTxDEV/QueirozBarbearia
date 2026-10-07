@@ -51,11 +51,33 @@ describe("recurrence-notice", () => {
       ],
     });
     expect(text).toContain("Olá, André!");
-    expect(text).toContain("Outubro de 2026");
+    expect(text).toContain("horários marcados em Outubro de 2026");
     expect(text).toContain("Queiroz Barbearia");
     expect(text).toContain("• sex, 09/10 às 15:00");
     expect(text).toContain("• sex, 16/10 às 15:00");
     expect(text).toContain("• sáb, 10/10 às 10:00");
     expect(text).toContain("Um dia antes");
+  });
+
+  it("monthlyRecurrenceMessage inclui horários avulsos, com ou sem recorrência", () => {
+    const withSeries = monthlyRecurrenceMessage({
+      customerName: "Ana",
+      companyName: "Queiroz",
+      monthLabel: "Outubro de 2026",
+      series: [{ serviceName: "Corte", barberName: "Marcos", frequencyLabel: "Toda semana", dates: [wall(2026, 10, 9, 15)] }],
+      singles: [{ start: wall(2026, 10, 20, 11, 30), serviceName: "Barba", barberName: "Arthur" }],
+    });
+    expect(withSeries).toContain("Outros horários marcados");
+    expect(withSeries).toContain("• ter, 20/10 às 11:30 — Barba com Arthur");
+
+    const onlySingles = monthlyRecurrenceMessage({
+      customerName: "Ana",
+      companyName: "Queiroz",
+      monthLabel: "Outubro de 2026",
+      series: [],
+      singles: [{ start: wall(2026, 10, 20, 11, 30), serviceName: "Barba", barberName: "Arthur" }],
+    });
+    expect(onlySingles).toContain("📅 Horários marcados");
+    expect(onlySingles).not.toContain("🔁");
   });
 });

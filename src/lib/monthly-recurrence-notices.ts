@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { describeFrequency } from "@/lib/recurring-helpers";
 import { sendMonthlyRecurrenceNotice } from "@/lib/whatsapp";
-import { isNoticeWindow, monthBounds, monthKey, monthLabelPt, type NoticeSeries } from "@/lib/recurrence-notice";
+import { isNoticeWindow, monthBounds, monthKey, monthLabelPt, type NoticeSeries, type NoticeSingle } from "@/lib/recurrence-notice";
 
 const MAX_ATTEMPTS = 3;
 /** Depois de uma tentativa (inclusive falha), espera isso antes de tentar o mesmo cliente de novo. */
@@ -23,17 +23,19 @@ type CustomerNotice = {
   customerName: string;
   whatsapp: string;
   series: Map<string, NoticeSeries>;
+  singles: NoticeSingle[];
 };
 
 /**
- * Job (cron) — no 1º dia do mês, manda a CADA cliente com recorrência ativa uma
- * mensagem de WhatsApp com as datas da recorrência dele naquele mês (todas as empresas).
+ * Job (cron) — no 1º dia do mês, manda a CADA cliente que tem horário marcado no mês uma
+ * mensagem de WhatsApp com todas as datas e horários dele (as da recorrência agrupadas e, à
+ * parte, os avulsos), em todas as empresas.
  *
  * - Só roda nos primeiros dias do mês, entre 9h e 19h (relógio da barbearia): o dia 1 é o
  *   alvo e os dias 2–3 cobrem uma falha do agendador. Fora disso não faz nada.
  * - Idempotente por cliente+mês (tabela monthly_recurrence_notices): dá pra acionar a cada
  *   poucos minutos, ou duas vezes ao mesmo tempo, que cada cliente recebe no máximo uma vez.
- * - Só entram datas que ainda vão acontecer, de agendamentos pendentes/confirmados.
+ * - Só entram horários que ainda vão acontecer, de agendamentos pendentes/confirmados.
  */
 export async function sendMonthlyRecurrenceNotices(options: { limit?: number; spacingMs?: number; now?: Date; ignoreWindow?: boolean } = {}) {
   const now = options.now ?? shopNow();
@@ -44,48 +46,60 @@ export async function sendMonthlyRecurrenceNotices(options: { limit?: number; sp
   const month = monthKey(now);
   const { end } = monthBounds(now);
 
-  const occurrences = await prisma.recurringAppointmentOccurrence.findMany({
+  // Tudo que cada cliente tem marcado de agora até o fim do mês (recorrência ou avulso), de qualquer empresa ativa.
+  const appointments = await prisma.appointment.findMany({
     where: {
-      status: "CONFIRMED",
-      scheduledStartTime: { gte: now, lt: end },
-      appointment: { status: { in: ["PENDING", "CONFIRMED"] } },
-      recurringAppointment: { status: "ACTIVE", company: { status: "ACTIVE" } },
+      customerId: { not: null },
+      status: { in: ["PENDING", "CONFIRMED"] },
+      startTime: { gte: now, lt: end },
+      company: { status: "ACTIVE" },
     },
     include: {
-      recurringAppointment: {
-        include: { customer: true, barber: true, service: true, company: { select: { name: true } } },
+      customer: true,
+      barber: true,
+      services: true,
+      company: { select: { name: true } },
+      recurringOccurrence: {
+        include: { recurringAppointment: { include: { service: true, barber: true } } },
       },
     },
-    orderBy: { scheduledStartTime: "asc" },
+    orderBy: { startTime: "asc" },
   });
 
   const byCustomer = new Map<string, CustomerNotice>();
-  for (const occ of occurrences) {
-    const series = occ.recurringAppointment;
-    const customer = series.customer;
+  for (const appt of appointments) {
+    const customer = appt.customer;
+    if (!customer) continue;
     let entry = byCustomer.get(customer.id);
     if (!entry) {
       entry = {
-        companyId: series.companyId,
-        companyName: series.company.name,
+        companyId: appt.companyId,
+        companyName: appt.company.name,
         customerId: customer.id,
         customerName: customer.fullName,
         whatsapp: customer.whatsapp,
         series: new Map(),
+        singles: [],
       };
       byCustomer.set(customer.id, entry);
     }
-    let group = entry.series.get(series.id);
-    if (!group) {
-      group = {
-        serviceName: series.service.name,
-        barberName: series.barber.name,
-        frequencyLabel: describeFrequency(series.frequencyUnit, series.intervalValue),
-        dates: [],
-      };
-      entry.series.set(series.id, group);
+
+    const series = appt.recurringOccurrence?.recurringAppointment;
+    if (series && series.status === "ACTIVE") {
+      let group = entry.series.get(series.id);
+      if (!group) {
+        group = {
+          serviceName: series.service.name,
+          barberName: series.barber.name,
+          frequencyLabel: describeFrequency(series.frequencyUnit, series.intervalValue),
+          dates: [],
+        };
+        entry.series.set(series.id, group);
+      }
+      group.dates.push(appt.startTime);
+    } else {
+      entry.singles.push({ start: appt.startTime, serviceName: appt.services.map((x) => x.serviceName).join(" + "), barberName: appt.barber.name });
     }
-    group.dates.push(occ.scheduledStartTime);
   }
 
   const existing = await prisma.monthlyRecurrenceNotice.findMany({
@@ -117,6 +131,7 @@ export async function sendMonthlyRecurrenceNotices(options: { limit?: number; sp
       companyName: entry.companyName,
       monthLabel,
       series: [...entry.series.values()],
+      singles: entry.singles,
     }).catch((error: unknown) => ({ ok: false as const, errorMessage: error instanceof Error ? error.message : String(error) }));
 
     if (result.ok) {

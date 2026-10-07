@@ -12,6 +12,7 @@ import { findAndOfferNextCandidate } from "@/lib/waitlist-engine";
 import { toNumber } from "@/lib/serialize";
 import { createNotification } from "@/lib/notifications";
 import { logAudit } from "@/lib/audit";
+import { notifyAppointmentScheduledByShop } from "@/lib/shop-booking-notices";
 import { appointmentClientName } from "@/lib/appointment-client";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import {
@@ -187,7 +188,14 @@ export async function createAppointmentAsCustomer(
 /** Usado pelo painel administrativo, onde o admin escolhe o cliente manualmente. */
 export async function createAppointmentAsAdmin(input: CreateAppointmentInput): Promise<ActionResult<{ id: string }>> {
   const user = await requireAdminContext();
-  return createAppointmentCore(input, user.companyId);
+  const result = await createAppointmentCore(input, user.companyId);
+  // O barbeiro/recepção marcou pelo cliente: avisa o cliente no WhatsApp na hora (nunca derruba o agendamento).
+  if (result.ok && result.data) {
+    await notifyAppointmentScheduledByShop(result.data.id, user.companyId).catch((error) => {
+      console.error("[whatsapp] falha ao avisar o cliente do agendamento feito pela barbearia:", error);
+    });
+  }
+  return result;
 }
 
 async function loadAppointmentContext(appointmentId: string, companyId: string) {

@@ -1,4 +1,5 @@
 import type { AppointmentMessageData } from "./types";
+import { formatNoticeDate } from "@/lib/recurrence-notice";
 
 function servicesList(services: string[]) {
   return services.map((s) => `• ${s}`).join("\n");
@@ -172,4 +173,70 @@ export function otpTemplate(code: string, companyName: string) {
   return `Seu código de acesso ${companyName} é: ${code}
 
 Válido por 5 minutos. Não compartilhe este código.`;
+}
+
+/** Tempo real: o barbeiro/recepção acabou de marcar um horário avulso para o cliente. */
+export function appointmentScheduledByShopTemplate(d: AppointmentMessageData & { companyName: string }) {
+  return `Olá, ${d.customerName}! 💈
+
+A ${d.companyName} acabou de agendar um horário para você:
+
+📅 Data: ${d.date}
+⏰ Horário: ${d.time}
+✂️ Barbeiro: ${d.barberName}
+
+Serviços:
+${servicesList(d.services)}
+
+💰 Total: R$ ${d.totalPrice}
+
+Se precisar mudar, é só nos avisar por aqui. Até lá!`;
+}
+
+/** Tempo real: o barbeiro/recepção marcou o horário E a recorrência do cliente de uma vez. */
+export function recurringScheduledByShopTemplate(d: {
+  customerName: string;
+  companyName: string;
+  serviceName: string;
+  barberName: string;
+  frequencyLabel: string;
+  /** Início de cada data já reservada (relógio de parede em UTC), em ordem. */
+  dates: Date[];
+  /** Quantas datas passaram da lista (só mostramos as primeiras). */
+  moreCount: number;
+  /** Datas que não foram reservadas por falta de vaga. */
+  conflictCount: number;
+}) {
+  const list = d.dates.map((date) => `• ${formatNoticeDate(date)}`).join("\n");
+  const more = d.moreCount > 0 ? `\n… e mais ${d.moreCount} data(s).` : "";
+  const conflict =
+    d.conflictCount > 0 ? `\n\n${d.conflictCount} data(s) não tinham vaga e vamos combinar com você.` : "";
+  return `Olá, ${d.customerName}! 💈
+
+A ${d.companyName} acabou de agendar seu horário e a sua recorrência:
+
+✂️ ${d.serviceName} com ${d.barberName}
+🔁 ${d.frequencyLabel}
+
+Datas marcadas:
+${list}${more}${conflict}
+
+Todo dia 1º do mês e um dia antes de cada horário, avisamos você por aqui. Se precisar mudar alguma data, é só nos chamar!`;
+}
+
+/** Lembrete das 7h do dia: "é hoje". Um por cliente, com todos os horários dele no dia. */
+export function morningReminderTemplate(d: {
+  customerName: string;
+  companyName: string;
+  items: { time: string; barberName: string; services: string[] }[];
+}) {
+  const lines = d.items.map((i) => `⏰ ${i.time} — ${i.services.join(", ")} com ${i.barberName}`).join("\n");
+  const intro = d.items.length > 1 ? "Você tem horários marcados hoje" : "Você tem um horário marcado hoje";
+  return `Bom dia, ${d.customerName}! ☀️💈
+
+${intro} na ${d.companyName}:
+
+${lines}
+
+Te esperamos! Se não puder vir, avise a gente por aqui.`;
 }

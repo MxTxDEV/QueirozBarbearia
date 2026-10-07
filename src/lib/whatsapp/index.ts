@@ -17,6 +17,9 @@ import {
   recurringRequestInternalTemplate,
   recurringApprovedTemplate,
   recurringRejectedTemplate,
+  appointmentScheduledByShopTemplate,
+  recurringScheduledByShopTemplate,
+  morningReminderTemplate,
 } from "./templates";
 
 export {
@@ -273,4 +276,34 @@ export async function sendMonthlyRecurrenceNotice(
   data: Parameters<typeof monthlyRecurrenceMessage>[0]
 ) {
   return sendWhatsapp({ companyId, phone, customerId, message: monthlyRecurrenceMessage(data) });
+}
+
+/** Tempo real: a barbearia marcou um horário avulso pro cliente. */
+export async function sendAppointmentScheduledByShop(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: Parameters<typeof appointmentScheduledByShopTemplate>[0]
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: appointmentScheduledByShopTemplate(data) });
+}
+
+/** Tempo real: a barbearia marcou o horário e a recorrência do cliente de uma vez. */
+export async function sendRecurringScheduledByShop(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: Parameters<typeof recurringScheduledByShopTemplate>[0]
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: recurringScheduledByShopTemplate(data) });
+}
+
+/** Lembrete das 7h: "é hoje". */
+export async function sendMorningReminder(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: Parameters<typeof morningReminderTemplate>[0]
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: morningReminderTemplate(data) });
 }

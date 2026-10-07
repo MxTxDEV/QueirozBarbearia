@@ -2,7 +2,7 @@ import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
-import { sendAppointmentReminder } from "@/lib/whatsapp";
+import { sendAppointmentReminder, sendMorningReminder } from "@/lib/whatsapp";
 import type { Appointment, AppointmentService, AppointmentStatus, Barber, Customer } from "@prisma/client";
 
 const ACTIVE_STATUSES: AppointmentStatus[] = ["PENDING", "CONFIRMED"];
@@ -59,6 +59,7 @@ async function sendReminderAndStamp(appt: AppointmentWithRelations, kind: "24h" 
  * deixa de ser PENDING/CONFIRMED); remarcar é sempre cancelar + criar um
  * agendamento novo, que nasce com os dois campos nulos — o horário antigo
  * nunca mais aparece nesta busca, e o novo ganha lembretes normalmente.
+ * Também dispara o lembrete das 7h do dia (ver sendDueMorningReminders).
  */
 export async function sendDueAppointmentReminders() {
   const now = shopNow();
@@ -104,5 +105,84 @@ export async function sendDueAppointmentReminders() {
     else failed++;
   }
 
-  return { checked24h: due24h.length, checked1h: due1h.length, sent24h, sent1h, failed };
+  const morning = await sendDueMorningReminders().catch((error) => {
+    console.error("[cron] falha ao enviar lembretes das 7h:", error);
+    return null;
+  });
+
+  return { checked24h: due24h.length, checked1h: due1h.length, sent24h, sent1h, failed, morning };
+}
+
+// ---------------------------------------------------------------------------
+// Lembrete das 7h do dia ("é hoje")
+// ---------------------------------------------------------------------------
+
+/** A partir desta hora (relógio da barbearia) o lembrete do dia pode sair. */
+export const MORNING_REMINDER_HOUR = 7;
+/** Clientes por execução — o cron roda várias vezes, então a fila anda sozinha sem estourar o tempo da requisição. */
+const MORNING_BATCH = 12;
+/** Intervalo entre mensagens (evita rajada num número de WhatsApp comum, que costuma ser bloqueada). */
+const MORNING_SPACING_MS = 2000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * No dia do horário, a partir das 7h, avisa cada cliente agendado naquele dia: "hoje você tem horário".
+ * Uma mensagem por cliente, com todos os horários dele no dia. Só entra quem ainda tem mais de 1h
+ * pela frente — antes disso o lembrete de 1h já cobre (e quem marcou/ajustou em cima da hora também).
+ * Idempotente via reminderMorningSentAt: carimba mesmo se o envio falhar (igual aos outros lembretes),
+ * pra uma falha do provedor não virar reenvio em loop a cada execução do cron.
+ */
+export async function sendDueMorningReminders(options: { limit?: number; spacingMs?: number } = {}) {
+  const now = shopNow();
+  if (now.getUTCHours() < MORNING_REMINDER_HOUR) return { skipped: "antes das 7h", customers: 0, sent: 0, failed: 0, remaining: 0 };
+
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const in1h = new Date(now.getTime() + 60 * 60_000);
+
+  const due = await prisma.appointment.findMany({
+    where: {
+      reminderMorningSentAt: null,
+      // Cliente avulso (sem cadastro) não tem WhatsApp — nunca recebe lembrete.
+      customerId: { not: null },
+      status: { in: ACTIVE_STATUSES },
+      appointmentDate: today,
+      startTime: { gt: in1h },
+      company: { status: "ACTIVE" },
+    },
+    include: { customer: true, barber: true, services: true, company: { select: { name: true } } },
+    orderBy: { startTime: "asc" },
+  });
+
+  const byCustomer = new Map<string, typeof due>();
+  for (const appt of due) {
+    if (!appt.customerId) continue;
+    byCustomer.set(appt.customerId, [...(byCustomer.get(appt.customerId) ?? []), appt]);
+  }
+
+  const customers = [...byCustomer.values()];
+  const batch = customers.slice(0, options.limit ?? MORNING_BATCH);
+  const spacingMs = options.spacingMs ?? MORNING_SPACING_MS;
+
+  let sent = 0;
+  let failed = 0;
+  for (const appts of batch) {
+    const customer = appts[0].customer;
+    if (!customer) continue;
+    const result = await sendMorningReminder(appts[0].companyId, customer.whatsapp, customer.id, {
+      customerName: customer.fullName,
+      companyName: appts[0].company.name,
+      items: appts.map((a) => ({ time: formatTime(a.startTime), barberName: a.barber.name, services: a.services.map((s) => s.serviceName) })),
+    }).catch(() => ({ ok: false as const }));
+
+    await prisma.appointment.updateMany({
+      where: { id: { in: appts.map((a) => a.id) }, reminderMorningSentAt: null },
+      data: { reminderMorningSentAt: new Date() },
+    });
+    if (result.ok) sent++;
+    else failed++;
+    await sleep(spacingMs);
+  }
+
+  return { customers: customers.length, sent, failed, remaining: Math.max(0, customers.length - batch.length) };
 }

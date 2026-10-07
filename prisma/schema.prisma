@@ -563,6 +563,8 @@ model Appointment {
   // ganha lembretes novos automaticamente, sem precisar resetar nada.
   reminder24hSentAt DateTime? @map("reminder_24h_sent_at")
   reminder1hSentAt  DateTime? @map("reminder_1h_sent_at")
+  // Lembrete "é hoje" das 7h da manhã do próprio dia do horário (mesma idempotência dos dois acima).
+  reminderMorningSentAt DateTime? @map("reminder_morning_sent_at")
 
   // Idempotência da mensagem de agradecimento + pedido de avaliação: null =
   // ainda não enviada. Carimbado antes do envio (não depois), então registrar

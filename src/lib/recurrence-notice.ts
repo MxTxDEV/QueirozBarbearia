@@ -56,16 +56,33 @@ export type NoticeSeries = {
   dates: Date[];
 };
 
-/** Texto da mensagem do dia 1: as datas da recorrência do cliente neste mês. */
-export function monthlyRecurrenceMessage(d: { customerName: string; companyName: string; monthLabel: string; series: NoticeSeries[] }): string {
+/** Um horário marcado fora de recorrência (corte avulso). */
+export type NoticeSingle = { start: Date; serviceName: string; barberName: string };
+
+/**
+ * Texto da mensagem do dia 1: tudo que o cliente tem marcado no mês — as datas de cada recorrência
+ * e, à parte, os horários avulsos.
+ */
+export function monthlyRecurrenceMessage(d: {
+  customerName: string;
+  companyName: string;
+  monthLabel: string;
+  series: NoticeSeries[];
+  singles?: NoticeSingle[];
+}): string {
   const blocks = d.series.map((s) => {
     const dates = s.dates.map((date) => `• ${formatNoticeDate(date)}`).join("\n");
     return `✂️ ${s.serviceName} com ${s.barberName}\n🔁 ${s.frequencyLabel}\n${dates}`;
   });
+  const singles = d.singles ?? [];
+  if (singles.length > 0) {
+    const lines = singles.map((x) => `• ${formatNoticeDate(x.start)} — ${x.serviceName} com ${x.barberName}`).join("\n");
+    blocks.push(`📅 ${d.series.length > 0 ? "Outros horários marcados" : "Horários marcados"}\n${lines}`);
+  }
 
   return `Olá, ${d.customerName}! 💈
 
-Estas são as datas da sua recorrência em ${d.monthLabel} na ${d.companyName}:
+Estes são os seus horários marcados em ${d.monthLabel} na ${d.companyName}:
 
 ${blocks.join("\n\n")}
 

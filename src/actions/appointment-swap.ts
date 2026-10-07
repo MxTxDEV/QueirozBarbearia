@@ -138,6 +138,7 @@ export async function swapAppointmentsAction(
               // Horário novo: os lembretes automáticos precisam valer pro novo horário.
               reminder24hSentAt: null,
               reminder1hSentAt: null,
+              reminderMorningSentAt: null,
             },
           });
           // Agendamento de recorrência: a ocorrência acompanha o dia/horário novo.

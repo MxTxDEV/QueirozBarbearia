@@ -10,6 +10,7 @@ import { joinWaitlistCore, cancelWaitlistEntryCore } from "@/actions/waitlist";
 import { createNotification } from "@/lib/notifications";
 import { sendRecurringRequestAlertToShop, sendRecurringApproved, sendRecurringRejected } from "@/lib/whatsapp";
 import { logAudit } from "@/lib/audit";
+import { notifyRecurringScheduledByShop } from "@/lib/shop-booking-notices";
 import { formatDate, formatTime } from "@/lib/utils";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
@@ -332,6 +333,10 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
       for (const occ of pending) {
         await materializeOccurrence(occ, fullSeries, true);
       }
+      // Marcou o horário e a recorrência de uma vez: o cliente recebe UMA mensagem na hora com as datas.
+      await notifyRecurringScheduledByShop(series.id, params.companyId).catch((error) => {
+        console.error("[whatsapp] falha ao avisar o cliente da recorrência agendada pela barbearia:", error);
+      });
     } else {
       await createNotification({
         companyId: params.companyId,
