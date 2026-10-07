@@ -230,6 +230,7 @@ model Company {
   recurringAppointments RecurringAppointment[]
   monthlyRecurrenceNotices MonthlyRecurrenceNotice[]
   whatsappAutomations WhatsappAutomation[]
+  calendarDayMarks CalendarDayMark[]
 
   // Acelera a query da listagem pública (/agendar): status ACTIVE +
   // onlineBookingEnabled true é o filtro de toda visita àquela página.
@@ -380,6 +381,7 @@ model Barber {
   timeOffs     BarberTimeOff[]
   blocks       BarberBlock[]
   breakOverrides BarberBreakOverride[]
+  calendarDayMarks CalendarDayMark[]
   services     BarberService[]
   appointments Appointment[]
   sales        Sale[]
@@ -841,6 +843,32 @@ model WhatsappAutomationLog {
   @@unique([appointmentId, automationId, startTime])
   @@index([automationId])
   @@map("whatsapp_automation_logs")
+}
+
+/// Dia marcado na agenda: feriado, folga ou fora de expediente. Vale para a barbearia toda (barberId nulo)
+/// ou para um barbeiro. O dia inteiro fica fechado — ou, em "fora de expediente", só a janela
+/// startTime–endTime. O motor de disponibilidade (availability.ts) e o calendário respeitam essas marcas.
+model CalendarDayMark {
+  id              String   @id @default(cuid())
+  companyId       String   @map("company_id")
+  date            DateTime @db.Date
+  /// HOLIDAY | DAY_OFF | OUT_OF_HOURS
+  kind            String
+  /// null = toda a barbearia.
+  barberId        String?  @map("barber_id")
+  title           String?
+  /// "HH:MM" — só em OUT_OF_HOURS com janela (sem isso fecha o dia inteiro).
+  startTime       String?  @map("start_time")
+  endTime         String?  @map("end_time")
+  createdByUserId String?  @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  barber  Barber? @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, date])
+  @@index([barberId, date])
+  @@map("calendar_day_marks")
 }
 
 // ---------------------------------------------------------------------------

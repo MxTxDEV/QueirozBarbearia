@@ -3,6 +3,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEKDAY_SHORT, addDays, isSameDay, startOfMonth, startOfWeek, toISODate } from "./calendar-dates";
 import type { DayCount } from "@/lib/data/appointments";
+import { MARK_COLOR, MARK_KINDS, MARK_LABEL, dominantKind, markReason, type MarkKind } from "@/lib/day-marks";
+import type { DayMarkRow } from "@/lib/data/day-marks";
 
 const MONTH_FORMAT = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -18,6 +20,7 @@ export function MiniCalendar({
   selected,
   today,
   counts,
+  marks = {},
   prevHref,
   nextHref,
   todayHref,
@@ -28,6 +31,8 @@ export function MiniCalendar({
   selected: Date;
   today: Date;
   counts: Record<string, DayCount>;
+  /** Dias marcados (feriado/folga/fora de expediente) por YYYY-MM-DD — pintam o dia. */
+  marks?: Record<string, DayMarkRow[]>;
   prevHref: string;
   nextHref: string;
   todayHref: string;
@@ -67,20 +72,28 @@ export function MiniCalendar({
           const outside = day.getUTCMonth() !== shownMonth;
           const isToday = isSameDay(day, today);
           const isSelected = isSameDay(day, selected);
+          const dayMarks = marks[key] ?? [];
+          const markKind = dominantKind(dayMarks);
+          const color = markKind ? MARK_COLOR[markKind] : null;
+          const markTitle = dayMarks.map((m) => markReason(m) + (m.barberName ? ` (só ${m.barberName})` : "")).join(" · ");
           return (
             <Link
               key={key}
               href={buildDayHref(day)}
-              aria-label={`${day.getUTCDate()}/${day.getUTCMonth() + 1}${info ? `, ${info.count} agendamento(s)` : ""}`}
+              aria-label={`${day.getUTCDate()}/${day.getUTCMonth() + 1}${info ? `, ${info.count} agendamento(s)` : ""}${markTitle ? `, ${markTitle}` : ""}`}
+              title={markTitle || undefined}
+              data-mark={markKind ?? undefined}
               aria-current={isSelected ? "date" : undefined}
               className={cn(
                 "mx-auto flex h-9 w-9 flex-col items-center justify-center rounded-lg text-sm transition-colors",
                 outside ? "text-foreground-muted/50" : "text-foreground",
                 isToday
-                  ? "bg-secondary-dark font-semibold text-white"
+                  ? cn("bg-secondary-dark font-semibold text-white", color && cn("ring-2", color.ring))
                   : isSelected
                     ? "ring-2 ring-secondary"
-                    : "hover:bg-[var(--surface-subtle-hover)]"
+                    : color
+                      ? cn(color.cell, "hover:brightness-125")
+                      : "hover:bg-[var(--surface-subtle-hover)]"
               )}
             >
               <span className="leading-none">{day.getUTCDate()}</span>
@@ -96,6 +109,14 @@ export function MiniCalendar({
           );
         })}
       </div>
+
+      <ul className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-foreground-muted" aria-label="Legenda das cores">
+        {MARK_KINDS.map((kind: MarkKind) => (
+          <li key={kind} className="flex items-center gap-1">
+            <span className={cn("h-2 w-2 rounded-full", MARK_COLOR[kind].dot)} /> {MARK_LABEL[kind]}
+          </li>
+        ))}
+      </ul>
 
       <Link href={todayHref} className="mt-2 block text-center text-xs text-secondary-light hover:underline">
         Ir para hoje

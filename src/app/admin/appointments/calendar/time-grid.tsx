@@ -7,6 +7,8 @@ import { DraggableBreak } from "./draggable-break";
 import { AppointmentDropZone } from "./appointment-dnd";
 import type { BreakInfo } from "./break-types";
 import { minutesToHHMM, type ClosedSegment } from "@/lib/quick-slots";
+import { MARK_COLOR, markReason, type MarkKind } from "@/lib/day-marks";
+import type { DayMarkRow } from "@/lib/data/day-marks";
 
 const HOUR_HEIGHT = 80; // px por hora — define a escala vertical da grade
 
@@ -79,6 +81,7 @@ export function TimeGrid({
   breakInfo,
   breakMoveHint,
   buildNewHref,
+  dayMarks = {},
 }: {
   days: Date[];
   appointments: GridAppointment[];
@@ -93,6 +96,8 @@ export function TimeGrid({
   breakInfo?: Record<string, BreakInfo | undefined>;
   /** Dica quando o intervalo não é arrastável (vários barbeiros na mesma coluna). */
   breakMoveHint?: string;
+  /** Dias marcados (feriado/folga/fora de expediente) por YYYY-MM-DD — aparecem no cabeçalho do dia. */
+  dayMarks?: Record<string, DayMarkRow[]>;
   buildNewHref?: (args: { date: string; time: string; barberId?: string }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
@@ -119,6 +124,15 @@ export function TimeGrid({
                 >
                   {day.getUTCDate()}
                 </p>
+                {(dayMarks[day.toISOString().slice(0, 10)] ?? []).map((m) => (
+                  <p
+                    key={`${m.kind}-${m.barberId ?? "all"}`}
+                    title={markReason(m) + (m.barberName ? ` (só ${m.barberName})` : "")}
+                    className={cn("mx-auto mt-1 max-w-full truncate rounded-md border px-1 py-0.5 text-[10px] font-medium", MARK_COLOR[m.kind as MarkKind]?.chip)}
+                  >
+                    {markReason(m)}
+                  </p>
+                ))}
               </div>
             );
           })}

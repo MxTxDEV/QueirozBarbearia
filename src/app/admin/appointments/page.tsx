@@ -39,6 +39,9 @@ import { requireAdminContext } from "@/lib/require-admin";
 import { appointmentClientName } from "@/lib/appointment-client";
 import { describeFrequency } from "@/lib/recurring-helpers";
 import { MiniCalendar } from "./calendar/mini-calendar";
+import { DayMarkButton } from "./calendar/day-mark-dialog";
+import { listDayMarksInRange, listUpcomingDayMarks, type DayMarkRow } from "@/lib/data/day-marks";
+import { MARK_COLOR, markReason, type MarkKind } from "@/lib/day-marks";
 import type { BreakInfo } from "./calendar/break-types";
 import { getOpenIntervals, type DayAvailability } from "@/lib/data/calendar-availability";
 import { openSlotStarts, minutesToHHMM, intersectSegments, coversWholeDay, type ClosedSegment } from "@/lib/quick-slots";
@@ -161,7 +164,8 @@ export default async function AppointmentsPage({
     return `/admin/appointments?${params.toString()}`;
   }
 
-  const [appointments, barbers, mobileDayAppointments, miniCounts] = await Promise.all([
+  const canMarkDays = user.role === "ADMIN";
+  const [appointments, barbers, mobileDayAppointments, miniCounts, rangeMarks, miniMarks, upcomingMarks] = await Promise.all([
     isCalendar
       ? listAppointmentsInRange(user.companyId, { from, to, barberId, status, customerQuery: sp.q })
       : listAppointments(user.companyId, { range, barberId, status, customerQuery: sp.q }),
@@ -172,7 +176,18 @@ export default async function AppointmentsPage({
     isCalendar
       ? getAppointmentDayCounts(user.companyId, { from: miniGridStart, to: addDays(miniGridStart, 42), barberId })
       : Promise.resolve({}),
+    // Feriado / folga / fora de expediente: do período exibido, do mini calendário e (pra tela de marcar) os próximos.
+    isCalendar ? listDayMarksInRange(user.companyId, from, to) : Promise.resolve([] as DayMarkRow[]),
+    isCalendar ? listDayMarksInRange(user.companyId, miniGridStart, addDays(miniGridStart, 42)) : Promise.resolve([] as DayMarkRow[]),
+    canMarkDays ? listUpcomingDayMarks(user.companyId) : Promise.resolve([] as DayMarkRow[]),
   ]);
+  const groupMarks = (rows: DayMarkRow[]) => {
+    const byDay: Record<string, DayMarkRow[]> = {};
+    for (const row of rows) (byDay[row.date] ??= []).push(row);
+    return byDay;
+  };
+  const rangeMarksByDay = groupMarks(rangeMarks);
+  const miniMarksByDay = groupMarks(miniMarks);
 
   const today = dateOnlyUTC(shopNow());
   const dayCount = Math.round((to.getTime() - from.getTime()) / 86_400_000);
@@ -382,6 +397,13 @@ export default async function AppointmentsPage({
               <List className="h-3.5 w-3.5" /> Lista
             </Link>
           </div>
+          {canMarkDays && (
+            <DayMarkButton
+              defaultDate={toISODate(isCalendar && calendarView === "day" ? mobileDay : anchor)}
+              barbers={barbers.map((b) => ({ id: b.id, name: b.name }))}
+              upcoming={upcomingMarks}
+            />
+          )}
           <Link href="/admin/appointments/new">
             <Button>
               <Plus className="h-4 w-4" /> Novo agendamento
@@ -431,6 +453,19 @@ export default async function AppointmentsPage({
         <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_17rem] xl:items-start xl:gap-6">
         <div className="min-w-0 space-y-4">
           <CalendarToolbar view={calendarView} anchor={anchor} buildHref={buildHref} />
+          {calendarView === "day" && (rangeMarksByDay[toISODate(from)]?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-2" aria-label="Marcações do dia">
+              {rangeMarksByDay[toISODate(from)].map((m) => (
+                <span
+                  key={`${m.kind}-${m.barberId ?? "all"}`}
+                  className={`rounded-xl border px-3 py-1.5 text-sm font-medium ${MARK_COLOR[m.kind as MarkKind]?.chip ?? ""}`}
+                >
+                  {markReason(m)}
+                  {m.barberName ? ` · só ${m.barberName}` : " · toda a barbearia"}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="hidden text-xs text-foreground-muted md:block">
             Dica: arraste um agendamento <strong className="font-medium text-foreground">sobre outro</strong> para trocar os horários dos dois, ou{" "}
             <strong className="font-medium text-foreground">para um espaço livre</strong> da agenda para mudar o horário.
@@ -476,6 +511,7 @@ export default async function AppointmentsPage({
                 buildNewHref={(day) => buildNewHref({ date: toISODate(day) })}
                 closedDays={closedDayKeys}
                 breakInfo={rangeBreakInfo}
+                marks={rangeMarksByDay}
                 appointments={appointments.map<MonthAppointment>((appt) => ({
                   block: toBlock(appt),
                   actions: renderActions(appt),
@@ -523,6 +559,7 @@ export default async function AppointmentsPage({
                     openSlots={weekOpenSlots}
                     closedSegments={weekClosedSegments}
                     breakInfo={rangeBreakInfo}
+                    dayMarks={rangeMarksByDay}
                     breakMoveHint={singleBarberId ? undefined : "filtre um barbeiro para mover o intervalo"}
                     buildNewHref={buildNewHref}
                     appointments={appointments.map<GridAppointment>((appt) => ({
@@ -544,6 +581,7 @@ export default async function AppointmentsPage({
             selected={anchor}
             today={today}
             counts={miniCounts}
+            marks={miniMarksByDay}
             prevHref={buildMiniHref(addDays(miniMonth, -1))}
             nextHref={buildMiniHref(addDays(miniMonth, 32))}
             todayHref={buildHref({ date: toISODate(today) })}

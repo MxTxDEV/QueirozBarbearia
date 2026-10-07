@@ -6,6 +6,8 @@ import type { BreakInfo } from "./break-types";
 import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay } from "./calendar-dates";
 import { AppointmentDropZone } from "./appointment-dnd";
+import { MARK_COLOR, dominantKind, markReason, type MarkKind } from "@/lib/day-marks";
+import type { DayMarkRow } from "@/lib/data/day-marks";
 
 export type MonthAppointment = {
   block: BlockData;
@@ -24,6 +26,7 @@ export function MonthGrid({
   buildNewHref,
   closedDays,
   breakInfo,
+  marks = {},
 }: {
   days: Date[];
   appointments: MonthAppointment[];
@@ -35,6 +38,8 @@ export function MonthGrid({
   closedDays?: Set<string>;
   /** Por dia (YYYY-MM-DD): intervalo editável — só quando o mês mostra UM barbeiro. */
   breakInfo?: Record<string, BreakInfo | undefined>;
+  /** Dias marcados (feriado/folga/fora de expediente) por YYYY-MM-DD. */
+  marks?: Record<string, DayMarkRow[]>;
 }) {
   const weeks: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
@@ -59,13 +64,19 @@ export function MonthGrid({
                 const isToday = isSameDay(day, today);
                 const hidden = dayAppointments.length - MAX_VISIBLE_PER_DAY;
                 const closed = closedDays?.has(day.toISOString().slice(0, 10)) ?? false;
+                const dayMarks = marks[day.toISOString().slice(0, 10)] ?? [];
+                const markKind = dominantKind(dayMarks);
 
                 return (
                   <AppointmentDropZone
                     key={day.toISOString()}
                     mode="day"
                     date={day.toISOString().slice(0, 10)}
-                    className={cn("relative min-h-[104px] border-b border-l p-1.5", outsideMonth && "opacity-40")}
+                    className={cn(
+                      "relative min-h-[104px] border-b border-l p-1.5",
+                      outsideMonth && "opacity-40",
+                      markKind && MARK_COLOR[markKind].top
+                    )}
                     style={
                       closed
                         ? {
@@ -74,7 +85,7 @@ export function MonthGrid({
                           }
                         : undefined
                     }
-                    title={closed ? "Fechado — ninguém atende neste dia" : undefined}
+                    title={dayMarks.length > 0 ? dayMarks.map((m) => markReason(m)).join(" · ") : closed ? "Fechado — ninguém atende neste dia" : undefined}
                   >
                     <div className="mb-1 flex items-center justify-between">
                       <p
@@ -102,6 +113,16 @@ export function MonthGrid({
                       )}
                     </div>
                     <div className="space-y-1">
+                      {dayMarks.map((m) => (
+                        <p
+                          key={`${m.kind}-${m.barberId ?? "all"}`}
+                          className={cn("truncate rounded-md border px-1.5 py-0.5 text-[10px] font-medium", MARK_COLOR[m.kind as MarkKind]?.chip)}
+                          title={markReason(m) + (m.barberName ? ` (só ${m.barberName})` : "")}
+                        >
+                          {markReason(m)}
+                          {m.barberName ? ` · ${m.barberName}` : ""}
+                        </p>
+                      ))}
                       {!closed && breakInfo?.[day.toISOString().slice(0, 10)] && (
                         <BreakChip info={breakInfo[day.toISOString().slice(0, 10)]!} />
                       )}

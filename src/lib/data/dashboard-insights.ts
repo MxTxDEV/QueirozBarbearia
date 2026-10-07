@@ -260,7 +260,7 @@ export async function getOccupancyToday(
   // único por barbeiro, então findMany com weekday fixo dá no máximo 1 linha
   // por barbeiro) e a soma de minutos agendados via groupBy.
   const barberIds = barbers.map((b) => b.id);
-  const [workingHours, timeOffs, bookedGroups] = await Promise.all([
+  const [workingHours, timeOffs, bookedGroups, todayMarks] = await Promise.all([
     prisma.barberWorkingHour.findMany({ where: { barberId: { in: barberIds }, weekday } }),
     prisma.barberTimeOff.findMany({ where: { barberId: { in: barberIds }, startDate: { lte: today }, endDate: { gte: today } } }),
     prisma.appointment.groupBy({
@@ -268,10 +268,16 @@ export async function getOccupancyToday(
       where: { companyId, barberId: { in: barberIds }, appointmentDate: today, status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
       _sum: { totalDurationMin: true },
     }),
+    // Feriado / folga marcado na agenda para hoje (da barbearia toda ou de um barbeiro): o dia inteiro fechado.
+    prisma.calendarDayMark.findMany({ where: { companyId, date: today, startTime: null } }),
   ]);
 
   const workingHourByBarber = new Map(workingHours.map((w) => [w.barberId, w]));
   const barbersWithTimeOff = new Set(timeOffs.map((t) => t.barberId));
+  for (const mark of todayMarks) {
+    if (mark.barberId) barbersWithTimeOff.add(mark.barberId);
+    else for (const id of barberIds) barbersWithTimeOff.add(id);
+  }
   const bookedByBarber = new Map(bookedGroups.map((g) => [g.barberId, g._sum.totalDurationMin ?? 0]));
 
   const perBarberRaw = barbers.map((barber) => {

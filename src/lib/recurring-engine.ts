@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { Barber, Customer, RecurringAppointment, RecurringAppointmentOccurrence, Service } from "@prisma/client";
 import { dateOnly, timeOnDate } from "@/lib/availability";
 import { resolveBreak } from "@/lib/availability-helpers";
+import { closuresFor } from "@/lib/day-marks";
 import { generateOccurrenceDates, RECURRING_GENERATION_HORIZON_MONTHS, describeFrequency } from "@/lib/recurring-helpers";
 import { createAppointmentCore, cancelAppointmentCore } from "@/actions/appointments";
 import { joinWaitlistCore, cancelWaitlistEntryCore } from "@/actions/waitlist";
@@ -66,6 +67,19 @@ export async function previewOccurrenceAvailability(barberId: string, startTime:
     where: { barberId, startDate: { lte: day }, endDate: { gte: day } },
   });
   if (timeOff) return "OUTSIDE_WORKING_HOURS";
+
+  // Feriado / folga / fora de expediente marcado na agenda: dia fechado = fora do expediente; janela = bloqueio.
+  const barberRow = await prisma.barber.findUnique({ where: { id: barberId }, select: { companyId: true } });
+  if (barberRow) {
+    const marks = await prisma.calendarDayMark.findMany({
+      where: { companyId: barberRow.companyId, date: day, OR: [{ barberId: null }, { barberId }] },
+    });
+    const closures = closuresFor(marks, barberId);
+    if (closures.wholeDay) return "OUTSIDE_WORKING_HOURS";
+    const startMin = startTime.getUTCHours() * 60 + startTime.getUTCMinutes();
+    const endMin = endTime.getUTCHours() * 60 + endTime.getUTCMinutes() || 24 * 60;
+    if (closures.windows.some((w) => startMin < w.end && endMin > w.start)) return "BLOCKED";
+  }
 
   const blocking = await prisma.barberBlock.findFirst({
     where: { barberId, date: day, startTime: { lt: endTime }, endTime: { gt: startTime } },

@@ -2,10 +2,14 @@ import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { timeOnDate, dateOnly, overlaps, resolveBreak } from "@/lib/availability-helpers";
+import { closuresFor } from "@/lib/day-marks";
 
 export { timeOnDate, dateOnly, overlaps };
 
 const SLOT_STEP_MINUTES = 15;
+
+/** Minutos do dia → "HH:MM" (timeOnDate recebe texto). */
+const minutesToHHMMLocal = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED"] as const;
 
 export type TimeSlot = { start: Date; label: string };
@@ -20,8 +24,18 @@ export type TimeSlot = { start: Date; label: string };
  */
 type ConflictCheckClient = Pick<
   typeof prisma,
-  "appointment" | "barberBlock" | "waitlistEntry" | "barberWorkingHour" | "barberTimeOff" | "barberBreakOverride"
+  "appointment" | "barberBlock" | "waitlistEntry" | "barberWorkingHour" | "barberTimeOff" | "barberBreakOverride" | "barber" | "calendarDayMark"
 >;
+
+/** Marcas do dia (feriado/folga/fora de expediente) que valem para este barbeiro: o dia todo fechado e/ou janelas fechadas. */
+async function dayClosures(client: ConflictCheckClient, barberId: string, day: Date) {
+  const barber = await client.barber.findUnique({ where: { id: barberId }, select: { companyId: true } });
+  if (!barber) return { wholeDay: null as string | null, windows: [] as { start: number; end: number; reason: string }[] };
+  const marks = await client.calendarDayMark.findMany({
+    where: { companyId: barber.companyId, date: day, OR: [{ barberId: null }, { barberId }] },
+  });
+  return closuresFor(marks, barberId);
+}
 
 /**
  * Calcula os horários disponíveis de um barbeiro em uma data, considerando:
@@ -51,6 +65,10 @@ export async function getAvailableSlots(params: {
     },
   });
   if (timeOffs.length > 0) return [];
+
+  // Feriado / folga / fora de expediente marcado na agenda: o dia inteiro fechado, ou só uma janela.
+  const marked = await dayClosures(prisma, params.barberId, day);
+  if (marked.wholeDay) return [];
 
   const dayStart = timeOnDate(day, workingHour.startTime);
   const dayEnd = timeOnDate(day, workingHour.endTime);
@@ -91,6 +109,8 @@ export async function getAvailableSlots(params: {
     }),
   ]);
 
+  const markedWindows = marked.windows.map((w) => ({ start: timeOnDate(day, minutesToHHMMLocal(w.start)), end: timeOnDate(day, minutesToHHMMLocal(w.end)) }));
+
   const slots: TimeSlot[] = [];
   const durationMs = params.totalDurationMinutes * 60_000;
 
@@ -104,6 +124,8 @@ export async function getAvailableSlots(params: {
     if (candidate < now) continue;
 
     if (breakStart && breakEnd && overlaps(candidate, candidateEnd, breakStart, breakEnd)) continue;
+
+    if (markedWindows.some((w) => overlaps(candidate, candidateEnd, w.start, w.end))) continue;
 
     // Duração inteira do serviço tem que caber fora do bloqueio — não só o
     // instante inicial (ex: bloqueio 18:30-20:00 barra um corte de 60min
@@ -183,6 +205,13 @@ export async function hasSchedulingConflict(
     where: { barberId: params.barberId, startDate: { lte: day }, endDate: { gte: day } },
   });
   if (timeOff) return true;
+
+  // Feriado / folga / fora de expediente marcado na agenda.
+  const marked = await dayClosures(client, params.barberId, day);
+  if (marked.wholeDay) return true;
+  for (const window of marked.windows) {
+    if (overlaps(params.startTime, params.endTime, timeOnDate(day, minutesToHHMMLocal(window.start)), timeOnDate(day, minutesToHHMMLocal(window.end)))) return true;
+  }
 
   const blocking = await client.barberBlock.findFirst({
     where: {

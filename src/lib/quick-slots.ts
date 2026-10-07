@@ -71,12 +71,14 @@ const DAY_MINUTES = 24 * 60;
  */
 export function buildClosedSegments(params: {
   working: Interval | null;
-  /** Folga/férias cobrindo o dia inteiro. */
+  /** Folga/férias (ou feriado/dia marcado) cobrindo o dia inteiro. */
   timeOff?: boolean;
+  /** Motivo mostrado no trecho trancado quando o dia inteiro está fechado (padrão: "Folga"). */
+  timeOffReason?: string;
   breakInterval?: Interval | null;
   blocks?: (Interval & { reason?: string | null })[];
 }): ClosedSegment[] {
-  if (params.timeOff) return [{ start: 0, end: DAY_MINUTES, reason: "Folga" }];
+  if (params.timeOff) return [{ start: 0, end: DAY_MINUTES, reason: params.timeOffReason ?? "Folga" }];
   if (!params.working) return [{ start: 0, end: DAY_MINUTES, reason: "Não atende neste dia" }];
 
   const ordered: ClosedSegment[] = [
