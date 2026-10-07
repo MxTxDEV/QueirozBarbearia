@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { getAppointmentDetail } from "@/lib/data/appointments";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toNumber } from "@/lib/serialize";
@@ -13,6 +14,7 @@ export default async function RegisterPaymentPage({ params }: { params: Promise<
   const { id } = await params;
   const appointment = await getAppointmentDetail(id, user.companyId);
   if (!appointment) notFound();
+  const services = await prisma.service.findMany({ where: { companyId: user.companyId, active: true }, orderBy: { name: "asc" } });
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -35,7 +37,11 @@ export default async function RegisterPaymentPage({ params }: { params: Promise<
           </p>
         </CardHeader>
         <CardContent>
-          <PaymentForm appointmentId={id} defaultAmount={toNumber(appointment.totalPrice)} />
+          <PaymentForm
+            appointmentId={id}
+            defaultAmount={toNumber(appointment.totalPrice)}
+            services={services.map((service) => ({ id: service.id, name: service.name, price: toNumber(service.price) }))}
+          />
         </CardContent>
       </Card>
     </div>

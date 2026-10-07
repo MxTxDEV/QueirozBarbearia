@@ -20,6 +20,27 @@ const paymentSchema = z.object({
   paidAt: z.string().min(1, "Informe a data do pagamento."),
 });
 
+/** Serviço extra feito na hora (ex: o cliente cortou e resolveu fazer a barba), com o valor cobrado. */
+const extraServicesSchema = z
+  .array(
+    z.object({
+      serviceId: z.string().min(1, "Selecione o serviço adicional."),
+      price: z.coerce.number().min(0, "Valor do serviço adicional inválido.").max(100000, "Valor do serviço adicional inválido."),
+    })
+  )
+  .max(10, "Máximo de 10 serviços adicionais.");
+
+function parseExtras(raw: FormDataEntryValue | null) {
+  if (typeof raw !== "string" || raw.trim() === "") return [];
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    throw new Error("Serviços adicionais inválidos.");
+  }
+  return extraServicesSchema.parse(json);
+}
+
 /** Registra o pagamento de um agendamento concluído — cria a receita financeira (Regra 4). */
 export async function registerPaymentAction(
   appointmentId: string,
@@ -34,18 +55,51 @@ export async function registerPaymentAction(
       paidAt: formData.get("paidAt"),
     });
 
+    const extras = parseExtras(formData.get("extras"));
+
     const appointment = await prisma.appointment.findFirst({
       where: { id: appointmentId, companyId: user.companyId },
-      include: { customer: true },
+      include: { customer: true, payments: { select: { id: true }, take: 1 } },
     });
     if (!appointment) return actionError(new Error("Agendamento não encontrado."));
     if (appointment.status !== "COMPLETED") {
       return actionError(new Error("Só é possível registrar pagamento de agendamentos concluídos."));
     }
+    // Evita lançar duas vezes (duplo clique / aba antiga) — e, com serviços adicionais, somá-los duas vezes.
+    if (appointment.payments.length > 0) {
+      return actionError(new Error("O pagamento deste agendamento já foi registrado."));
+    }
+
+    const extraServices = extras.length
+      ? await prisma.service.findMany({
+          where: { id: { in: extras.map((e) => e.serviceId) }, companyId: user.companyId, active: true },
+        })
+      : [];
+    const servicesById = new Map(extraServices.map((service) => [service.id, service]));
+    if (extras.some((e) => !servicesById.has(e.serviceId))) {
+      return actionError(new Error("Serviço adicional não encontrado."));
+    }
+    const extrasTotal = extras.reduce((sum, e) => sum + e.price, 0);
 
     const paidAt = new Date(data.paidAt);
 
     await prisma.$transaction([
+      // Serviço de última hora entra no agendamento pelo valor efetivamente cobrado —
+      // assim o histórico do cliente e os relatórios por serviço enxergam o que foi feito.
+      ...extras.map((e) =>
+        prisma.appointmentService.create({
+          data: {
+            appointmentId,
+            serviceId: e.serviceId,
+            serviceName: servicesById.get(e.serviceId)!.name,
+            priceAtBooking: e.price,
+            durationAtBooking: servicesById.get(e.serviceId)!.durationMinutes,
+          },
+        })
+      ),
+      ...(extras.length
+        ? [prisma.appointment.update({ where: { id: appointmentId }, data: { totalPrice: { increment: extrasTotal } } })]
+        : []),
       prisma.payment.create({
         data: {
           companyId: user.companyId,
@@ -80,7 +134,11 @@ export async function registerPaymentAction(
       entityType: "appointment",
       entityId: appointmentId,
       appointmentId,
-      metadata: { amount: data.amount, paymentMethod: data.paymentMethod },
+      metadata: {
+        amount: data.amount,
+        paymentMethod: data.paymentMethod,
+        ...(extras.length ? { extraServices: extras.map((e) => ({ ...e, name: servicesById.get(e.serviceId)!.name })) } : {}),
+      },
     });
 
     // Serviço já estava concluído (checado acima) e o pagamento acabou de
