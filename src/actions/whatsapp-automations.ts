@@ -9,6 +9,7 @@ import { logAudit } from "@/lib/audit";
 import { normalizeWhatsapp } from "@/lib/utils";
 import { sendWhatsapp } from "@/lib/whatsapp";
 import { ensureAutomations } from "@/lib/whatsapp/automations";
+import { SETTING_KEYS, bookingLinkVar, withBookingFooter } from "@/lib/whatsapp/message-settings";
 import {
   AUDIENCES,
   HHMM,
@@ -17,6 +18,7 @@ import {
   MIN_OFFSET_MINUTES,
   renderTemplate,
   sampleVars,
+  templateFields,
   validateTemplate,
   isAutomationKind,
   type AutomationKind,
@@ -202,9 +204,64 @@ export async function sendTestAutomationAction(input: z.input<typeof testSchema>
     if (!phone) return actionError(new Error("Número de WhatsApp inválido. Use o formato (DD) 9XXXX-XXXX."));
 
     const company = await prisma.company.findUnique({ where: { id: user.companyId }, select: { name: true } });
-    const message = renderTemplate(data.template, { ...sampleVars(data.kind), barbearia: company?.name ?? "" });
+    const filled = renderTemplate(data.template, {
+      ...sampleVars(data.kind),
+      barbearia: company?.name ?? "",
+      link_agendamento: await bookingLinkVar(user.companyId),
+    });
+    const message = await withBookingFooter(user.companyId, filled, data.template);
     const result = await sendWhatsapp({ companyId: user.companyId, phone, message: `🧪 TESTE (dados de exemplo)\n\n${message}` });
     if (!result.ok) return actionError(new Error(result.errorMessage ?? "Não foi possível enviar o teste."));
+    return actionSuccess();
+  } catch (error) {
+    return actionError(error);
+  }
+}
+
+const settingsSchema = z.object({
+  /** Vazio = usa o endereço do sistema + /agendar/{slug}. */
+  bookingLink: z
+    .string()
+    .trim()
+    .max(300, "Link muito longo.")
+    .refine((value) => value === "" || /^https?:\/\/[^\s]+$/i.test(value), "O link precisa começar com https:// (ex: https://seusite.com/agendar/sua-barbearia)."),
+  footerEnabled: z.boolean(),
+  footerText: z.string().trim().min(1, "Escreva o texto do rodapé.").max(300, "Rodapé muito longo."),
+});
+
+/** Salva o link de divulgação e o rodapé que vai no fim de toda mensagem automática. */
+export async function saveMessageSettingsAction(input: z.input<typeof settingsSchema>): Promise<ActionResult> {
+  try {
+    const user = await requireAdminOnly();
+    const data = settingsSchema.parse(input);
+
+    const unknown = templateFields(data.footerText).filter((field) => field !== "link_agendamento");
+    if (unknown.length > 0) return actionError(new Error(`No rodapé só dá pra usar o campo {link_agendamento} (encontrei: ${unknown.map((u) => `{${u}}`).join(", ")}).`));
+
+    const entries: [string, string][] = [
+      [SETTING_KEYS.link, data.bookingLink],
+      [SETTING_KEYS.footerEnabled, data.footerEnabled ? "1" : "0"],
+      [SETTING_KEYS.footerText, data.footerText],
+    ];
+    await prisma.$transaction(
+      entries.map(([key, value]) =>
+        prisma.systemSetting.upsert({
+          where: { companyId_key: { companyId: user.companyId, key } },
+          create: { companyId: user.companyId, key, value },
+          update: { value },
+        })
+      )
+    );
+
+    await logAudit({
+      companyId: user.companyId,
+      userId: user.id,
+      action: "whatsapp_message_settings_updated",
+      entityType: "company",
+      entityId: user.companyId,
+      metadata: { bookingLink: data.bookingLink, footerEnabled: data.footerEnabled },
+    });
+    revalidate();
     return actionSuccess();
   } catch (error) {
     return actionError(error);

@@ -286,6 +286,30 @@ Você pode agendar normalmente ou solicitar uma nova recorrência.`,
   },
 };
 
+/** Disponível em TODAS as mensagens: o link de divulgação da barbearia (onde o cliente agenda). */
+export const BOOKING_LINK_VARIABLE: TemplateVariable = {
+  key: "link_agendamento",
+  label: "Link para o cliente agendar (divulgação da barbearia)",
+  example: "https://suabarbearia.com.br/agendar/sua-barbearia",
+};
+for (const def of Object.values(KIND_DEFS)) def.variables.push(BOOKING_LINK_VARIABLE);
+
+/** Texto do rodapé anexado ao fim de toda mensagem (a menos que a mensagem já use {link_agendamento} no meio). */
+export const DEFAULT_FOOTER_TEXT = "📲 Agende seu horário: {link_agendamento}";
+
+/**
+ * Anexa o rodapé com o link de agendamento. Não anexa se: o rodapé está desligado, a barbearia não tem
+ * link, ou o próprio texto da mensagem já usa o link (evita repetir).
+ */
+export function applyFooter(
+  message: string,
+  options: { enabled: boolean; text: string; link: string | null; templateUsesLink: boolean }
+): string {
+  if (!options.enabled || !options.link || options.templateUsesLink) return message;
+  const footer = renderTemplate(options.text, { link_agendamento: options.link });
+  return footer ? `${message}\n\n${footer}` : message;
+}
+
 export const GROUP_LABEL: Record<KindDef["group"], string> = {
   reminders: "Lembretes de horário",
   monthly: "Resumo mensal",

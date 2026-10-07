@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { MessageSettingsCard } from "./message-settings-card";
 
 export type RuleDto = {
   id: string;
@@ -66,7 +67,17 @@ function timingSummary(rule: RuleDto): string | null {
 }
 
 /** Tela "Mensagens automáticas": o que é enviado, para quem, quando e com qual texto. */
-export function AutomationsEditor({ rules, companyName }: { rules: RuleDto[]; companyName: string }) {
+export function AutomationsEditor({
+  rules,
+  companyName,
+  messageSettings,
+  suggestedLink,
+}: {
+  rules: RuleDto[];
+  companyName: string;
+  messageSettings: { bookingLink: string; footerEnabled: boolean; footerText: string };
+  suggestedLink: string | null;
+}) {
   const groups = useMemo(() => {
     const order = Object.keys(GROUP_LABEL) as (keyof typeof GROUP_LABEL)[];
     return order
@@ -76,6 +87,8 @@ export function AutomationsEditor({ rules, companyName }: { rules: RuleDto[]; co
 
   return (
     <div className="space-y-8">
+      <MessageSettingsCard initial={messageSettings} suggestedLink={suggestedLink} />
+
       <Card className="space-y-2 p-5 text-sm text-foreground-muted">
         <p className="font-medium text-foreground">Como funciona</p>
         <ul className="list-disc space-y-1 pl-5">

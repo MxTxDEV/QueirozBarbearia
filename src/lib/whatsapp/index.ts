@@ -7,6 +7,7 @@ import { getEvolutionConfig, getEvolutionConnectionState, getEvolutionConnectedN
 import type { WhatsAppProvider, AppointmentMessageData, WhatsappSendResult } from "./types";
 import { renderTemplate, pickRule, type AutomationKind } from "./automation-defs";
 import { automationsOfKind, companyDisplayName, getCustomerSegments, templateOf } from "./automations";
+import { bookingLinkVar, withBookingFooter } from "./message-settings";
 import {
   appointmentVars,
   cancellationVars,
@@ -209,7 +210,14 @@ export async function sendWithRule(params: {
   vars: Vars;
 }): Promise<WhatsappSendResult> {
   const companyName = params.vars.barbearia ?? (await companyDisplayName(params.companyId));
-  const message = renderTemplate(templateOf(params.rule), { ...params.vars, barbearia: companyName });
+  const template = templateOf(params.rule);
+  const filled = renderTemplate(template, {
+    ...params.vars,
+    barbearia: companyName,
+    link_agendamento: await bookingLinkVar(params.companyId),
+  });
+  // Link de divulgação ao fim de toda mensagem automática (a menos que a barbearia desligue o rodapé).
+  const message = await withBookingFooter(params.companyId, filled, template);
   return sendWhatsapp({ companyId: params.companyId, phone: params.phone, customerId: params.customerId, message });
 }
 

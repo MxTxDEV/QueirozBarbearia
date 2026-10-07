@@ -1,5 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Endereço público do sistema (https://suabarbearia.com.br), usado nos links que vão por WhatsApp
@@ -20,9 +21,18 @@ export function originFromHeaders(get: (name: string) => string | null | undefin
   return `${proto.split(",")[0].trim()}://${host.split(",")[0].trim()}`;
 }
 
-export async function getAppBaseUrl(): Promise<string | null> {
+export async function getAppBaseUrl(companyId?: string): Promise<string | null> {
   const fromEnv = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
   if (fromEnv && /^https?:\/\//.test(fromEnv)) return fromEnv.replace(/\/+$/, "");
+  // O link de divulgação que a própria barbearia cadastrou já diz qual é o endereço público do sistema.
+  if (companyId) {
+    const setting = await prisma.systemSetting.findUnique({ where: { companyId_key: { companyId, key: "wa_booking_link" } }, select: { value: true } });
+    try {
+      if (setting?.value) return new URL(setting.value).origin;
+    } catch {
+      // link cadastrado inválido: ignora
+    }
+  }
   try {
     const h = await headers();
     const origin = originFromHeaders((name) => h.get(name));

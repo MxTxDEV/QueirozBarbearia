@@ -10,18 +10,17 @@ import { getAppBaseUrl } from "@/lib/app-url";
  * Devolve null se o endereço público do sistema não é conhecido (a mensagem sai sem o link).
  */
 export async function confirmationUrlFor(appointmentId: string): Promise<string | null> {
-  const base = await getAppBaseUrl();
-  if (!base) return null;
-
-  let appt = await prisma.appointment.findUnique({ where: { id: appointmentId }, select: { confirmToken: true } });
+  let appt = await prisma.appointment.findUnique({ where: { id: appointmentId }, select: { confirmToken: true, companyId: true } });
   if (!appt) return null;
+  const base = await getAppBaseUrl(appt.companyId);
+  if (!base) return null;
   if (!appt.confirmToken) {
     // Só grava se ainda estiver vazio (dois envios ao mesmo tempo não trocam o token um do outro).
     await prisma.appointment.updateMany({
       where: { id: appointmentId, confirmToken: null },
       data: { confirmToken: randomBytes(18).toString("base64url") },
     });
-    appt = await prisma.appointment.findUnique({ where: { id: appointmentId }, select: { confirmToken: true } });
+    appt = await prisma.appointment.findUnique({ where: { id: appointmentId }, select: { confirmToken: true, companyId: true } });
   }
   return appt?.confirmToken ? `${base}/confirmar/${appt.confirmToken}` : null;
 }

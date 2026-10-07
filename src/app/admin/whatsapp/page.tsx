@@ -8,6 +8,7 @@ import { requireAdminContext } from "@/lib/require-admin";
 import { WhatsappQrConnectPanel } from "./qr-connect-panel";
 import { AutomationsEditor, type RuleDto } from "./automations-editor";
 import { listAutomations } from "@/lib/whatsapp/automations";
+import { loadMessageSettings, resolveBookingLink } from "@/lib/whatsapp/message-settings";
 import Link from "next/link";
 
 /**
@@ -27,7 +28,8 @@ export default async function WhatsappSettingsPage({ searchParams }: { searchPar
   const showMessages = canEditMessages && tab === "mensagens";
 
   if (showMessages) {
-    const rules = await listAutomations(user.companyId);
+    const [rules, messageSettings] = await Promise.all([listAutomations(user.companyId), loadMessageSettings(user.companyId)]);
+    const suggestedLink = await resolveBookingLink(user.companyId, { ...messageSettings, bookingLink: "" });
     const dtos: RuleDto[] = rules.map((r) => ({
       id: r.id,
       kind: r.kind as RuleDto["kind"],
@@ -44,7 +46,7 @@ export default async function WhatsappSettingsPage({ searchParams }: { searchPar
       <div className="space-y-6">
         <PageHeader subtitle="Escolha o que é enviado, para quem, quando e com qual texto." />
         <Tabs active="mensagens" canEditMessages />
-        <AutomationsEditor rules={dtos} companyName={user.companyName ?? ""} />
+        <AutomationsEditor rules={dtos} companyName={user.companyName ?? ""} messageSettings={messageSettings} suggestedLink={suggestedLink} />
       </div>
     );
   }

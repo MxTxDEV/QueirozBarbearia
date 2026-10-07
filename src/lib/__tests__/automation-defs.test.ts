@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   AUTOMATION_KINDS,
+  DEFAULT_FOOTER_TEXT,
+  applyFooter,
   DEFAULT_RULES,
   KIND_DEFS,
   describeOffset,
@@ -85,5 +87,24 @@ describe("público e escolha da regra", () => {
     expect(pickRule([{ ...all, enabled: false }, rec], newbie)).toBeNull();
     expect(pickRule([all, { ...rec, enabled: false }], regular)?.id).toBe("all");
     expect(pickRule([], regular)).toBeNull();
+  });
+});
+
+describe("rodapé com o link de agendamento", () => {
+  const link = "https://icortes.idsystem.cloud/agendar/queirozbarbearia";
+  const base = { enabled: true, text: DEFAULT_FOOTER_TEXT, link, templateUsesLink: false };
+  it("anexa ao fim da mensagem", () => {
+    expect(applyFooter("Olá!", base)).toBe(`Olá!\n\n📲 Agende seu horário: ${link}`);
+  });
+  it("não anexa se desligado, sem link ou se a mensagem já usa o link", () => {
+    expect(applyFooter("Olá!", { ...base, enabled: false })).toBe("Olá!");
+    expect(applyFooter("Olá!", { ...base, link: null })).toBe("Olá!");
+    expect(applyFooter("Olá!", { ...base, templateUsesLink: true })).toBe("Olá!");
+  });
+  it("o campo {link_agendamento} existe em todas as mensagens e é aceito ao salvar", () => {
+    for (const kind of AUTOMATION_KINDS) {
+      expect(KIND_DEFS[kind].variables.some((v) => v.key === "link_agendamento")).toBe(true);
+      expect(validateTemplate(kind, `${KIND_DEFS[kind].defaultTemplate}\n{link_agendamento}`)).toBeNull();
+    }
   });
 });
