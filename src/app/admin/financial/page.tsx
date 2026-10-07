@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { listTransactions, type PeriodFilter } from "@/lib/data/financial";
 import { getFinancialReport } from "@/lib/data/reports";
+import { getBarbersRevenue } from "@/lib/data/barber-financial";
+import { formatPercent } from "@/lib/barber-financial-helpers";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Receipt } from "lucide-react";
+import { ChevronRight, Receipt, User } from "lucide-react";
 import { requireAdminOnly } from "@/lib/require-admin";
 
 const PERIODS: { value: PeriodFilter; label: string }[] = [
@@ -27,9 +29,10 @@ export default async function FinancialOverviewPage({
   const { period: periodParam } = await searchParams;
   const period = (periodParam as PeriodFilter) ?? "month";
 
-  const [report, transactions] = await Promise.all([
+  const [report, transactions, barbersRevenue] = await Promise.all([
     getFinancialReport(user.companyId, period),
     listTransactions(user.companyId, period),
+    getBarbersRevenue(user.companyId, period),
   ]);
 
   const incomeByCategory = report.byCategory
@@ -86,6 +89,48 @@ export default async function FinancialOverviewPage({
           </div>
         </div>
       </div>
+
+      {barbersRevenue.barbers.length > 0 && (
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-muted">Faturamento por barbeiro</p>
+            <p className="text-sm text-foreground-muted">Entre no painel de cada um para ver o faturamento separado.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {barbersRevenue.barbers.map((b) => {
+              const share = barbersRevenue.total > 0 ? (b.income / barbersRevenue.total) * 100 : 0;
+              return (
+                <Link
+                  key={b.barberId}
+                  href={`/admin/financial/barbers/${b.barberId}?period=${period}`}
+                  className="glass group block rounded-3xl p-6 transition-colors hover:bg-[var(--surface-subtle-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <User className="h-4 w-4 text-secondary-light" /> {b.name}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-secondary-light">
+                      Ver faturamento <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                  </div>
+                  <p className="mt-2 text-3xl font-semibold tracking-tight text-accent-light">{formatCurrency(b.income)}</p>
+                  <p className="text-xs text-foreground-muted">
+                    {b.count} atendimento(s)/venda(s) · {formatPercent(share)} do faturamento
+                  </p>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-subtle)]">
+                    <div className="h-full rounded-full bg-success" style={{ width: `${share}%` }} />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          {barbersRevenue.unassigned > 0 && (
+            <p className="text-xs text-foreground-muted">
+              Mais {formatCurrency(barbersRevenue.unassigned)} em receitas lançadas sem barbeiro (ex: receitas manuais) — ficam só no total da barbearia.
+            </p>
+          )}
+        </div>
+      )}
 
       {(incomeByCategory.length > 0 || expenseByCategory.length > 0) && (
         <div className="grid gap-4 sm:grid-cols-2">
