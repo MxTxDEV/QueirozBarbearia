@@ -2,6 +2,8 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { BadgeDollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,7 @@ export function AppointmentRowActions({
   recurring?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   function run(action: (id: string) => Promise<void>, successMessage: string) {
     startTransition(async () => {
@@ -42,8 +45,28 @@ export function AppointmentRowActions({
     });
   }
 
+  /** Conclui e já abre o registro do pagamento deste atendimento. */
+  function completeAndCharge() {
+    startTransition(async () => {
+      try {
+        await completeAppointmentAction(id);
+        toast.success("Atendimento concluído — registre o pagamento.");
+        router.push(`/admin/appointments/${id}/payment`);
+      } catch (error) {
+        toast.error(errorMessage(error));
+      }
+    });
+  }
+
+  const open = status === "PENDING" || status === "CONFIRMED";
+
   return (
     <div className="flex flex-wrap justify-end gap-1.5">
+      {open && (
+        <Button type="button" size="sm" variant="accent" disabled={pending} onClick={completeAndCharge} title="Conclui o atendimento e já abre o pagamento">
+          <BadgeDollarSign className="h-4 w-4" /> Concluir e receber
+        </Button>
+      )}
       {status === "PENDING" && (
         <Button type="button" size="sm" disabled={pending} onClick={() => run(confirmAppointmentAction, "Agendamento confirmado.")}>
           Confirmar
@@ -66,18 +89,7 @@ export function AppointmentRowActions({
           {recurring ? "Cancelar só este dia" : "Cancelar"}
         </Button>
       )}
-      {status === "CONFIRMED" && (
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={pending}
-          onClick={() => run(completeAppointmentAction, "Agendamento concluído.")}
-        >
-          Concluir
-        </Button>
-      )}
-      {status === "CONFIRMED" && (
+      {open && (
         <Button
           type="button"
           size="sm"

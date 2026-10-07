@@ -320,13 +320,19 @@ export async function cancelAppointmentCore(appointmentId: string, companyId: st
   revalidatePath("/portal/[company]", "layout");
 }
 
+/**
+ * Conclui o atendimento. Vale pra pendente OU confirmado — o agendamento rápido (cliente avulso) nunca
+ * é "confirmado" por ninguém, e o cliente que chegou no horário pode ser atendido sem passo extra.
+ * Concluído, cancelado e "não compareceu" não voltam a ser concluídos.
+ */
 export async function completeAppointmentAction(appointmentId: string) {
   const user = await requireAdminContext();
+  const now = new Date();
   const result = await prisma.appointment.updateMany({
-    where: { id: appointmentId, companyId: user.companyId },
-    data: { status: "COMPLETED", completedAt: new Date() },
+    where: { id: appointmentId, companyId: user.companyId, status: { in: ["PENDING", "CONFIRMED"] } },
+    data: { status: "COMPLETED", completedAt: now },
   });
-  if (result.count === 0) throw new Error("Agendamento não encontrado.");
+  if (result.count === 0) throw new Error("Só dá pra concluir um agendamento pendente ou confirmado.");
   await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_completed", entityType: "appointment", entityId: appointmentId, appointmentId });
   revalidatePath("/admin/appointments");
 }
@@ -334,10 +340,10 @@ export async function completeAppointmentAction(appointmentId: string) {
 export async function markNoShowAction(appointmentId: string) {
   const user = await requireAdminContext();
   const result = await prisma.appointment.updateMany({
-    where: { id: appointmentId, companyId: user.companyId },
+    where: { id: appointmentId, companyId: user.companyId, status: { in: ["PENDING", "CONFIRMED"] } },
     data: { status: "NO_SHOW" },
   });
-  if (result.count === 0) throw new Error("Agendamento não encontrado.");
+  if (result.count === 0) throw new Error("Só dá pra marcar falta em um agendamento pendente ou confirmado.");
   await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_no_show", entityType: "appointment", entityId: appointmentId, appointmentId });
   revalidatePath("/admin/appointments");
 }
