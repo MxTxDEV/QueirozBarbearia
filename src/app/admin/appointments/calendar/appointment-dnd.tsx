@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowLeftRight, CalendarClock } from "lucide-react";
@@ -10,6 +10,8 @@ import { minutesToHHMM } from "@/lib/quick-slots";
 import { swapAppointmentsAction } from "@/actions/appointment-swap";
 import { moveAppointmentAction } from "@/actions/appointment-move";
 import { TableRow } from "@/components/ui/table";
+import type { BlockData } from "./appointment-block";
+import type { TouchDropTarget } from "./touch-drag";
 
 /**
  * Arrastar agendamentos na tela de Agendamentos (calendário e lista):
@@ -318,22 +320,36 @@ function SwapConfirmDialog({ source, target, onClose }: { source: DragSource; ta
   );
 }
 
-function MoveConfirmDialog({ origin, to, onClose }: { origin: DragSource; to: DropProposal; onClose: () => void }) {
+function MoveConfirmDialog({
+  origin,
+  to,
+  askTime = false,
+  onClose,
+}: {
+  origin: DragSource;
+  to: DropProposal;
+  /** No celular não há "posição na grade": o horário é escolhido aqui, num seletor (começa no horário atual). */
+  askTime?: boolean;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const currentTime = origin.timeLabel.match(/\d{2}:\d{2}/)?.[0] ?? "09:00";
+  const [pickedTime, setPickedTime] = useState(currentTime);
+  const time = to.time ?? (askTime ? pickedTime : undefined);
 
   const [year, month, day] = to.date.split("-");
   const dateLabel = `${day}/${month}/${year}`;
-  const [h, m] = (to.time ?? "00:00").split(":").map(Number);
-  const newRange = to.time ? `${to.time}–${minutesToHHMM(h * 60 + m + origin.durationMin)}` : null;
+  const [h, m] = (time ?? "00:00").split(":").map(Number);
+  const newRange = time ? `${time}–${minutesToHHMM(h * 60 + m + origin.durationMin)}` : null;
 
   function confirm() {
     setError(null);
     startTransition(async () => {
-      const result = await moveAppointmentAction({ appointmentId: origin.id, date: to.date, time: to.time, barberId: to.barberId });
+      const result = await moveAppointmentAction({ appointmentId: origin.id, date: to.date, time, barberId: to.barberId });
       if (result.ok) {
-        toast.success(`${origin.customerName} movido para ${dateLabel}${newRange ? ` às ${to.time}` : ""}.`);
+        toast.success(`${origin.customerName} movido para ${dateLabel}${newRange ? ` às ${time}` : ""}.`);
         router.refresh();
         onClose();
       } else setError(result.error);
@@ -359,7 +375,62 @@ function MoveConfirmDialog({ origin, to, onClose }: { origin: DragSource; to: Dr
           {to.barberName ? ` · ${to.barberName}` : ""}
         </span>
       </Line>
+      {askTime && !to.time && (
+        <label className="block space-y-1 text-sm text-foreground">
+          Novo horário
+          <input
+            type="time"
+            step={900}
+            value={pickedTime}
+            onChange={(event) => setPickedTime(event.target.value)}
+            className="flex h-10 w-full rounded-xl border bg-[var(--surface-subtle)] px-3 text-sm text-foreground"
+          />
+        </label>
+      )}
       <p className="text-xs text-foreground-muted">Os serviços, o valor e a duração continuam os mesmos. Nada é cancelado.</p>
     </ModalShell>
   );
+}
+
+/** BlockData -> o que o arrastar precisa saber do agendamento. */
+export const blockToDragSource = (block: BlockData): DragSource => ({
+  id: block.id,
+  customerName: block.customerName,
+  timeLabel: block.timeLabel,
+  barberName: block.barberName,
+  durationMin: block.durationMin,
+});
+
+/**
+ * Soltou (com o dedo) um card em algum alvo: guarda a proposta e mostra a MESMA confirmação do
+ * desktop. `sources` = todos os agendamentos arrastáveis na tela, pra achar origem e alvo pelo id.
+ */
+export function useTouchDropDialogs(sources: DragSource[]) {
+  const byId = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources]);
+  const [pending, setPending] = useState<
+    { kind: "swap"; source: DragSource; target: DragSource } | { kind: "move"; origin: DragSource; to: DropProposal } | null
+  >(null);
+
+  const onDrop = useCallback(
+    (sourceId: string, target: TouchDropTarget) => {
+      const origin = byId.get(sourceId);
+      if (!origin) return;
+      if (target.kind === "swap") {
+        const other = byId.get(target.id);
+        if (other) setPending({ kind: "swap", source: origin, target: other });
+      } else {
+        setPending({ kind: "move", origin, to: { date: target.date, time: target.time, barberId: target.barberId, barberName: target.barberName } });
+      }
+    },
+    [byId]
+  );
+
+  const close = () => setPending(null);
+  const dialog =
+    pending?.kind === "swap" ? (
+      <SwapConfirmDialog source={pending.source} target={pending.target} onClose={close} />
+    ) : pending?.kind === "move" ? (
+      <MoveConfirmDialog origin={pending.origin} to={pending.to} askTime onClose={close} />
+    ) : null;
+  return { onDrop, dialog };
 }

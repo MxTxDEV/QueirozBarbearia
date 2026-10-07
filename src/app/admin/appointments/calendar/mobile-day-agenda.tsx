@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { BlockData } from "./appointment-block";
+import { blockToDragSource, isMovableStatus, useTouchDropDialogs } from "./appointment-dnd";
+import { TouchDraggable, dropTargetProps, type TouchDropTarget } from "./touch-drag";
 
 export type DayAgendaItem = {
   block: BlockData;
@@ -32,7 +34,18 @@ const STATUS_BADGE_VARIANT: Record<string, "warning" | "accent" | "success" | "d
  * (um carrossel só) quanto pela de Semana (um carrossel por dia, um
  * abaixo do outro — ver MobileWeekAgenda).
  */
-function DayCarousel({ isToday, items }: { isToday: boolean; items: DayAgendaItem[] }) {
+function DayCarousel({
+  date,
+  isToday,
+  items,
+  onTouchDrop,
+}: {
+  /** Dia (YYYY-MM-DD) deste carrossel — destino quando um card é solto na área do dia. */
+  date: string;
+  isToday: boolean;
+  items: DayAgendaItem[];
+  onTouchDrop: (sourceId: string, target: TouchDropTarget) => void;
+}) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -68,15 +81,23 @@ function DayCarousel({ isToday, items }: { isToday: boolean; items: DayAgendaIte
     return () => observer.disconnect();
   }, [items]);
 
+  const zoneProps = {
+    ...dropTargetProps({ kind: "move", date }),
+    className: "rounded-2xl data-[drop-hover=true]:ring-2 data-[drop-hover=true]:ring-secondary",
+  };
+
   if (items.length === 0) {
     return (
-      <Card variant="solid" className="p-6 text-center text-sm text-foreground-muted">
-        Nenhum agendamento neste dia.
-      </Card>
+      <div {...zoneProps}>
+        <Card variant="solid" className="p-6 text-center text-sm text-foreground-muted">
+          Nenhum agendamento neste dia.
+        </Card>
+      </div>
     );
   }
 
   return (
+    <div {...zoneProps}>
     <div
       ref={scrollerRef}
       className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-[10%] pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -92,6 +113,12 @@ function DayCarousel({ isToday, items }: { isToday: boolean; items: DayAgendaIte
             data-active="false"
             className="w-[80%] shrink-0 snap-center scale-95 opacity-70 transition-all duration-[var(--duration-base)] ease-out motion-reduce:transition-none data-[active=true]:scale-100 data-[active=true]:opacity-100"
           >
+            <TouchDraggable
+              id={item.block.id}
+              label={`${item.block.timeLabel} · ${item.block.customerName}`}
+              enabled={isMovableStatus(item.block.status)}
+              onDrop={onTouchDrop}
+            >
             <Card variant="solid" className={cn("space-y-3 p-4", cancelled && "opacity-60")}>
               <div className="flex items-start justify-between gap-2">
                 <p className={cn("text-base font-semibold text-foreground", cancelled && "line-through")}>
@@ -110,15 +137,28 @@ function DayCarousel({ isToday, items }: { isToday: boolean; items: DayAgendaIte
                 {item.actions}
               </div>
             </Card>
+            </TouchDraggable>
           </div>
         );
       })}
     </div>
+    </div>
+  );
+}
+
+/** Dica de como arrastar — só aparece se há algo que dê pra mover. */
+function DragHint({ items }: { items: DayAgendaItem[] }) {
+  if (!items.some((item) => isMovableStatus(item.block.status))) return null;
+  return (
+    <p className="text-xs text-foreground-muted">
+      Segure um agendamento e arraste: em cima de outro troca os horários; no dia ou num horário livre, muda o horário.
+    </p>
   );
 }
 
 /** Visão de Dia no celular: navegação de dia anterior/seguinte + um carrossel. */
 export function MobileDayAgenda({
+  date,
   dayLabel,
   isToday,
   prevHref,
@@ -129,6 +169,8 @@ export function MobileDayAgenda({
   freeSlots,
   closed,
 }: {
+  /** Dia exibido (YYYY-MM-DD). */
+  date: string;
   dayLabel: string;
   isToday: boolean;
   prevHref: string;
@@ -138,10 +180,11 @@ export function MobileDayAgenda({
   /** Novo agendamento neste dia (sem horário definido). */
   newHref?: string;
   /** Horários livres (de um barbeiro específico) como botões de agendamento rápido. */
-  freeSlots?: { label: string; href: string }[];
+  freeSlots?: { label: string; href: string; time: string; barberId: string }[];
   /** Ninguém atende neste dia. */
   closed?: boolean;
 }) {
+  const { onDrop, dialog } = useTouchDropDialogs(items.map((item) => blockToDragSource(item.block)));
   return (
     <div className="space-y-3 md:hidden">
       <div className="flex items-center justify-between gap-2">
@@ -170,18 +213,21 @@ export function MobileDayAgenda({
       </div>
 
       {closed && <ClosedDayNote />}
-      <DayCarousel isToday={isToday} items={items} />
+      <DayCarousel date={date} isToday={isToday} items={items} onTouchDrop={onDrop} />
+      <DragHint items={items} />
+      {dialog}
 
       {newHref && <NewAppointmentLink href={newHref} />}
       {freeSlots && freeSlots.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs text-foreground-muted">Horários livres — toque para agendar</p>
+          <p className="text-xs text-foreground-muted">Horários livres — toque para agendar (ou solte um agendamento aqui para mudar o horário)</p>
           <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {freeSlots.map((slot) => (
               <Link
                 key={slot.href}
                 href={slot.href}
-                className="shrink-0 rounded-full border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-[var(--surface-subtle-hover)]"
+                {...dropTargetProps({ kind: "move", date, time: slot.time, barberId: slot.barberId })}
+                className="shrink-0 rounded-full border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-[var(--surface-subtle-hover)] data-[drop-hover=true]:border-secondary data-[drop-hover=true]:bg-secondary/25"
               >
                 {slot.label}
               </Link>
@@ -228,8 +274,12 @@ export type WeekDaySection = {
  * cada dia com seu próprio carrossel de cards, igual ao da visão de Dia.
  */
 export function MobileWeekAgenda({ days }: { days: WeekDaySection[] }) {
+  const allItems = days.flatMap((d) => d.items);
+  const { onDrop, dialog } = useTouchDropDialogs(allItems.map((item) => blockToDragSource(item.block)));
   return (
     <div className="space-y-5 md:hidden">
+      <DragHint items={allItems} />
+      {dialog}
       {days.map((d) => (
         <div key={d.day.toISOString()}>
           <p
@@ -241,7 +291,7 @@ export function MobileWeekAgenda({ days }: { days: WeekDaySection[] }) {
             {d.dayLabel}
           </p>
           {d.closed && <ClosedDayNote />}
-          <DayCarousel isToday={d.isToday} items={d.items} />
+          <DayCarousel date={d.day.toISOString().slice(0, 10)} isToday={d.isToday} items={d.items} onTouchDrop={onDrop} />
           {d.newHref && (
             <div className="mt-2">
               <NewAppointmentLink href={d.newHref} />

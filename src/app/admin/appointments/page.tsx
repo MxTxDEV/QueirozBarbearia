@@ -278,6 +278,8 @@ export default async function AppointmentsPage({
           notBeforeMinute(mobileDay)
         ).map((m) => ({
           label: minutesToHHMM(m),
+          time: minutesToHHMM(m),
+          barberId: quickBarberIds[0],
           href: buildNewHref({ date: toISODate(mobileDay), time: minutesToHHMM(m), barberId: quickBarberIds[0] }),
         }))
       : [];
@@ -431,6 +433,7 @@ export default async function AppointmentsPage({
 
           {calendarView === "day" ? (
             <MobileDayAgenda
+              date={toISODate(mobileDay)}
               dayLabel={periodLabel("day", mobileDay)}
               isToday={isSameDay(mobileDay, today)}
               prevHref={buildMobileDayHref(addDays(mobileDay, -1))}
