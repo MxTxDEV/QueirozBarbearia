@@ -5,6 +5,7 @@ import { CloudApiWhatsAppProvider } from "./cloud-api-provider";
 import { EvolutionApiWhatsAppProvider } from "./evolution-provider";
 import { getEvolutionConfig, getEvolutionConnectionState, getEvolutionConnectedNumber } from "./evolution-client";
 import type { WhatsAppProvider, AppointmentMessageData } from "./types";
+import { monthlyRecurrenceMessage } from "@/lib/recurrence-notice";
 import {
   appointmentCancellationTemplate,
   appointmentConfirmationTemplate,
@@ -262,4 +263,14 @@ export async function sendCustomerOtp(companyId: string, phone: string, customer
     message: otpTemplate(code, companyName),
     logMessage: otpTemplate("••••••", companyName),
   });
+}
+
+/** Aviso mensal (dia 1): as datas da recorrência do cliente no mês. */
+export async function sendMonthlyRecurrenceNotice(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: Parameters<typeof monthlyRecurrenceMessage>[0]
+) {
+  return sendWhatsapp({ companyId, phone, customerId, message: monthlyRecurrenceMessage(data) });
 }

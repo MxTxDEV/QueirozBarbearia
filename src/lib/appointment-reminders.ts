@@ -13,6 +13,14 @@ type AppointmentWithRelations = Appointment & {
   services: AppointmentService[];
 };
 
+/** "amanhã" / "hoje" quando o dia do agendamento é esse (relógio da barbearia); senão, sem rótulo. */
+function whenLabel(appointmentDate: Date) {
+  const today = shopNow();
+  const todayMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const diffDays = Math.round((appointmentDate.getTime() - todayMs) / 86_400_000);
+  return diffDays === 1 ? "amanhã" : diffDays === 0 ? "hoje" : undefined;
+}
+
 async function sendReminderAndStamp(appt: AppointmentWithRelations, kind: "24h" | "1h") {
   const result = await sendAppointmentReminder(appt.companyId, appt.customer.whatsapp, appt.customer.id, {
     customerName: appt.customer.fullName,
@@ -21,6 +29,7 @@ async function sendReminderAndStamp(appt: AppointmentWithRelations, kind: "24h" 
     barberName: appt.barber.name,
     services: appt.services.map((s) => s.serviceName),
     totalPrice: formatCurrency(appt.totalPrice.toString()).replace("R$", "").trim(),
+    whenLabel: whenLabel(appt.appointmentDate),
   });
 
   // Carimba mesmo se o envio falhar — uma falha temporária do provedor não

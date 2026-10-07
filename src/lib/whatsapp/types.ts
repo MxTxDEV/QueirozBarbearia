@@ -16,4 +16,6 @@ export type AppointmentMessageData = {
   barberName: string;
   services: string[];
   totalPrice: string;
+  /** Só no lembrete: "amanhã" / "hoje" — deixa claro de que dia é o horário. */
+  whenLabel?: string;
 };

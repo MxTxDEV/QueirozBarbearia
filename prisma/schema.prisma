@@ -228,6 +228,7 @@ model Company {
   waitlistEntries       WaitlistEntry[]
   barberBlocks          BarberBlock[]
   recurringAppointments RecurringAppointment[]
+  monthlyRecurrenceNotices MonthlyRecurrenceNotice[]
 
   // Acelera a query da listagem pública (/agendar): status ACTIVE +
   // onlineBookingEnabled true é o filtro de toda visita àquela página.
@@ -349,6 +350,7 @@ model Customer {
   otps                  CustomerOtp[]
   waitlistEntries       WaitlistEntry[]
   recurringAppointments RecurringAppointment[]
+  monthlyRecurrenceNotices MonthlyRecurrenceNotice[]
 
   @@unique([companyId, whatsapp])
   @@index([companyId])
@@ -753,6 +755,31 @@ model RecurringAppointmentOccurrence {
   @@index([recurringAppointmentId, status])
   @@index([scheduledDate])
   @@map("recurring_appointment_occurrences")
+}
+
+/// Aviso mensal de recorrência por WhatsApp (dia 1). Uma linha por cliente e mês
+/// é ao mesmo tempo a trava de idempotência e o controle de tentativas:
+/// - a linha é criada ANTES de enviar (unique customerId+month), então dois
+///   disparos simultâneos do cron nunca mandam o mesmo aviso duas vezes;
+/// - sentAt preenchido = entregue ao provedor, nunca mais reenvia no mês;
+/// - se o envio falhar, attempts conta e lockedAt segura uma nova tentativa por
+///   um tempo (até 3 tentativas) — um número inválido não trava o resto da fila.
+model MonthlyRecurrenceNotice {
+  id         String    @id @default(cuid())
+  companyId  String    @map("company_id")
+  customerId String    @map("customer_id")
+  /// "YYYY-MM" do mês avisado.
+  month      String
+  attempts   Int       @default(0)
+  lockedAt   DateTime  @default(now()) @map("locked_at")
+  sentAt     DateTime? @map("sent_at")
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, month])
+  @@index([companyId, month])
+  @@map("monthly_recurrence_notices")
 }
 
 // ---------------------------------------------------------------------------

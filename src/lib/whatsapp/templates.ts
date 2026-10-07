@@ -24,7 +24,7 @@ Aguardamos você!`;
 export function appointmentReminderTemplate(d: AppointmentMessageData) {
   return `Olá, ${d.customerName}! 💈
 
-Passando para lembrar que você possui um horário agendado:
+Passando para lembrar que você possui um horário agendado${d.whenLabel ? ` ${d.whenLabel}` : ""}:
 
 📅 ${d.date}
 ⏰ ${d.time}
