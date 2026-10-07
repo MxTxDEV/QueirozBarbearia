@@ -59,32 +59,28 @@ export type NoticeSeries = {
 /** Um horário marcado fora de recorrência (corte avulso). */
 export type NoticeSingle = { start: Date; serviceName: string; barberName: string };
 
-/**
- * Texto da mensagem do dia 1: tudo que o cliente tem marcado no mês — as datas de cada recorrência
- * e, à parte, os horários avulsos.
- */
-export function monthlyRecurrenceMessage(d: {
+/** Bloco "horários" do resumo do mês: recorrências agrupadas e, à parte, os avulsos. */
+export function monthlyHorarios(series: NoticeSeries[], singles: NoticeSingle[] = []): string {
+  const blocks = series.map((s) => {
+    const dates = s.dates.map((date) => `• ${formatNoticeDate(date)}`).join("\n");
+    return `✂️ ${s.serviceName} com ${s.barberName}\n🔁 ${s.frequencyLabel}\n${dates}`;
+  });
+  if (singles.length > 0) {
+    const lines = singles.map((x) => `• ${formatNoticeDate(x.start)} — ${x.serviceName} com ${x.barberName}`).join("\n");
+    blocks.push(`📅 ${series.length > 0 ? "Outros horários marcados" : "Horários marcados"}\n${lines}`);
+  }
+  return blocks.join("\n\n");
+}
+
+export type MonthlyMessageData = {
   customerName: string;
   companyName: string;
   monthLabel: string;
   series: NoticeSeries[];
   singles?: NoticeSingle[];
-}): string {
-  const blocks = d.series.map((s) => {
-    const dates = s.dates.map((date) => `• ${formatNoticeDate(date)}`).join("\n");
-    return `✂️ ${s.serviceName} com ${s.barberName}\n🔁 ${s.frequencyLabel}\n${dates}`;
-  });
-  const singles = d.singles ?? [];
-  if (singles.length > 0) {
-    const lines = singles.map((x) => `• ${formatNoticeDate(x.start)} — ${x.serviceName} com ${x.barberName}`).join("\n");
-    blocks.push(`📅 ${d.series.length > 0 ? "Outros horários marcados" : "Horários marcados"}\n${lines}`);
-  }
+};
 
-  return `Olá, ${d.customerName}! 💈
-
-Estes são os seus horários marcados em ${d.monthLabel} na ${d.companyName}:
-
-${blocks.join("\n\n")}
-
-Um dia antes de cada horário, avisamos você de novo por aqui. Se precisar mudar alguma data, é só nos chamar!`;
+/** Valores (`{nome}`, `{mes}`, `{horarios}`…) do resumo do mês. */
+export function monthlyVars(d: MonthlyMessageData) {
+  return { nome: d.customerName, barbearia: d.companyName, mes: d.monthLabel, horarios: monthlyHorarios(d.series, d.singles) };
 }

@@ -5,8 +5,8 @@ import {
   monthBounds,
   monthKey,
   monthLabelPt,
-  monthlyRecurrenceMessage,
 } from "../recurrence-notice";
+import { monthlyRecurrenceMessage } from "../whatsapp/templates";
 
 const wall = (y: number, m: number, d: number, h = 0, min = 0) => new Date(Date.UTC(y, m - 1, d, h, min));
 

@@ -1,4 +1,3 @@
-import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { describeFrequency } from "@/lib/recurring-helpers";
@@ -11,28 +10,12 @@ import { sendAppointmentScheduledByShop, sendRecurringScheduledByShop } from "@/
  * - horário + recorrência de uma vez → uma só mensagem com as datas da recorrência.
  * Nunca derruba o agendamento: quem chama deve tratar erro como "só log" (o agendamento já existe).
  *
- * Depois de avisar, marca os lembretes automáticos que seriam redundantes: se o horário é daqui a
- * menos de 24h, o lembrete "de 1 dia antes" não precisa sair logo em seguida; se é hoje, o lembrete
- * das 7h também não.
+ * Não precisa "desmarcar" lembretes redundantes: os lembretes automáticos ignoram agendamentos
+ * feitos já dentro da janela deles (ver appointment-reminders.ts).
+ * Os textos e o liga/desliga vêm da configuração da barbearia (WhatsApp > Mensagens automáticas).
  */
 
 const MAX_DATES_IN_MESSAGE = 10;
-
-async function stampRedundantReminders(appointmentIds: string[]) {
-  if (appointmentIds.length === 0) return;
-  const now = shopNow();
-  const in24h = new Date(now.getTime() + 24 * 60 * 60_000);
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const stamp = new Date();
-  await prisma.appointment.updateMany({
-    where: { id: { in: appointmentIds }, reminder24hSentAt: null, startTime: { lte: in24h } },
-    data: { reminder24hSentAt: stamp },
-  });
-  await prisma.appointment.updateMany({
-    where: { id: { in: appointmentIds }, reminderMorningSentAt: null, appointmentDate: today },
-    data: { reminderMorningSentAt: stamp },
-  });
-}
 
 /** Cliente avulso (sem cadastro) não tem WhatsApp — não há a quem avisar. */
 export async function notifyAppointmentScheduledByShop(appointmentId: string, companyId: string) {
@@ -43,7 +26,7 @@ export async function notifyAppointmentScheduledByShop(appointmentId: string, co
   if (!appt?.customer) return;
   if (appt.status !== "PENDING" && appt.status !== "CONFIRMED") return;
 
-  const result = await sendAppointmentScheduledByShop(companyId, appt.customer.whatsapp, appt.customer.id, {
+  await sendAppointmentScheduledByShop(companyId, appt.customer.whatsapp, appt.customer.id, {
     customerName: appt.customer.fullName,
     companyName: appt.company.name,
     date: formatDate(appt.appointmentDate),
@@ -52,7 +35,6 @@ export async function notifyAppointmentScheduledByShop(appointmentId: string, co
     services: appt.services.map((s) => s.serviceName),
     totalPrice: formatCurrency(appt.totalPrice.toString()).replace("R$", "").trim(),
   });
-  if (result.ok) await stampRedundantReminders([appt.id]);
 }
 
 export async function notifyRecurringScheduledByShop(seriesId: string, companyId: string) {
@@ -80,7 +62,7 @@ export async function notifyRecurringScheduledByShop(seriesId: string, companyId
   const conflictCount = series.occurrences.filter((o) => o.status !== "CONFIRMED").length;
   const shown = booked.slice(0, MAX_DATES_IN_MESSAGE);
 
-  const result = await sendRecurringScheduledByShop(companyId, series.customer.whatsapp, series.customer.id, {
+  await sendRecurringScheduledByShop(companyId, series.customer.whatsapp, series.customer.id, {
     customerName: series.customer.fullName,
     companyName: series.company.name,
     serviceName: series.service.name,
@@ -90,5 +72,4 @@ export async function notifyRecurringScheduledByShop(seriesId: string, companyId
     moreCount: booked.length - shown.length,
     conflictCount,
   });
-  if (result.ok) await stampRedundantReminders(booked.flatMap((o) => (o.appointment ? [o.appointment.id] : [])));
 }

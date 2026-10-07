@@ -3,8 +3,12 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { describeFrequency } from "@/lib/recurring-helpers";
-import { sendMonthlyRecurrenceNotice } from "@/lib/whatsapp";
-import { isNoticeWindow, monthBounds, monthKey, monthLabelPt, type NoticeSeries, type NoticeSingle } from "@/lib/recurrence-notice";
+import { sendWithRule } from "@/lib/whatsapp";
+import { ensureAutomations, getCustomerSegments } from "@/lib/whatsapp/automations";
+import { hhmmToMinutes, pickRule } from "@/lib/whatsapp/automation-defs";
+import { monthlyVars } from "@/lib/recurrence-notice";
+import { monthBounds, monthKey, monthLabelPt, type NoticeSeries, type NoticeSingle } from "@/lib/recurrence-notice";
+import type { WhatsappAutomation } from "@prisma/client";
 
 const MAX_ATTEMPTS = 3;
 /** Depois de uma tentativa (inclusive falha), espera isso antes de tentar o mesmo cliente de novo. */
@@ -39,12 +43,29 @@ type CustomerNotice = {
  */
 export async function sendMonthlyRecurrenceNotices(options: { limit?: number; spacingMs?: number; now?: Date; ignoreWindow?: boolean } = {}) {
   const now = options.now ?? shopNow();
-  if (!options.ignoreWindow && !isNoticeWindow(now)) {
-    return { skipped: "fora da janela (dias 1–3 do mês, das 9h às 19h)", month: monthKey(now), eligible: 0, sent: 0, failed: 0, remaining: 0 };
-  }
-
   const month = monthKey(now);
   const { end } = monthBounds(now);
+
+  const companies = await prisma.company.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
+  for (const company of companies) await ensureAutomations(company.id);
+  const rules = await prisma.whatsappAutomation.findMany({
+    where: { kind: "MONTHLY_SUMMARY", enabled: true, companyId: { in: companies.map((c) => c.id) } },
+  });
+
+  // Regra "aberta" agora: estamos no dia configurado (ou nos 2 seguintes, pra cobrir uma falha do agendador),
+  // a partir da hora configurada e até a noite — nada de mensagem de madrugada.
+  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const isOpen = (rule: WhatsappAutomation) => {
+    const day = rule.dayOfMonth ?? 1;
+    const from = hhmmToMinutes(rule.sendTime ?? "09:00");
+    const until = Math.min(23 * 60 + 59, Math.max(19 * 60, from + 600));
+    return now.getUTCDate() >= day && now.getUTCDate() <= day + 2 && nowMinutes >= from && nowMinutes < until;
+  };
+  const open = options.ignoreWindow ? rules : rules.filter(isOpen);
+  if (open.length === 0) {
+    return { skipped: "nenhuma regra de resumo mensal aberta agora", month, eligible: 0, sent: 0, failed: 0, remaining: 0 };
+  }
+  const openCompanyIds = [...new Set(open.map((rule) => rule.companyId))];
 
   // Tudo que cada cliente tem marcado de agora até o fim do mês (recorrência ou avulso), de qualquer empresa ativa.
   const appointments = await prisma.appointment.findMany({
@@ -52,7 +73,7 @@ export async function sendMonthlyRecurrenceNotices(options: { limit?: number; sp
       customerId: { not: null },
       status: { in: ["PENDING", "CONFIRMED"] },
       startTime: { gte: now, lt: end },
-      company: { status: "ACTIVE" },
+      companyId: { in: openCompanyIds },
     },
     include: {
       customer: true,
@@ -117,21 +138,37 @@ export async function sendMonthlyRecurrenceNotices(options: { limit?: number; sp
 
   const limit = options.limit ?? DEFAULT_BATCH;
   const spacingMs = options.spacingMs ?? DEFAULT_SPACING_MS;
-  const batch = pending.slice(0, limit);
   const monthLabel = monthLabelPt(now);
 
   let sent = 0;
   let failed = 0;
-  for (const entry of batch) {
+  let processed = 0;
+  for (const entry of pending) {
+    // Qual texto vale para este cliente (por tipo de cliente), entre as regras abertas da barbearia dele.
+    const companyRules = open.filter((rule) => rule.companyId === entry.companyId);
+    const segments = companyRules.some((rule) => rule.audience !== "ALL")
+      ? await getCustomerSegments(entry.companyId, entry.customerId)
+      : { recurring: false, hasCompleted: false };
+    const rule = pickRule(companyRules, segments);
+    if (!rule) continue;
+    if (processed >= limit) break;
+
     const claimed = await claimNotice(entry, month, cooldownLimit);
     if (!claimed) continue; // outro disparo do cron pegou este cliente
+    processed++;
 
-    const result = await sendMonthlyRecurrenceNotice(entry.companyId, entry.whatsapp, entry.customerId, {
-      customerName: entry.customerName,
-      companyName: entry.companyName,
-      monthLabel,
-      series: [...entry.series.values()],
-      singles: entry.singles,
+    const result = await sendWithRule({
+      companyId: entry.companyId,
+      rule,
+      phone: entry.whatsapp,
+      customerId: entry.customerId,
+      vars: monthlyVars({
+        customerName: entry.customerName,
+        companyName: entry.companyName,
+        monthLabel,
+        series: [...entry.series.values()],
+        singles: entry.singles,
+      }),
     }).catch((error: unknown) => ({ ok: false as const, errorMessage: error instanceof Error ? error.message : String(error) }));
 
     if (result.ok) {
@@ -143,7 +180,7 @@ export async function sendMonthlyRecurrenceNotices(options: { limit?: number; sp
     await sleep(spacingMs + Math.floor(Math.random() * 1000));
   }
 
-  return { month, eligible: byCustomer.size, pendingBefore: pending.length, sent, failed, remaining: Math.max(0, pending.length - batch.length) };
+  return { month, eligible: byCustomer.size, pendingBefore: pending.length, sent, failed, remaining: Math.max(0, pending.length - processed) };
 }
 
 /** Reivindica o envio (cria ou "reabre" o registro). Devolve o id, ou null se outro disparo já pegou. */

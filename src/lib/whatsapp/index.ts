@@ -4,23 +4,29 @@ import { MockWhatsAppProvider } from "./mock-provider";
 import { CloudApiWhatsAppProvider } from "./cloud-api-provider";
 import { EvolutionApiWhatsAppProvider } from "./evolution-provider";
 import { getEvolutionConfig, getEvolutionConnectionState, getEvolutionConnectedNumber } from "./evolution-client";
-import type { WhatsAppProvider, AppointmentMessageData } from "./types";
-import { monthlyRecurrenceMessage } from "@/lib/recurrence-notice";
+import type { WhatsAppProvider, AppointmentMessageData, WhatsappSendResult } from "./types";
+import { renderTemplate, pickRule, type AutomationKind } from "./automation-defs";
+import { automationsOfKind, companyDisplayName, getCustomerSegments, templateOf } from "./automations";
 import {
-  appointmentCancellationTemplate,
+  appointmentVars,
+  cancellationVars,
+  thanksVars,
+  waitlistVars,
+  recurringApprovedVars,
+  recurringRejectedVars,
+  recurringBookedVars,
+  morningVars,
   appointmentConfirmationTemplate,
+  appointmentCancellationTemplate,
   appointmentReminderTemplate,
   newAppointmentInternalTemplate,
   otpTemplate,
   serviceThanksTemplate,
   waitlistSlotOfferedTemplate,
   recurringRequestInternalTemplate,
-  recurringApprovedTemplate,
-  recurringRejectedTemplate,
-  appointmentScheduledByShopTemplate,
-  recurringScheduledByShopTemplate,
-  morningReminderTemplate,
+  type Vars,
 } from "./templates";
+import { monthlyVars, type MonthlyMessageData } from "@/lib/recurrence-notice";
 
 export {
   appointmentCancellationTemplate,
@@ -169,22 +175,46 @@ async function barbershopNumber(companyId: string): Promise<string | null> {
   return process.env.BARBERSHOP_WHATSAPP_NUMBER ?? null;
 }
 
-export async function sendAppointmentConfirmation(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: AppointmentMessageData
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: appointmentConfirmationTemplate(data) });
+/** Resultado de um envio automático: `skipped` = a regra está desligada ou não vale para este tipo de cliente. */
+export type AutomatedSendResult = WhatsappSendResult & { skipped?: boolean };
+
+/**
+ * Envia uma mensagem automática respeitando a configuração da empresa (tela WhatsApp > Mensagens
+ * automáticas): escolhe a regra ligada que vale para o tipo deste cliente, usa o texto editado (ou o
+ * padrão) e preenche os campos. Sem regra aplicável, não envia nada (`skipped`).
+ */
+export async function sendAutomated(params: {
+  companyId: string;
+  kind: AutomationKind;
+  phone: string;
+  customerId: string;
+  vars: Vars;
+}): Promise<AutomatedSendResult> {
+  const rules = await automationsOfKind(params.companyId, params.kind);
+  const needsSegments = rules.some((rule) => rule.audience !== "ALL");
+  const segments = needsSegments
+    ? await getCustomerSegments(params.companyId, params.customerId)
+    : { recurring: false, hasCompleted: false };
+  const rule = pickRule(rules, segments);
+  if (!rule) return { ok: true, skipped: true };
+  return sendWithRule({ ...params, rule });
 }
 
-export async function sendAppointmentReminder(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: AppointmentMessageData
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: appointmentReminderTemplate(data) });
+/** Envia usando uma regra JÁ escolhida (os lembretes agendados escolhem a regra por conta própria). */
+export async function sendWithRule(params: {
+  companyId: string;
+  rule: Parameters<typeof templateOf>[0];
+  phone: string;
+  customerId: string;
+  vars: Vars;
+}): Promise<WhatsappSendResult> {
+  const companyName = params.vars.barbearia ?? (await companyDisplayName(params.companyId));
+  const message = renderTemplate(templateOf(params.rule), { ...params.vars, barbearia: companyName });
+  return sendWhatsapp({ companyId: params.companyId, phone: params.phone, customerId: params.customerId, message });
+}
+
+export async function sendAppointmentConfirmation(companyId: string, phone: string, customerId: string, data: AppointmentMessageData) {
+  return sendAutomated({ companyId, kind: "CONFIRMATION", phone, customerId, vars: appointmentVars(data) });
 }
 
 export async function sendServiceThanks(
@@ -193,7 +223,7 @@ export async function sendServiceThanks(
   customerId: string,
   data: { customerName: string; companyName: string; reviewUrl?: string }
 ) {
-  return sendWhatsapp({ companyId, phone, customerId, message: serviceThanksTemplate(data) });
+  return sendAutomated({ companyId, kind: "THANKS", phone, customerId, vars: thanksVars(data) });
 }
 
 export async function sendAppointmentCancellation(
@@ -202,7 +232,65 @@ export async function sendAppointmentCancellation(
   customerId: string,
   data: Pick<AppointmentMessageData, "customerName" | "date" | "time">
 ) {
-  return sendWhatsapp({ companyId, phone, customerId, message: appointmentCancellationTemplate(data) });
+  return sendAutomated({ companyId, kind: "CANCELLATION", phone, customerId, vars: cancellationVars(data) });
+}
+
+/** Avisa o cliente que uma vaga da lista de espera ficou disponível (HOLD ativo, com prazo pra confirmar). */
+export async function sendWaitlistSlotOffer(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: { customerName: string; serviceName: string; barberName: string; date: string; time: string; confirmByTime: string }
+) {
+  return sendAutomated({ companyId, kind: "WAITLIST_OFFER", phone, customerId, vars: waitlistVars(data) });
+}
+
+export async function sendRecurringApproved(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: { customerName: string; serviceName: string; barberName: string; frequencyLabel: string; confirmedCount: number; conflictCount: number }
+) {
+  return sendAutomated({ companyId, kind: "RECURRING_APPROVED", phone, customerId, vars: recurringApprovedVars(data) });
+}
+
+export async function sendRecurringRejected(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: { customerName: string; serviceName: string; reason?: string }
+) {
+  return sendAutomated({ companyId, kind: "RECURRING_REJECTED", phone, customerId, vars: recurringRejectedVars(data) });
+}
+
+/** Tempo real: a barbearia marcou um horário avulso pro cliente. */
+export async function sendAppointmentScheduledByShop(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: AppointmentMessageData & { companyName: string }
+) {
+  return sendAutomated({ companyId, kind: "BOOKED_BY_SHOP", phone, customerId, vars: appointmentVars(data) });
+}
+
+/** Tempo real: a barbearia marcou o horário e a recorrência do cliente de uma vez. */
+export async function sendRecurringScheduledByShop(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: Parameters<typeof recurringBookedVars>[0]
+) {
+  return sendAutomated({ companyId, kind: "RECURRING_BOOKED_BY_SHOP", phone, customerId, vars: recurringBookedVars(data) });
+}
+
+/** Lembrete "é hoje" (manhã do dia). */
+export async function sendMorningReminder(companyId: string, phone: string, customerId: string, data: Parameters<typeof morningVars>[0]) {
+  return sendAutomated({ companyId, kind: "REMINDER_MORNING", phone, customerId, vars: morningVars(data) });
+}
+
+/** Resumo mensal: os horários do cliente no mês. */
+export async function sendMonthlyRecurrenceNotice(companyId: string, phone: string, customerId: string, data: MonthlyMessageData) {
+  return sendAutomated({ companyId, kind: "MONTHLY_SUMMARY", phone, customerId, vars: monthlyVars(data) });
 }
 
 /** Notifica o WhatsApp da barbearia sobre um novo agendamento recebido. */
@@ -215,16 +303,6 @@ export async function sendNewAppointmentAlertToShop(companyId: string, data: App
     return { ok: false as const, errorMessage: "Número da barbearia não configurado nem conectado." };
   }
   return sendWhatsapp({ companyId, phone, message: newAppointmentInternalTemplate(data) });
-}
-
-/** Avisa o cliente que uma vaga da lista de espera ficou disponível (HOLD ativo, com prazo pra confirmar). */
-export async function sendWaitlistSlotOffer(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: { customerName: string; serviceName: string; barberName: string; date: string; time: string; confirmByTime: string }
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: waitlistSlotOfferedTemplate(data) });
 }
 
 /** Notifica o WhatsApp da barbearia sobre uma nova solicitação de recorrência aguardando análise. */
@@ -240,24 +318,6 @@ export async function sendRecurringRequestAlertToShop(
   return sendWhatsapp({ companyId, phone, message: recurringRequestInternalTemplate(data) });
 }
 
-export async function sendRecurringApproved(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: { customerName: string; serviceName: string; barberName: string; frequencyLabel: string; confirmedCount: number; conflictCount: number }
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: recurringApprovedTemplate(data) });
-}
-
-export async function sendRecurringRejected(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: { customerName: string; serviceName: string; reason?: string }
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: recurringRejectedTemplate(data) });
-}
-
 export async function sendCustomerOtp(companyId: string, phone: string, customerId: string, code: string, companyName: string) {
   return sendWhatsapp({
     companyId,
@@ -266,44 +326,4 @@ export async function sendCustomerOtp(companyId: string, phone: string, customer
     message: otpTemplate(code, companyName),
     logMessage: otpTemplate("••••••", companyName),
   });
-}
-
-/** Aviso mensal (dia 1): as datas da recorrência do cliente no mês. */
-export async function sendMonthlyRecurrenceNotice(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: Parameters<typeof monthlyRecurrenceMessage>[0]
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: monthlyRecurrenceMessage(data) });
-}
-
-/** Tempo real: a barbearia marcou um horário avulso pro cliente. */
-export async function sendAppointmentScheduledByShop(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: Parameters<typeof appointmentScheduledByShopTemplate>[0]
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: appointmentScheduledByShopTemplate(data) });
-}
-
-/** Tempo real: a barbearia marcou o horário e a recorrência do cliente de uma vez. */
-export async function sendRecurringScheduledByShop(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: Parameters<typeof recurringScheduledByShopTemplate>[0]
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: recurringScheduledByShopTemplate(data) });
-}
-
-/** Lembrete das 7h: "é hoje". */
-export async function sendMorningReminder(
-  companyId: string,
-  phone: string,
-  customerId: string,
-  data: Parameters<typeof morningReminderTemplate>[0]
-) {
-  return sendWhatsapp({ companyId, phone, customerId, message: morningReminderTemplate(data) });
 }

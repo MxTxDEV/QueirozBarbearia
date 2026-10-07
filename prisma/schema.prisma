@@ -229,6 +229,7 @@ model Company {
   barberBlocks          BarberBlock[]
   recurringAppointments RecurringAppointment[]
   monthlyRecurrenceNotices MonthlyRecurrenceNotice[]
+  whatsappAutomations WhatsappAutomation[]
 
   // Acelera a query da listagem pública (/agendar): status ACTIVE +
   // onlineBookingEnabled true é o filtro de toda visita àquela página.
@@ -582,6 +583,7 @@ model Appointment {
   auditLogs             AuditLog[]
   waitlistEntry         WaitlistEntry?
   recurringOccurrence   RecurringAppointmentOccurrence?
+  automationLogs        WhatsappAutomationLog[]
 
   @@index([companyId])
   @@index([barberId, appointmentDate])
@@ -782,6 +784,58 @@ model MonthlyRecurrenceNotice {
   @@unique([customerId, month])
   @@index([companyId, month])
   @@map("monthly_recurrence_notices")
+}
+
+/// Mensagem automática de WhatsApp configurável por empresa (tela WhatsApp > Mensagens automáticas).
+/// Cada linha é uma "regra": o tipo de mensagem (kind), se está ligada, o texto (null = texto
+/// padrão do sistema), para qual tipo de cliente vale (audience) e, nas agendadas, quando sai.
+/// Pode haver várias regras do mesmo tipo (ex: lembrete 1 dia antes + 2 horas antes + 1 hora
+/// antes; ou um texto pra cliente de recorrência e outro pra cliente novo).
+model WhatsappAutomation {
+  id            String   @id @default(cuid())
+  companyId     String   @map("company_id")
+  /// Chave estável: o tipo para as regras do sistema (ex "REMINDER_BEFORE:24h") ou um id para as criadas pelo usuário.
+  key           String
+  kind          String
+  name          String
+  enabled       Boolean  @default(true)
+  /// null = usa o texto padrão do sistema.
+  template      String?
+  /// ALL | RECURRING | NON_RECURRING | NEW | RETURNING
+  audience      String   @default("ALL")
+  /// REMINDER_BEFORE: quantos minutos antes do horário.
+  offsetMinutes Int?     @map("offset_minutes")
+  /// REMINDER_MORNING / MONTHLY_SUMMARY: "HH:MM" a partir do qual pode sair.
+  sendTime      String?  @map("send_time")
+  /// MONTHLY_SUMMARY: dia do mês (1–28).
+  dayOfMonth    Int?     @map("day_of_month")
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  company Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  logs    WhatsappAutomationLog[]
+
+  @@unique([companyId, key])
+  @@index([companyId, kind])
+  @@map("whatsapp_automations")
+}
+
+/// Controle de "já mandei esta regra para este agendamento" — vale para o horário (startTime) em
+/// que foi enviada: se o horário muda (remarcar/trocar), a regra volta a valer pro novo horário.
+model WhatsappAutomationLog {
+  id             String   @id @default(cuid())
+  appointmentId  String   @map("appointment_id")
+  automationId   String   @map("automation_id")
+  startTime      DateTime @map("start_time")
+  sentAt         DateTime @default(now()) @map("sent_at")
+
+  appointment Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  automation  WhatsappAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@unique([appointmentId, automationId, startTime])
+  @@index([automationId])
+  @@map("whatsapp_automation_logs")
 }
 
 // ---------------------------------------------------------------------------
