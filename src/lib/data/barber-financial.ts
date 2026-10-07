@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
 import { periodToDates, type PeriodFilter } from "@/lib/data/financial";
-import { bucketKey, bucketLabel, type BucketUnit } from "@/lib/barber-financial-helpers";
+import { bucketKey, bucketLabel, deltaPercent, previousPeriodRange, type BucketUnit } from "@/lib/barber-financial-helpers";
 
 /**
  * Faturamento por barbeiro. A receita é atribuída ao barbeiro gravado no próprio lançamento
@@ -11,6 +11,9 @@ import { bucketKey, bucketLabel, type BucketUnit } from "@/lib/barber-financial-
  * ao barbeiro do agendamento ou da venda de origem — assim o histórico não "some" do painel dele.
  * Receita manual sem agendamento/venda de origem fica em "sem barbeiro".
  */
+
+/** Quantos lançamentos a lista do painel traz de uma vez (os totais sempre consideram todos). */
+const MAX_LISTED = 300;
 
 function dateRange(period: PeriodFilter) {
   const { from, to } = periodToDates(period);
@@ -80,11 +83,33 @@ export async function getBarberFinancials(companyId: string, barberId: string, p
         amount: true,
         paymentMethod: true,
         transactionDate: true,
+        appointmentId: true,
+        saleId: true,
+        barberId: true,
         customer: { select: { fullName: true } },
       },
     }),
     getBarbersRevenue(companyId, period),
   ]);
+
+  // Período anterior (mesmo tamanho) pra mostrar se o barbeiro está faturando mais ou menos.
+  const { from, to } = periodToDates(period);
+  const prevRange = from && to ? previousPeriodRange(period, from, to) : null;
+  const previousIncome = prevRange
+    ? toNumber(
+        (
+          await prisma.financialTransaction.aggregate({
+            where: {
+              companyId,
+              type: "INCOME",
+              transactionDate: { gte: prevRange.from, lt: prevRange.to },
+              OR: [{ barberId }, { barberId: null, appointment: { barberId } }, { barberId: null, sale: { barberId } }],
+            },
+            _sum: { amount: true },
+          })
+        )._sum.amount
+      )
+    : null;
 
   const income = rows.reduce((sum, r) => sum + toNumber(r.amount), 0);
   const count = rows.length;
@@ -117,7 +142,22 @@ export async function getBarberFinancials(companyId: string, barberId: string, p
     byMethod: [...byMethod.entries()].map(([method, value]) => ({ method, value })).sort((a, b) => b.value - a.value),
     series,
     unit,
-    transactions: rows.slice(0, 100),
+    previousIncome,
+    deltaPct: previousIncome === null ? null : deltaPercent(income, previousIncome),
+    /** Todos os barbeiros ativos — pro atalho de trocar de barbeiro e pro seletor de "barbeiro" ao editar. */
+    barbers: company.barbers.map((b) => ({ id: b.barberId, name: b.name, income: b.income })),
+    /** Serializável (vai pra um componente cliente): sem Decimal nem Date. */
+    transactions: rows.slice(0, MAX_LISTED).map((r) => ({
+      id: r.id,
+      description: r.description,
+      category: r.category,
+      amount: toNumber(r.amount),
+      paymentMethod: r.paymentMethod,
+      date: r.transactionDate.toISOString().slice(0, 10),
+      origin: (r.saleId ? "sale" : r.appointmentId ? "appointment" : "manual") as "sale" | "appointment" | "manual",
+      barberId: r.barberId,
+      customerName: r.customer?.fullName ?? null,
+    })),
     totalTransactions: count,
   };
 }

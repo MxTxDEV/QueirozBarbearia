@@ -23,3 +23,32 @@ export function bucketLabel(key: string, unit: BucketUnit): string {
 export function formatPercent(value: number): string {
   return `${value.toFixed(1).replace(".", ",")}%`;
 }
+
+export type PeriodName = "today" | "week" | "month" | "year" | "all";
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Período imediatamente anterior, de mesmo tamanho, pra comparar ("vs período anterior").
+ * `from`/`to` = intervalo atual [from, to). Mês e ano comparam "até hoje" com o mesmo trecho do
+ * mês/ano anterior (sem invadir o período atual). "Tudo" não tem anterior.
+ */
+export function previousPeriodRange(period: PeriodName, from: Date, to: Date): { from: Date; to: Date } | null {
+  if (period === "all") return null;
+  const length = to.getTime() - from.getTime();
+  if (period === "today" || period === "week") return { from: new Date(from.getTime() - length), to: new Date(from.getTime()) };
+  if (period === "month") {
+    const prevFrom = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() - 1, 1));
+    return { from: prevFrom, to: new Date(Math.min(prevFrom.getTime() + length, from.getTime())) };
+  }
+  const prevFrom = new Date(Date.UTC(from.getUTCFullYear() - 1, 0, 1));
+  return { from: prevFrom, to: new Date(Math.min(prevFrom.getTime() + length, from.getTime())) };
+}
+
+/** Variação percentual; null quando não há base de comparação (anterior = 0). */
+export function deltaPercent(current: number, previous: number): number | null {
+  if (previous <= 0) return null;
+  return ((current - previous) / previous) * 100;
+}
+
+export { DAY_MS };

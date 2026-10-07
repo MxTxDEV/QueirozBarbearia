@@ -1,17 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Receipt } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { requireAdminOnly } from "@/lib/require-admin";
 import { getBarberFinancials } from "@/lib/data/barber-financial";
 import type { PeriodFilter } from "@/lib/data/financial";
 import { formatPercent } from "@/lib/barber-financial-helpers";
 import { PAYMENT_METHOD_LABEL } from "@/lib/labels";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AddIncomeButton, IncomeTable } from "./barber-income-ui";
 
 const PERIODS: { value: PeriodFilter; label: string }[] = [
   { value: "today", label: "Hoje" },
@@ -59,11 +57,34 @@ export default async function BarberFinancialPage({
               {!data.barber.active && " (barbeiro inativo)"}
             </p>
           </div>
-          <Link href={`/admin/financial?period=${period}`}>
-            <Button variant="secondary">Voltar ao financeiro geral</Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <AddIncomeButton barberId={id} barberName={data.barber.name} barbers={data.barbers.map((b) => ({ id: b.id, name: b.name }))} />
+            <Link href={`/admin/financial?period=${period}`}>
+              <Button variant="secondary">Financeiro geral</Button>
+            </Link>
+          </div>
         </div>
       </div>
+
+      {data.barbers.length > 1 && (
+        <nav aria-label="Trocar de barbeiro" className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-foreground-muted">Ver faturamento de:</span>
+          {data.barbers.map((b) => (
+            <Link
+              key={b.id}
+              href={`/admin/financial/barbers/${b.id}?period=${period}`}
+              aria-current={b.id === id ? "page" : undefined}
+              className={
+                b.id === id
+                  ? "rounded-xl border border-secondary bg-secondary/20 px-3 py-1.5 text-sm font-medium text-foreground"
+                  : "rounded-xl border px-3 py-1.5 text-sm text-foreground-muted hover:bg-[var(--surface-subtle-hover)] hover:text-foreground"
+              }
+            >
+              {b.name} <span className="text-xs opacity-70">{formatCurrency(b.income)}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {PERIODS.map((p) => (
@@ -78,6 +99,23 @@ export default async function BarberFinancialPage({
       <div className="glass rounded-3xl p-6">
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-muted">Faturamento do período</p>
         <p className="mt-1 text-4xl font-semibold tracking-tight text-accent-light">{formatCurrency(data.income)}</p>
+        {data.previousIncome !== null && (
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
+            {data.deltaPct === null ? (
+              <span className="text-foreground-muted">Sem faturamento no período anterior para comparar.</span>
+            ) : (
+              <>
+                <span className={`inline-flex items-center gap-0.5 font-medium ${data.deltaPct >= 0 ? "text-success" : "text-danger"}`}>
+                  {data.deltaPct >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                  {formatPercent(Math.abs(data.deltaPct))}
+                </span>
+                <span className="text-foreground-muted">
+                  {data.deltaPct >= 0 ? "a mais" : "a menos"} que no período anterior ({formatCurrency(data.previousIncome)})
+                </span>
+              </>
+            )}
+          </p>
+        )}
         <div className="mt-5 flex flex-wrap gap-8 border-t pt-4">
           <div>
             <p className="text-xs text-foreground-muted">Atendimentos / vendas</p>
@@ -100,10 +138,19 @@ export default async function BarberFinancialPage({
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-muted">
             Faturamento por {data.unit === "month" ? "mês" : "dia"}
           </p>
-          <div className="mt-4 flex h-40 items-end gap-1 overflow-x-auto" role="img" aria-label={`Faturamento por ${data.unit === "month" ? "mês" : "dia"}`}>
+          <div
+            className="mt-4 flex h-44 items-end justify-center gap-2 overflow-x-auto"
+            role="img"
+            aria-label={`Faturamento por ${data.unit === "month" ? "mês" : "dia"}`}
+          >
             {data.series.map((s) => (
-              <div key={s.key} className="flex h-full min-w-[22px] flex-1 flex-col items-center justify-end gap-1" title={`${s.label}: ${formatCurrency(s.value)}`}>
-                <div className="w-full rounded-t-md bg-success/80" style={{ height: `${Math.max(3, (s.value / maxBucket) * 100)}%` }} />
+              <div
+                key={s.key}
+                className="flex h-full w-full min-w-[34px] max-w-[72px] flex-1 flex-col items-center justify-end gap-1"
+                title={`${s.label}: ${formatCurrency(s.value)}`}
+              >
+                {data.series.length <= 12 && <span className="text-[10px] font-medium tabular-nums text-foreground">{formatCurrency(s.value)}</span>}
+                <div className="w-full rounded-t-md bg-success/80" style={{ height: `${Math.max(3, (s.value / maxBucket) * 78)}%` }} />
                 <span className="text-[10px] tabular-nums text-foreground-muted">{s.label}</span>
               </div>
             ))}
@@ -122,46 +169,12 @@ export default async function BarberFinancialPage({
         </div>
       )}
 
-      <Card variant="solid">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Pagamento</TableHead>
-              <TableHead>Valor</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.transactions.map((t) => (
-              <TableRow key={t.id}>
-                <TableCell className="text-foreground-muted">{formatDate(t.transactionDate)}</TableCell>
-                <TableCell className="text-foreground">{t.description}</TableCell>
-                <TableCell className="text-foreground-muted">{t.category}</TableCell>
-                <TableCell className="text-foreground-muted">{t.paymentMethod ? (PAYMENT_METHOD_LABEL[t.paymentMethod] ?? t.paymentMethod) : "—"}</TableCell>
-                <TableCell className="text-success">+{formatCurrency(t.amount.toString())}</TableCell>
-              </TableRow>
-            ))}
-            {data.transactions.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5}>
-                  <EmptyState
-                    icon={Receipt}
-                    title="Nenhum faturamento neste período"
-                    description={`Os atendimentos pagos e as vendas no PDV de ${data.barber.name} aparecem aqui automaticamente.`}
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        {data.totalTransactions > data.transactions.length && (
-          <p className="border-t p-3 text-center text-xs text-foreground-muted">
-            Mostrando os {data.transactions.length} lançamentos mais recentes de {data.totalTransactions}. Os totais acima consideram todos.
-          </p>
-        )}
-      </Card>
+      <IncomeTable
+        rows={data.transactions}
+        totalCount={data.totalTransactions}
+        barbers={data.barbers.map((b) => ({ id: b.id, name: b.name }))}
+        barberName={data.barber.name}
+      />
     </div>
   );
 }
