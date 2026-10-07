@@ -247,7 +247,15 @@ export async function impersonateUserAction(userId: string) {
 }
 
 /** Encerra a impersonação ativa e volta para o painel do SUPERADMIN. */
-export async function stopImpersonationAction() {
+const IMPERSONATION_EXIT_PATHS = ["/superadmin/companies", "/superadmin/dashboard"] as const;
+
+/**
+ * Encerra a impersonação e volta ao painel do Super Admin. Sem argumento (o
+ * banner do admin passa o FormData do formulário) volta pra lista de empresas;
+ * a tela de empresa indisponível pede o dashboard. O destino só é aceito se
+ * estiver na lista — nunca um redirecionamento livre.
+ */
+export async function stopImpersonationAction(destination?: string | FormData) {
   const user = await getCurrentUser();
   if (user?.impersonatedBy) {
     await logAudit({
@@ -259,7 +267,8 @@ export async function stopImpersonationAction() {
     });
   }
   await endImpersonation();
-  redirect("/superadmin/companies");
+  const target = IMPERSONATION_EXIT_PATHS.find((path) => path === destination) ?? "/superadmin/companies";
+  redirect(target);
 }
 
 // ---------------------------------------------------------------------------

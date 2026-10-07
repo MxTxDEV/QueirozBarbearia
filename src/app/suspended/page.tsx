@@ -10,15 +10,12 @@ export default async function SuspendedPage() {
   if (!user.companyStatus || user.companyStatus === "ACTIVE") redirect("/admin/dashboard");
 
   return (
-    <div className="space-y-4">
-      <CompanyUnavailable name={user.companyName ?? "Sua empresa"} status={user.companyStatus} />
-      <div className="flex justify-center">
-        <form action={logoutAction}>
-          <Button type="submit" variant="secondary">
-            Sair
-          </Button>
-        </form>
-      </div>
-    </div>
+    <CompanyUnavailable name={user.companyName ?? "Sua empresa"} status={user.companyStatus}>
+      <form action={logoutAction}>
+        <Button type="submit" variant="secondary">
+          Sair
+        </Button>
+      </form>
+    </CompanyUnavailable>
   );
 }
