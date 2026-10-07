@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DeleteSeriesButton } from "./delete-series-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { RecurringAppointmentStatus } from "@prisma/client";
 
@@ -92,9 +93,12 @@ export default async function AdminRecurringAppointmentsPage({
                     <Badge variant={RECURRING_STATUS_VARIANT[s.status]}>{RECURRING_STATUS_LABEL[s.status]}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link href={`/admin/recurring-appointments/${s.id}`} className="text-sm text-secondary-light hover:underline">
-                      {s.status === "PENDING_APPROVAL" ? "Analisar" : "Ver detalhes"}
-                    </Link>
+                    <div className="flex items-center justify-end gap-3">
+                      <Link href={`/admin/recurring-appointments/${s.id}`} className="text-sm text-secondary-light hover:underline">
+                        {s.status === "PENDING_APPROVAL" ? "Analisar" : "Ver detalhes"}
+                      </Link>
+                      {s.status === "CANCELLED" && <DeleteSeriesButton id={s.id} customerName={s.customer.fullName} />}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

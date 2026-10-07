@@ -934,3 +934,46 @@ export async function cancelRecurringAppointmentCore(params: {
     return actionError(error);
   }
 }
+
+/**
+ * Exclui de vez uma recorrência já CANCELADA (lixeira da lista) — ela some da
+ * lista junto com as ocorrências. Só vale pra série cancelada: uma série viva
+ * precisa ser cancelada antes, que é onde se escolhe o que fazer com os
+ * agendamentos futuros. Os agendamentos já criados na agenda (inclusive o
+ * histórico de atendimentos) NÃO são tocados — só perdem o vínculo com a série.
+ */
+export async function deleteRecurringAppointmentCore(params: {
+  recurringAppointmentId: string;
+  companyId: string;
+  actorUserId: string | null;
+}): Promise<ActionResult> {
+  try {
+    const series = await prisma.recurringAppointment.findFirst({
+      where: { id: params.recurringAppointmentId, companyId: params.companyId },
+      include: { customer: { select: { fullName: true } } },
+    });
+    if (!series) return actionError(new Error("Recorrência não encontrada."));
+    if (series.status !== "CANCELLED") {
+      return actionError(new Error("Só é possível excluir uma recorrência que já foi cancelada."));
+    }
+
+    // Garante que a exclusão só pega a série ainda cancelada (corrida com "retomar"/outro admin).
+    const deleted = await prisma.recurringAppointment.deleteMany({
+      where: { id: series.id, companyId: params.companyId, status: "CANCELLED" },
+    });
+    if (deleted.count === 0) return actionError(new Error("Esta recorrência não pode mais ser excluída."));
+
+    await logAudit({
+      companyId: params.companyId,
+      userId: params.actorUserId,
+      action: "recurring_appointment_deleted",
+      entityType: "recurring_appointment",
+      entityId: series.id,
+      metadata: { customer: series.customer.fullName },
+    });
+
+    return actionSuccess();
+  } catch (error) {
+    return actionError(error);
+  }
+}

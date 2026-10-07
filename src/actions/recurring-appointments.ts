@@ -15,6 +15,7 @@ import {
   pauseRecurringAppointmentCore,
   resumeRecurringAppointmentCore,
   cancelRecurringAppointmentCore,
+  deleteRecurringAppointmentCore,
 } from "@/lib/recurring-engine";
 import { actionError, type ActionResult } from "@/lib/action-helpers";
 
@@ -264,6 +265,17 @@ export async function adminCancelRecurringAppointmentAction(
     actorUserId: user.id,
     actorCustomerId: null,
     alsoCancelFutureAppointments,
+  });
+  if (result.ok) revalidateRecurring();
+  return result;
+}
+
+export async function adminDeleteRecurringAppointmentAction(recurringAppointmentId: string): Promise<ActionResult> {
+  const user = await requireAdminContext();
+  const result = await deleteRecurringAppointmentCore({
+    recurringAppointmentId,
+    companyId: user.companyId,
+    actorUserId: user.id,
   });
   if (result.ok) revalidateRecurring();
   return result;
