@@ -4,6 +4,7 @@ import { WEEKDAY_SHORT, isSameDay, minutesFromMidnight } from "./calendar-dates"
 import { QuickAddSlot } from "./quick-add-slot";
 import { ClosedOverlay } from "./closed-overlay";
 import { DraggableBreak } from "./draggable-break";
+import { AppointmentDropZone } from "./appointment-dnd";
 import type { BreakInfo } from "./break-types";
 import { minutesToHHMM, type ClosedSegment } from "@/lib/quick-slots";
 
@@ -138,7 +139,13 @@ export function TimeGrid({
           {days.map((day) => {
             const dayAppointments = assignLanes(appointments.filter((a) => isSameDay(a.day, day)));
             return (
-              <div key={day.toISOString()} className="relative flex-1 border-l">
+              <AppointmentDropZone
+                key={day.toISOString()}
+                date={day.toISOString().slice(0, 10)}
+                startHour={startHour}
+                hourHeight={HOUR_HEIGHT}
+                className="relative flex-1 border-l"
+              >
                 {hours.map((h) => (
                   <div key={h} className="relative border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }}>
                     {[25, 50, 75].map((pct) => (
@@ -198,7 +205,7 @@ export function TimeGrid({
                     />
                   );
                 })}
-              </div>
+              </AppointmentDropZone>
             );
           })}
         </div>

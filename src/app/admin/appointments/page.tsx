@@ -16,6 +16,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { AppointmentRowActions } from "./row-actions";
 import { CalendarToolbar } from "./calendar/calendar-toolbar";
 import { TimeGrid, type GridAppointment } from "./calendar/time-grid";
+import { SwappableRow } from "./calendar/appointment-dnd";
 import { BarberDayGrid, type BarberDayAppointment } from "./calendar/barber-day-grid";
 import { MonthGrid, type MonthAppointment } from "./calendar/month-grid";
 import { MobileDayAgenda, MobileWeekAgenda, type DayAgendaItem, type WeekDaySection } from "./calendar/mobile-day-agenda";
@@ -312,6 +313,7 @@ export default async function AppointmentsPage({
     status: appt.status,
     statusLabel: APPOINTMENT_STATUS_LABEL[appt.status],
     timeLabel: `${formatTime(appt.startTime)}–${formatTime(appt.endTime)}`,
+    durationMin: Math.round((appt.endTime.getTime() - appt.startTime.getTime()) / 60_000),
     price: formatCurrency(appt.totalPrice.toString()),
   });
 
@@ -477,6 +479,7 @@ export default async function AppointmentsPage({
                 const { startHour, endHour } = gridHourBounds(appointments);
                 return (
                   <BarberDayGrid
+                    date={toISODate(from)}
                     barbers={dayViewBarbers}
                     startHour={startHour}
                     endHour={endHour}
@@ -567,7 +570,17 @@ export default async function AppointmentsPage({
               </TableHeader>
               <TableBody>
                 {appointments.map((appt) => (
-                  <TableRow key={appt.id}>
+                  <SwappableRow
+                    key={appt.id}
+                    status={appt.status}
+                    source={{
+                      id: appt.id,
+                      customerName: appointmentClientName(appt),
+                      timeLabel: `${formatDate(appt.appointmentDate)} ${formatTime(appt.startTime)}–${formatTime(appt.endTime)}`,
+                      barberName: appt.barber.name,
+                      durationMin: Math.round((appt.endTime.getTime() - appt.startTime.getTime()) / 60_000),
+                    }}
+                  >
                     <TableCell className="text-foreground">
                       {formatDate(appt.appointmentDate)}
                       <br />
@@ -608,7 +621,7 @@ export default async function AppointmentsPage({
                     <TableCell>
                       <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} recurring={!!appt.recurringOccurrence} />
                     </TableCell>
-                  </TableRow>
+                  </SwappableRow>
                 ))}
                 {appointments.length === 0 && (
                   <TableRow>

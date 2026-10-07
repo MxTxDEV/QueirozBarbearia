@@ -4,6 +4,7 @@ import { minutesFromMidnight } from "./calendar-dates";
 import { QuickAddSlot } from "./quick-add-slot";
 import { ClosedOverlay } from "./closed-overlay";
 import { DraggableBreak } from "./draggable-break";
+import { AppointmentDropZone } from "./appointment-dnd";
 import type { BreakInfo } from "./break-types";
 import { minutesToHHMM, type ClosedSegment } from "@/lib/quick-slots";
 
@@ -20,6 +21,7 @@ export type BarberDayAppointment = GridAppointment & { barberId: string };
  * dias), justamente pra comparar as agendas visualmente de forma estável.
  */
 export function BarberDayGrid({
+  date,
   barbers,
   appointments,
   startHour,
@@ -30,6 +32,8 @@ export function BarberDayGrid({
   breakInfo,
   buildNewHref,
 }: {
+  /** Dia exibido (YYYY-MM-DD) — destino quando um agendamento é solto numa coluna. */
+  date: string;
   barbers: { id: string; name: string }[];
   appointments: BarberDayAppointment[];
   startHour: number;
@@ -78,7 +82,15 @@ export function BarberDayGrid({
           {barbers.map((barber) => {
             const barberAppointments = assignLanes(appointments.filter((a) => a.barberId === barber.id));
             return (
-              <div key={barber.id} className="relative flex-1 border-l">
+              <AppointmentDropZone
+                key={barber.id}
+                date={date}
+                barberId={barber.id}
+                barberName={barber.name}
+                startHour={startHour}
+                hourHeight={HOUR_HEIGHT}
+                className="relative flex-1 border-l"
+              >
                 {hours.map((h) => (
                   <div key={h} className="relative border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }}>
                     {[25, 50, 75].map((pct) => (
@@ -129,7 +141,7 @@ export function BarberDayGrid({
                     />
                   );
                 })}
-              </div>
+              </AppointmentDropZone>
             );
           })}
         </div>

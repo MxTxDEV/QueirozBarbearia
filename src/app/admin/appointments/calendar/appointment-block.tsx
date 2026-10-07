@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isMovableStatus, useAppointmentSwapDnd } from "./appointment-dnd";
 
 export type BlockData = {
   id: string;
@@ -19,6 +20,8 @@ export type BlockData = {
   status: string;
   statusLabel: string;
   timeLabel: string;
+  /** Duração em minutos — usada pra desenhar o "fantasma" ao arrastar pra outro horário. */
+  durationMin: number;
   price: string;
 };
 
@@ -53,19 +56,38 @@ export function AppointmentBlock({
 }) {
   const [open, setOpen] = useState(false);
   const cancelled = data.status === "CANCELLED" || data.status === "NO_SHOW";
+  // Só pendente/confirmado se arrasta (trocar de horário) — concluído, cancelado e falta já aconteceram.
+  const movable = isMovableStatus(data.status);
+  const { dragging, dragOver, handlers, dialog } = useAppointmentSwapDnd(
+    { id: data.id, customerName: data.customerName, timeLabel: data.timeLabel, barberName: data.barberName, durationMin: data.durationMin },
+    movable
+  );
 
   return (
     <>
-      <button
-        type="button"
+      {/* div[role=button] e não <button>: o Firefox não deixa arrastar <button>. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+        {...handlers}
         style={style}
         aria-label={`${data.timeLabel} — ${data.customerName}, ${data.statusLabel}`}
+        title={movable ? "Arraste sobre outro cliente para trocar, ou para um horário livre para mudar" : undefined}
         className={cn(
           "group overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-left transition-all",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60",
           STATUS_STYLE[data.status] ?? STATUS_STYLE.NO_SHOW,
           cancelled && "opacity-60",
+          movable && "cursor-grab active:cursor-grabbing",
+          dragging && "opacity-40",
+          dragOver && "z-20 scale-[1.03] ring-2 ring-secondary",
           compact ? "w-full" : "absolute"
         )}
       >
@@ -80,7 +102,9 @@ export function AppointmentBlock({
             {data.services} · {data.barberName}
           </p>
         )}
-      </button>
+      </div>
+
+      {dialog}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

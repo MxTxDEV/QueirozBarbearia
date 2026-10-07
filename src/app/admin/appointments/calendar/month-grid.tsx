@@ -5,6 +5,7 @@ import { BreakChip } from "./break-chip";
 import type { BreakInfo } from "./break-types";
 import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay } from "./calendar-dates";
+import { AppointmentDropZone } from "./appointment-dnd";
 
 export type MonthAppointment = {
   block: BlockData;
@@ -60,8 +61,10 @@ export function MonthGrid({
                 const closed = closedDays?.has(day.toISOString().slice(0, 10)) ?? false;
 
                 return (
-                  <div
+                  <AppointmentDropZone
                     key={day.toISOString()}
+                    mode="day"
+                    date={day.toISOString().slice(0, 10)}
                     className={cn("relative min-h-[104px] border-b border-l p-1.5", outsideMonth && "opacity-40")}
                     style={
                       closed
@@ -109,7 +112,7 @@ export function MonthGrid({
                         <p className="px-1 text-[10px] text-foreground-muted">+{hidden} outro(s)</p>
                       )}
                     </div>
-                  </div>
+                  </AppointmentDropZone>
                 );
               })}
             </div>

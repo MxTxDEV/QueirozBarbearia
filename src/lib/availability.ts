@@ -143,12 +143,14 @@ export async function hasSchedulingConflict(
     barberId: string;
     startTime: Date;
     endTime: Date;
-    excludeAppointmentId?: string;
+    /** Um ou mais agendamentos a ignorar (a troca de horários ignora os DOIS que estão sendo trocados). */
+    excludeAppointmentId?: string | string[];
     excludeWaitlistEntryId?: string;
   },
   client: ConflictCheckClient = prisma
 ): Promise<boolean> {
   const day = dateOnly(params.startTime);
+  const excludedAppointmentIds = [params.excludeAppointmentId ?? []].flat();
 
   // Fora do horário de funcionamento (dia sem expediente cadastrado, ou
   // início/fim do serviço que não cabe inteiro dentro do expediente/almoço)
@@ -197,7 +199,7 @@ export async function hasSchedulingConflict(
       barberId: params.barberId,
       appointmentDate: day,
       status: { in: [...ACTIVE_STATUSES] },
-      id: params.excludeAppointmentId ? { not: params.excludeAppointmentId } : undefined,
+      id: excludedAppointmentIds.length > 0 ? { notIn: excludedAppointmentIds } : undefined,
       startTime: { lt: params.endTime },
       endTime: { gt: params.startTime },
     },
