@@ -3,7 +3,7 @@
 import { shopNow } from "@/lib/shop-time";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, UserPlus } from "lucide-react";
+import { Check, Repeat, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { formatCurrency, formatDuration } from "@/lib/utils";
 import { getAvailableSlotsForAdminAction } from "@/actions/availability";
 import { createAppointmentAsAdmin } from "@/actions/appointments";
 import { quickCreateCustomerAction } from "@/actions/customers";
+import { createRecurringAppointmentAsAdminAction } from "@/actions/recurring-appointments";
+import { RecurrenceFields, type RecurrenceValue } from "@/components/recurrence-fields";
 
 type Service = { id: string; name: string; price: number; durationMinutes: number };
 type Barber = { id: string; name: string; services: Service[] };
@@ -45,6 +47,8 @@ export function AdminBookingForm({
   const [customerError, setCustomerError] = useState<string | null>(null);
   const [savingCustomer, startCustomerTransition] = useTransition();
   const [walkIn, setWalkIn] = useState(false);
+  const [recurring, setRecurring] = useState(false);
+  const [recurrence, setRecurrence] = useState<RecurrenceValue | null>(null);
   const [walkInName, setWalkInName] = useState("");
   const [notes, setNotes] = useState("");
   const [barberId, setBarberId] = useState(prefill?.barberId ?? "");
@@ -66,6 +70,13 @@ export function AdminBookingForm({
     [barber, serviceIds]
   );
   const hasClient = walkIn ? walkInName.trim().length >= 2 : Boolean(customerId);
+  // Recorrência é de cliente cadastrado e de um serviço por vez (a série repete "o mesmo serviço").
+  const recurringBlockedReason = walkIn
+    ? "Cliente não cadastrado não pode ter recorrência — cadastre o cliente."
+    : serviceIds.length > 1
+      ? "A recorrência repete um serviço só — deixe um serviço selecionado."
+      : null;
+  const useRecurring = recurring && !recurringBlockedReason;
   const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMinutes, 0);
 
@@ -116,6 +127,32 @@ export function AdminBookingForm({
   function submit() {
     if (!hasClient || !barberId || !selectedSlot || serviceIds.length === 0) return;
     setError(null);
+    if (useRecurring) {
+      if (!recurrence?.valid) {
+        setError("Confira a recorrência: escolha até quando repetir.");
+        return;
+      }
+      startTransition(async () => {
+        const result = await createRecurringAppointmentAsAdminAction({
+          customerId,
+          barberId,
+          serviceId: serviceIds[0],
+          startDate: date,
+          startTime: selectedSlot.label,
+          frequencyUnit: recurrence.frequencyUnit,
+          intervalValue: recurrence.intervalValue,
+          endDate: recurrence.endDate,
+          occurrencesLimit: recurrence.occurrencesLimit,
+        });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        toast.success("Recorrência criada.");
+        router.push(`/admin/recurring-appointments/${result.data!.id}`);
+      });
+      return;
+    }
     startTransition(async () => {
       const result = await createAppointmentAsAdmin({
         ...(walkIn ? { walkInName: walkInName.trim() } : { customerId }),
@@ -297,15 +334,40 @@ export function AdminBookingForm({
             </div>
           )}
 
+          <div className="space-y-2">
+            <label className={`flex items-center gap-2 text-sm ${recurringBlockedReason ? "text-foreground-muted" : "text-foreground"}`}>
+              <input
+                type="checkbox"
+                checked={useRecurring}
+                disabled={!!recurringBlockedReason}
+                onChange={(e) => setRecurring(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Repeat className="h-4 w-4 text-secondary-light" />
+              Cliente recorrente — repetir este agendamento
+            </label>
+            {recurringBlockedReason && <p className="text-xs text-foreground-muted">{recurringBlockedReason}</p>}
+            {useRecurring && (
+              <>
+                <RecurrenceFields startDate={date} onChange={setRecurrence} />
+                <p className="text-xs text-foreground-muted">
+                  Como foi você quem criou, a recorrência já nasce ativa: os horários são confirmados na hora (quem estiver indisponível fica marcado
+                  como conflito, sem derrubar o resto).
+                </p>
+              </>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="booking-notes">Observação</Label>
             <textarea
               id="booking-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              disabled={useRecurring}
               rows={2}
               maxLength={500}
-              placeholder={walkIn ? "Ex.: telefone, detalhes do atendimento (opcional)" : "Opcional"}
+              placeholder={useRecurring ? "Observação vale só para agendamentos avulsos" : walkIn ? "Ex.: telefone, detalhes do atendimento (opcional)" : "Opcional"}
               className="w-full rounded-xl border bg-[var(--surface-subtle)] p-3 text-sm text-foreground placeholder:text-foreground-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
             />
           </div>
@@ -323,7 +385,7 @@ export function AdminBookingForm({
 
           {error && <p className="text-sm text-danger">{error}</p>}
           <Button onClick={submit} disabled={pending || !selectedSlot || !hasClient} className="w-full sm:w-auto">
-            {pending ? "Criando..." : "Criar agendamento"}
+            {pending ? "Criando..." : useRecurring ? "Criar agendamento recorrente" : "Criar agendamento"}
           </Button>
         </CardContent>
       </Card>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type BlockData = {
@@ -11,6 +12,8 @@ export type BlockData = {
   customerName: string;
   /** Observação do agendamento (onde costuma ir o nome/detalhes de cliente avulso). */
   notes?: string | null;
+  /** Faz parte de uma recorrência (série): id e descrição da frequência. */
+  recurring?: { seriesId: string; label: string } | null;
   barberName: string;
   services: string;
   status: string;
@@ -66,8 +69,11 @@ export function AppointmentBlock({
           compact ? "w-full" : "absolute"
         )}
       >
-        <p className={cn("truncate text-[11px] font-semibold text-foreground", cancelled && "line-through")}>
-          {data.timeLabel} {data.customerName}
+        <p className={cn("flex items-center gap-1 truncate text-[11px] font-semibold text-foreground", cancelled && "line-through")}>
+          {data.recurring && <Repeat className="h-3 w-3 shrink-0 text-secondary-light" aria-label="Recorrente" />}
+          <span className="truncate">
+            {data.timeLabel} {data.customerName}
+          </span>
         </p>
         {!compact && !dense && (
           <p className="truncate text-[10px] text-foreground-muted">
@@ -101,6 +107,19 @@ export function AppointmentBlock({
               <Row label="Valor" value={data.price} />
               <Row label="Status" value={data.statusLabel} />
               {data.notes && <Row label="Observação" value={data.notes} />}
+              {data.recurring && (
+                <div className="flex justify-between gap-4">
+                  <dt className="shrink-0 text-foreground-muted">Recorrência</dt>
+                  <dd className="text-right text-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Repeat className="h-3 w-3 text-secondary-light" /> {data.recurring.label}
+                    </span>
+                    <Link href={`/admin/recurring-appointments/${data.recurring.seriesId}`} className="block text-xs text-secondary-light hover:underline">
+                      Ver recorrência
+                    </Link>
+                  </dd>
+                </div>
+              )}
             </dl>
 
             {actions && <div className="mt-4 border-t pt-4">{actions}</div>}

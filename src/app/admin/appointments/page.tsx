@@ -36,6 +36,7 @@ import {
 import type { AppointmentStatus } from "@prisma/client";
 import { requireAdminContext } from "@/lib/require-admin";
 import { appointmentClientName } from "@/lib/appointment-client";
+import { describeFrequency } from "@/lib/recurring-helpers";
 import { MiniCalendar } from "./calendar/mini-calendar";
 import type { BreakInfo } from "./calendar/break-types";
 import { getOpenIntervals, type DayAvailability } from "@/lib/data/calendar-availability";
@@ -297,6 +298,15 @@ export default async function AppointmentsPage({
     customerId: appt.customerId,
     customerName: appointmentClientName(appt),
     notes: appt.notes,
+    recurring: appt.recurringOccurrence
+      ? {
+          seriesId: appt.recurringOccurrence.recurringAppointmentId,
+          label: describeFrequency(
+            appt.recurringOccurrence.recurringAppointment.frequencyUnit,
+            appt.recurringOccurrence.recurringAppointment.intervalValue
+          ),
+        }
+      : null,
     barberName: appt.barber.name,
     services: appt.services.map((s) => s.serviceName).join(", "),
     status: appt.status,
@@ -306,7 +316,7 @@ export default async function AppointmentsPage({
   });
 
   const renderActions = (appt: (typeof appointments)[number]) => (
-    <AppointmentRowActions key={appt.id} id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} />
+    <AppointmentRowActions key={appt.id} id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} recurring={!!appt.recurringOccurrence} />
   );
 
   // Visão de Semana no celular: um carrossel por dia, empilhados.
@@ -596,7 +606,7 @@ export default async function AppointmentsPage({
                       <Badge variant={APPOINTMENT_STATUS_VARIANT[appt.status]}>{APPOINTMENT_STATUS_LABEL[appt.status]}</Badge>
                     </TableCell>
                     <TableCell>
-                      <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} />
+                      <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} recurring={!!appt.recurringOccurrence} />
                     </TableCell>
                   </TableRow>
                 ))}

@@ -272,6 +272,17 @@ export async function cancelAppointmentCore(appointmentId: string, companyId: st
 
   await logAudit({ companyId, userId: byUserId, action: "appointment_cancelled", entityType: "appointment", entityId: appointmentId, appointmentId });
 
+  // Agendamento de uma recorrência: cancelar este dia NÃO cancela a série — só a ocorrência
+  // correspondente passa a "cancelada" (senão ela continuaria "confirmada" apontando pra um
+  // agendamento cancelado). A série e as demais datas seguem como estão.
+  const syncedOccurrences = await prisma.recurringAppointmentOccurrence.updateMany({
+    where: { appointmentId, status: "CONFIRMED", recurringAppointment: { companyId } },
+    data: { status: "CANCELLED" },
+  });
+  if (syncedOccurrences.count > 0) {
+    await logAudit({ companyId, userId: byUserId, action: "recurring_occurrence_cancelled", entityType: "appointment", entityId: appointmentId, appointmentId });
+  }
+
   await createNotification({
     companyId,
     title: "Agendamento cancelado",

@@ -21,10 +21,13 @@ export function AppointmentRowActions({
   id,
   status,
   hasPayment,
+  recurring,
 }: {
   id: string;
   status: AppointmentStatus;
   hasPayment?: boolean;
+  /** Agendamento de uma recorrência: cancelar vale só pra este dia. */
+  recurring?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -53,11 +56,14 @@ export function AppointmentRowActions({
           variant="outline"
           disabled={pending}
           onClick={() => {
-            if (!confirm("Cancelar esse agendamento? Essa ação não pode ser desfeita.")) return;
-            run(cancelAppointmentAdminAction, "Agendamento cancelado.");
+            const message = recurring
+              ? "Cancelar só este dia? A recorrência continua ativa — os outros dias seguem marcados."
+              : "Cancelar esse agendamento? Essa ação não pode ser desfeita.";
+            if (!confirm(message)) return;
+            run(cancelAppointmentAdminAction, recurring ? "Dia cancelado — a recorrência continua ativa." : "Agendamento cancelado.");
           }}
         >
-          Cancelar
+          {recurring ? "Cancelar só este dia" : "Cancelar"}
         </Button>
       )}
       {status === "CONFIRMED" && (
