@@ -3,7 +3,7 @@
 import { shopNow } from "@/lib/shop-time";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Scissors } from "lucide-react";
+import { Check, ChevronLeft, MessageCircle, Scissors } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ function todayIso() {
   return shopNow().toISOString().slice(0, 10);
 }
 
-export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; companySlug: string }) {
+export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Barber[]; companySlug: string; whatsapp: string }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [barberId, setBarberId] = useState<string | null>(null);
@@ -273,6 +273,13 @@ export function BookingWizard({ barbers, companySlug }: { barbers: Barber[]; com
                 <dd className="text-base font-semibold text-secondary-light">{formatCurrency(totalPrice)}</dd>
               </div>
             </dl>
+            <div className="flex items-start gap-3 rounded-xl border border-success/40 bg-success/10 p-3 text-sm">
+              <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+              <p className="text-foreground">
+                Enviaremos a confirmação no seu WhatsApp <strong>{whatsapp}</strong>: você recebe um link para <strong>confirmar o horário</strong> antes do
+                atendimento. Não é o seu número? Saia e entre de novo com o número certo.
+              </p>
+            </div>
             <label className="flex items-center gap-2 text-sm text-foreground-muted">
               <input
                 type="checkbox"

@@ -567,6 +567,11 @@ model Appointment {
   // Lembrete "é hoje" das 7h da manhã do próprio dia do horário (mesma idempotência dos dois acima).
   reminderMorningSentAt DateTime? @map("reminder_morning_sent_at")
 
+  // Confirmação pelo cliente via link no WhatsApp (/confirmar/[token]). O token é o "ingresso":
+  // quem tem o link confirma ou desiste daquele horário, sem precisar entrar na conta.
+  confirmToken      String?   @unique @map("confirm_token")
+  clientConfirmedAt DateTime? @map("client_confirmed_at")
+
   // Idempotência da mensagem de agradecimento + pedido de avaliação: null =
   // ainda não enviada. Carimbado antes do envio (não depois), então registrar
   // pagamento mais de uma vez para o mesmo agendamento nunca duplica a

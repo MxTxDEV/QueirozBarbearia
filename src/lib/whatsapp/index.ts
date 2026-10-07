@@ -268,7 +268,7 @@ export async function sendAppointmentScheduledByShop(
   companyId: string,
   phone: string,
   customerId: string,
-  data: AppointmentMessageData & { companyName: string }
+  data: AppointmentMessageData & { companyName: string; confirmUrl?: string | null }
 ) {
   return sendAutomated({ companyId, kind: "BOOKED_BY_SHOP", phone, customerId, vars: appointmentVars(data) });
 }

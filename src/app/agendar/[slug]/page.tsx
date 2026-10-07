@@ -111,6 +111,9 @@ export default async function CompanyBookingLandingPage({ params }: Props) {
             <CalendarPlus className="h-5 w-5" /> Agendar horário
           </Button>
         </Link>
+        <p className="mt-3 text-center text-xs text-foreground-muted">
+          Você entra com o seu WhatsApp e recebe a confirmação e o link para confirmar o horário por lá.
+        </p>
       </div>
     </div>
   );

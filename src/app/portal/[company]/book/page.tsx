@@ -1,6 +1,7 @@
 import { requireCompleteCustomerProfile } from "@/lib/require-customer";
 import { listActiveBarbersWithServices } from "@/lib/data/barbers";
 import { toNumber } from "@/lib/serialize";
+import { formatWhatsappDisplay } from "@/lib/utils";
 import { BookingWizard } from "./booking-wizard";
 
 export default async function BookPage({ params }: { params: Promise<{ company: string }> }) {
@@ -27,7 +28,7 @@ export default async function BookPage({ params }: { params: Promise<{ company: 
         <h1 className="text-2xl font-semibold text-foreground">Agendar horário</h1>
         <p className="text-sm text-foreground-muted">Escolha o barbeiro, os serviços e o melhor horário para você.</p>
       </div>
-      <BookingWizard barbers={data} companySlug={slug} />
+      <BookingWizard barbers={data} companySlug={slug} whatsapp={formatWhatsappDisplay(customer.whatsapp)} />
     </div>
   );
 }

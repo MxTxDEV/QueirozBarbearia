@@ -54,6 +54,16 @@ const BARBEIRO: TemplateVariable = { key: "barbeiro", label: "Barbeiro", example
 const SERVICOS: TemplateVariable = { key: "servicos", label: "Serviços (lista)", example: "• Corte Social\n• Barba" };
 const TOTAL: TemplateVariable = { key: "total", label: "Valor total (sem R$)", example: "80,00" };
 const SERVICO: TemplateVariable = { key: "servico", label: "Serviço", example: "Corte Social" };
+const LINK: TemplateVariable = {
+  key: "link",
+  label: "Link para o cliente confirmar o horário (só o endereço)",
+  example: "https://seusite.com/confirmar/abc123xyz",
+};
+const CONFIRMACAO: TemplateVariable = {
+  key: "confirmacao",
+  label: "Frase + link para confirmar o horário (some se não houver link)",
+  example: "✅ Confirme seu horário com um toque:\nhttps://seusite.com/confirmar/abc123xyz",
+};
 const FREQUENCIA: TemplateVariable = { key: "frequencia", label: "Frequência da recorrência", example: "Toda semana" };
 
 export const KIND_DEFS: Record<AutomationKind, KindDef> = {
@@ -63,7 +73,7 @@ export const KIND_DEFS: Record<AutomationKind, KindDef> = {
     group: "reminders",
     timing: "before",
     variables: [
-      NOME, BARBEARIA, DATA, HORA, BARBEIRO, SERVICOS, TOTAL,
+      NOME, BARBEARIA, DATA, HORA, BARBEIRO, SERVICOS, TOTAL, LINK, CONFIRMACAO,
       { key: "quando", label: "“hoje”, “amanhã” ou “no dia 09/10/2026”", example: "amanhã" },
     ],
     defaultTemplate: `Olá, {nome}! 💈
@@ -73,6 +83,8 @@ Passando para lembrar que você possui um horário agendado {quando}:
 📅 {data}
 ⏰ {hora}
 ✂️ Barbeiro: {barbeiro}
+
+{confirmacao}
 
 Nos vemos em breve!`,
   },
@@ -116,7 +128,7 @@ Um dia antes de cada horário, avisamos você de novo por aqui. Se precisar muda
     label: "Barbearia marcou um horário para o cliente",
     when: "Na hora em que o barbeiro/recepção marca um horário avulso para o cliente.",
     group: "booking",
-    variables: [NOME, BARBEARIA, DATA, HORA, BARBEIRO, SERVICOS, TOTAL],
+    variables: [NOME, BARBEARIA, DATA, HORA, BARBEIRO, SERVICOS, TOTAL, LINK, CONFIRMACAO],
     defaultTemplate: `Olá, {nome}! 💈
 
 A {barbearia} acabou de agendar um horário para você:
@@ -129,6 +141,8 @@ Serviços:
 {servicos}
 
 💰 Total: R$ {total}
+
+{confirmacao}
 
 Se precisar mudar, é só nos avisar por aqui. Até lá!`,
   },
@@ -364,7 +378,7 @@ export type DefaultRule = {
 
 export const DEFAULT_RULES: DefaultRule[] = [
   { key: "REMINDER_BEFORE:1d", kind: "REMINDER_BEFORE", name: "Lembrete 1 dia antes", offsetMinutes: 1440, sortOrder: 0 },
-  { key: "REMINDER_BEFORE:1h", kind: "REMINDER_BEFORE", name: "Lembrete 1 hora antes", offsetMinutes: 60, sortOrder: 1 },
+  { key: "REMINDER_BEFORE:2h", kind: "REMINDER_BEFORE", name: "Lembrete 2 horas antes", offsetMinutes: 120, sortOrder: 1 },
   { key: "REMINDER_MORNING", kind: "REMINDER_MORNING", name: "Lembrete da manhã do dia", sendTime: "07:00", sortOrder: 0 },
   { key: "MONTHLY_SUMMARY", kind: "MONTHLY_SUMMARY", name: "Resumo do mês", dayOfMonth: 1, sendTime: "09:00", sortOrder: 0 },
   { key: "BOOKED_BY_SHOP", kind: "BOOKED_BY_SHOP", name: "Barbearia marcou um horário", sortOrder: 0 },

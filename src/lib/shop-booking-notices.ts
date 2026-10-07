@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { describeFrequency } from "@/lib/recurring-helpers";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { sendAppointmentScheduledByShop, sendRecurringScheduledByShop } from "@/lib/whatsapp";
+import { confirmationUrlFor } from "@/lib/confirmation-link";
 
 /**
  * Aviso em TEMPO REAL pro cliente quando a barbearia (barbeiro/recepção) marca o horário dele:
@@ -34,6 +35,7 @@ export async function notifyAppointmentScheduledByShop(appointmentId: string, co
     barberName: appt.barber.name,
     services: appt.services.map((s) => s.serviceName),
     totalPrice: formatCurrency(appt.totalPrice.toString()).replace("R$", "").trim(),
+    confirmUrl: await confirmationUrlFor(appt.id),
   });
 }
 

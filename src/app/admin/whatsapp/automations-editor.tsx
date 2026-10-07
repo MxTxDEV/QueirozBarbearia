@@ -90,6 +90,11 @@ export function AutomationsEditor({ rules, companyName }: { rules: RuleDto[]; co
             Use os campos entre chaves, como <code className="rounded bg-[var(--surface-subtle)] px-1">{"{nome}"}</code> e{" "}
             <code className="rounded bg-[var(--surface-subtle)] px-1">{"{hora}"}</code> — o sistema troca pelos dados de cada cliente. Horários no fuso de Brasília.
           </li>
+          <li>
+            <strong className="text-foreground">Confirmação pelo cliente:</strong> os lembretes “antes do horário” levam um link (campo{" "}
+            <code className="rounded bg-[var(--surface-subtle)] px-1">{"{confirmacao}"}</code>) em que o cliente confirma ou avisa que não vai. Você vê quem
+            confirmou na Agenda (✅). Os padrões são 1 dia e 2 horas antes — mude à vontade.
+          </li>
           <li>Se mais de uma mensagem do mesmo tipo valer para o mesmo cliente, vale a de público mais específico (a “Todos os clientes” é a reserva).</li>
         </ul>
       </Card>
@@ -272,6 +277,7 @@ function RuleCard({ rule, companyName, canDelete }: { rule: RuleDto; companyName
               <Badge variant="muted">{AUDIENCE_LABEL[rule.audience]}</Badge>
               {summary && <Badge variant="accent">{summary}</Badge>}
               {rule.template !== null && <Badge variant="warning">Texto personalizado</Badge>}
+              {(rule.template ?? def.defaultTemplate).match(/\{(confirmacao|link)\}/) && <Badge variant="success">Com link de confirmação</Badge>}
             </span>
           </span>
           <span className="text-xs text-secondary-light">{open ? "Fechar" : "Editar"}</span>

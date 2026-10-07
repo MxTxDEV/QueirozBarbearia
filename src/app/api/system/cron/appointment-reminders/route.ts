@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { originFromHeaders, rememberOrigin } from "@/lib/app-url";
 import { sendDueAppointmentReminders } from "@/lib/appointment-reminders";
 import { sendMonthlyRecurrenceNotices } from "@/lib/monthly-recurrence-notices";
 
@@ -29,6 +30,9 @@ export async function POST(request: NextRequest) {
   if (!provided || !secretsMatch(provided, secret)) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
+
+  // Sem APP_URL configurada, os links de confirmação usam o endereço pelo qual o cron chamou.
+  rememberOrigin(originFromHeaders((header) => request.headers.get(header)));
 
   try {
     const result = await sendDueAppointmentReminders();

@@ -17,8 +17,10 @@ export const renderDefault = (kind: AutomationKind, vars: Vars) => renderTemplat
 
 // ---- valores por tipo de mensagem --------------------------------------------------------------
 
-export function appointmentVars(d: AppointmentMessageData & { companyName?: string; when?: string }): Vars {
+export function appointmentVars(d: AppointmentMessageData & { companyName?: string; when?: string; confirmUrl?: string | null }): Vars {
   return {
+    link: d.confirmUrl ?? "",
+    confirmacao: d.confirmUrl ? `✅ Confirme seu horário com um toque:\n${d.confirmUrl}` : "",
     nome: d.customerName,
     barbearia: d.companyName,
     data: d.date,

@@ -316,6 +316,7 @@ export default async function AppointmentsPage({
     statusLabel: APPOINTMENT_STATUS_LABEL[appt.status],
     timeLabel: `${formatTime(appt.startTime)}–${formatTime(appt.endTime)}`,
     durationMin: Math.round((appt.endTime.getTime() - appt.startTime.getTime()) / 60_000),
+    clientConfirmedAt: appt.clientConfirmedAt?.toISOString() ?? null,
     price: formatCurrency(appt.totalPrice.toString()),
   });
 
@@ -629,6 +630,11 @@ export default async function AppointmentsPage({
                     <TableCell className="text-foreground-muted">{formatCurrency(appt.totalPrice.toString())}</TableCell>
                     <TableCell>
                       <Badge variant={APPOINTMENT_STATUS_VARIANT[appt.status]}>{APPOINTMENT_STATUS_LABEL[appt.status]}</Badge>
+                      {(appt.status === "PENDING" || appt.status === "CONFIRMED") && (
+                        <p className={`mt-1 text-xs ${appt.clientConfirmedAt ? "text-success" : "text-foreground-muted"}`}>
+                          {appt.clientConfirmedAt ? "✅ Cliente confirmou" : "Aguardando o cliente confirmar"}
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell>
                       <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} recurring={!!appt.recurringOccurrence} />

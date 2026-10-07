@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Repeat } from "lucide-react";
+import { BadgeCheck, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isMovableStatus, useAppointmentSwapDnd } from "./appointment-dnd";
 
@@ -23,6 +23,8 @@ export type BlockData = {
   /** Duração em minutos — usada pra desenhar o "fantasma" ao arrastar pra outro horário. */
   durationMin: number;
   price: string;
+  /** Quando o cliente confirmou pelo link do WhatsApp (ISO); nulo = ainda não confirmou. */
+  clientConfirmedAt?: string | null;
 };
 
 /** Cor da faixa por status — segue a mesma semântica dos badges do sistema. */
@@ -93,6 +95,7 @@ export function AppointmentBlock({
       >
         <p className={cn("flex items-center gap-1 truncate text-[11px] font-semibold text-foreground", cancelled && "line-through")}>
           {data.recurring && <Repeat className="h-3 w-3 shrink-0 text-secondary-light" aria-label="Recorrente" />}
+          {data.clientConfirmedAt && <BadgeCheck className="h-3 w-3 shrink-0 text-success" aria-label="Cliente confirmou" />}
           <span className="truncate">
             {data.timeLabel} {data.customerName}
           </span>
@@ -130,6 +133,16 @@ export function AppointmentBlock({
               <Row label="Barbeiro" value={data.barberName} />
               <Row label="Valor" value={data.price} />
               <Row label="Status" value={data.statusLabel} />
+              {(data.status === "PENDING" || data.status === "CONFIRMED") && (
+                <Row
+                  label="Cliente"
+                  value={
+                    data.clientConfirmedAt
+                      ? `✅ Confirmou em ${new Date(data.clientConfirmedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`
+                      : "Ainda não confirmou pelo link"
+                  }
+                />
+              )}
               {data.notes && <Row label="Observação" value={data.notes} />}
               {data.recurring && (
                 <div className="flex justify-between gap-4">

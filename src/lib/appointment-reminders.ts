@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { sendWithRule } from "@/lib/whatsapp";
+import { confirmationUrlFor } from "@/lib/confirmation-link";
 import { ensureAutomations, getCustomerSegments } from "@/lib/whatsapp/automations";
 import { hhmmToMinutes, pickRule, whenLabel } from "@/lib/whatsapp/automation-defs";
 import { appointmentVars, morningVars } from "@/lib/whatsapp/templates";
@@ -145,6 +146,7 @@ export async function sendDueBeforeReminders(companyIds: string[], options: { li
           services: appt.services.map((s) => s.serviceName),
           totalPrice: formatCurrency(appt.totalPrice.toString()).replace("R$", "").trim(),
           when: whenLabel(diffDays, formatDate(appt.appointmentDate)),
+          confirmUrl: await confirmationUrlFor(appt.id),
         }),
       }).catch(() => ({ ok: false as const }));
       // Registrado mesmo se o envio falhar — uma falha temporária do provedor não pode virar reenvio em loop.

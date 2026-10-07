@@ -1,7 +1,7 @@
 import { requireCompleteCustomerProfile } from "@/lib/require-customer";
 import { listCustomerAppointments } from "@/lib/data/portal";
 import { listActiveWaitlistEntriesForCustomer } from "@/lib/data/waitlist";
-import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import { formatCurrency, formatDate, formatTime, formatWhatsappDisplay } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT, WAITLIST_STATUS_LABEL, WAITLIST_STATUS_VARIANT } from "@/lib/labels";
@@ -9,8 +9,15 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { CancelButton } from "./cancel-button";
 import { WaitlistEntryActions } from "./waitlist-entry-actions";
 
-export default async function PortalAppointmentsPage({ params }: { params: Promise<{ company: string }> }) {
+export default async function PortalAppointmentsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ company: string }>;
+  searchParams: Promise<{ success?: string }>;
+}) {
   const { company: slug } = await params;
+  const { success } = await searchParams;
   const customer = await requireCompleteCustomerProfile(slug);
   const [appointments, waitlistEntries] = await Promise.all([
     listCustomerAppointments(customer.id, customer.companyId),
@@ -22,6 +29,16 @@ export default async function PortalAppointmentsPage({ params }: { params: Promi
       {/* Atualiza a cada 15s — é assim que a contagem do prazo de confirmação de uma oferta se mantém em dia sem polling próprio. */}
       <AutoRefresh />
       <h1 className="text-2xl font-semibold text-foreground">Meus agendamentos</h1>
+
+      {success === "1" && (
+        <div role="status" className="rounded-xl border border-success/40 bg-success/10 p-4 text-sm text-foreground">
+          <p className="font-medium">Agendamento solicitado! ✅</p>
+          <p className="mt-1 text-foreground-muted">
+            Vamos avisar no seu WhatsApp ({formatWhatsappDisplay(customer.whatsapp)}) com um <strong className="text-foreground">link para confirmar o horário</strong>{" "}
+            antes do atendimento.
+          </p>
+        </div>
+      )}
 
       {waitlistEntries.length > 0 && (
         <div className="space-y-3">
