@@ -110,9 +110,18 @@ export function recurringBookedVars(d: {
 export function morningVars(d: {
   customerName: string;
   companyName: string;
-  items: { time: string; barberName: string; services: string[] }[];
+  items: { time: string; barberName: string; services: string[]; confirmUrl?: string | null }[];
 }): Vars {
+  const withLink = d.items.filter((i) => i.confirmUrl);
+  // Um horário: frase + link. Vários: um link por horário, identificado pela hora.
+  const confirmacoes =
+    withLink.length === 0
+      ? ""
+      : d.items.length === 1
+        ? `✅ Confirme seu horário com um toque:\n${withLink[0].confirmUrl}`
+        : `✅ Confirme cada horário com um toque:\n${withLink.map((i) => `⏰ ${i.time} → ${i.confirmUrl}`).join("\n")}`;
   return {
+    confirmacoes,
     nome: d.customerName,
     barbearia: d.companyName,
     chamada: d.items.length > 1 ? "Você tem horários marcados hoje" : "Você tem um horário marcado hoje",

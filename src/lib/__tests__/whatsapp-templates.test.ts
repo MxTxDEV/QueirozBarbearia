@@ -59,4 +59,32 @@ describe("templates de agendamento feito pela barbearia", () => {
     expect(many).toContain("Você tem horários marcados hoje");
     expect(many).toContain("⏰ 17:30 — Barba, Hidratação com Arthur");
   });
+
+  it("lembrete da manhã leva o link de confirmação (um ou vários horários)", () => {
+    const one = morningReminderTemplate({
+      customerName: "João",
+      companyName: "Queiroz",
+      items: [{ time: "15:00", barberName: "Marcos", services: ["Corte"], confirmUrl: "https://x.com/confirmar/aaa" }],
+    });
+    expect(one).toContain("✅ Confirme seu horário com um toque:\nhttps://x.com/confirmar/aaa");
+
+    const many = morningReminderTemplate({
+      customerName: "João",
+      companyName: "Queiroz",
+      items: [
+        { time: "09:00", barberName: "Marcos", services: ["Corte"], confirmUrl: "https://x.com/confirmar/aaa" },
+        { time: "17:30", barberName: "Arthur", services: ["Barba"], confirmUrl: "https://x.com/confirmar/bbb" },
+      ],
+    });
+    expect(many).toContain("⏰ 09:00 → https://x.com/confirmar/aaa");
+    expect(many).toContain("⏰ 17:30 → https://x.com/confirmar/bbb");
+
+    const none = morningReminderTemplate({
+      customerName: "João",
+      companyName: "Queiroz",
+      items: [{ time: "15:00", barberName: "Marcos", services: ["Corte"] }],
+    });
+    expect(none).not.toContain("Confirme");
+    expect(none).not.toContain("\n\n\n");
+  });
 });

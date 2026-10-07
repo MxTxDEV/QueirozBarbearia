@@ -1,12 +1,15 @@
 import { requireCompleteCustomerProfile } from "@/lib/require-customer";
-import { listCustomerAppointments } from "@/lib/data/portal";
+import Link from "next/link";
+import { getCustomerAgenda } from "@/lib/data/portal";
+import { listRecurringAppointmentsForCustomer } from "@/lib/data/recurring";
+import { describeFrequency } from "@/lib/recurring-helpers";
 import { listActiveWaitlistEntriesForCustomer } from "@/lib/data/waitlist";
-import { formatCurrency, formatDate, formatTime, formatWhatsappDisplay } from "@/lib/utils";
+import { formatDate, formatTime, formatWhatsappDisplay } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT, WAITLIST_STATUS_LABEL, WAITLIST_STATUS_VARIANT } from "@/lib/labels";
+import { RECURRING_STATUS_LABEL, RECURRING_STATUS_VARIANT, WAITLIST_STATUS_LABEL, WAITLIST_STATUS_VARIANT } from "@/lib/labels";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { CancelButton } from "./cancel-button";
+import { PortalAppointmentCard } from "./appointment-card";
 import { WaitlistEntryActions } from "./waitlist-entry-actions";
 
 export default async function PortalAppointmentsPage({
@@ -19,10 +22,13 @@ export default async function PortalAppointmentsPage({
   const { company: slug } = await params;
   const { success } = await searchParams;
   const customer = await requireCompleteCustomerProfile(slug);
-  const [appointments, waitlistEntries] = await Promise.all([
-    listCustomerAppointments(customer.id, customer.companyId),
+  const [{ upcoming, history }, series, waitlistEntries] = await Promise.all([
+    getCustomerAgenda(customer.id, customer.companyId),
+    listRecurringAppointmentsForCustomer(customer.id, customer.companyId),
     listActiveWaitlistEntriesForCustomer(customer.companyId, customer.id),
   ]);
+
+  const activeSeries = series.filter((s) => s.status === "ACTIVE" || s.status === "PAUSED" || s.status === "PENDING_APPROVAL");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -70,38 +76,60 @@ export default async function PortalAppointmentsPage({
         </div>
       )}
 
-      <div className="space-y-3">
-        {appointments.length === 0 && waitlistEntries.length === 0 && (
+      <section className="space-y-3" aria-label="Próximos horários">
+        <h2 className="text-sm font-semibold text-foreground-muted">Próximos horários ({upcoming.length})</h2>
+        {upcoming.length === 0 && (
           <Card>
-            <CardContent className="text-center text-sm text-foreground-muted">Nenhum agendamento ainda.</CardContent>
+            <CardContent className="space-y-3 text-center text-sm text-foreground-muted">
+              <p>Você não tem nenhum horário marcado.</p>
+              <Link href={`/portal/${slug}/book`} className="inline-block text-secondary-light hover:underline">
+                Agendar agora
+              </Link>
+            </CardContent>
           </Card>
         )}
-        {appointments.map((appt) => {
-          const cancellable = appt.status === "PENDING" || appt.status === "CONFIRMED";
-          return (
-            <Card key={appt.id}>
-              <CardContent className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-foreground">
-                    {formatDate(appt.appointmentDate)} às {formatTime(appt.startTime)}
+        {upcoming.map((appt) => (
+          <PortalAppointmentCard key={appt.id} appt={appt} actionable />
+        ))}
+      </section>
+
+      {activeSeries.length > 0 && (
+        <section className="space-y-3" aria-label="Minhas recorrências">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground-muted">Minhas recorrências</h2>
+            <Link href={`/portal/${slug}/recurring-appointments`} className="text-xs text-secondary-light hover:underline">
+              Gerenciar
+            </Link>
+          </div>
+          {activeSeries.map((s) => (
+            <Card key={s.id}>
+              <CardContent className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium text-foreground">{s.service.name}</p>
+                  <p className="text-sm text-foreground-muted">
+                    {describeFrequency(s.frequencyUnit, s.intervalValue)} às {s.startTime} · {s.barber.name}
                   </p>
-                  <Badge variant={APPOINTMENT_STATUS_VARIANT[appt.status]}>{APPOINTMENT_STATUS_LABEL[appt.status]}</Badge>
                 </div>
-                <p className="text-sm text-foreground-muted">Barbeiro: {appt.barber.name}</p>
-                <p className="text-sm text-foreground-muted">
-                  {appt.services.map((s) => s.serviceName).join(", ")}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-secondary-light">
-                    {formatCurrency(appt.totalPrice.toString())}
-                  </span>
-                  {cancellable && <CancelButton appointmentId={appt.id} />}
-                </div>
+                <Badge variant={RECURRING_STATUS_VARIANT[s.status]}>{RECURRING_STATUS_LABEL[s.status]}</Badge>
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
+          ))}
+          <p className="text-xs text-foreground-muted">As datas de cada recorrência aparecem na lista de próximos horários acima.</p>
+        </section>
+      )}
+
+      {history.length > 0 && (
+        <details className="group space-y-3">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-foreground-muted hover:text-foreground">
+            Histórico ({history.length}) <span className="text-xs font-normal text-secondary-light group-open:hidden">— mostrar</span>
+          </summary>
+          <div className="mt-3 space-y-3">
+            {history.map((appt) => (
+              <PortalAppointmentCard key={appt.id} appt={appt} actionable={false} />
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

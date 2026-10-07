@@ -97,12 +97,19 @@ Nos vemos em breve!`,
       NOME, BARBEARIA,
       { key: "chamada", label: "“Você tem um horário marcado hoje” (ajusta para vários)", example: "Você tem um horário marcado hoje" },
       { key: "horarios", label: "Lista dos horários do dia", example: "⏰ 15:00 — Corte Social com Marcos" },
+      {
+        key: "confirmacoes",
+        label: "Link para confirmar o horário (um por horário; some se não houver link)",
+        example: "✅ Confirme seu horário com um toque:\nhttps://seusite.com/confirmar/abc123xyz",
+      },
     ],
     defaultTemplate: `Bom dia, {nome}! ☀️💈
 
 {chamada} na {barbearia}:
 
 {horarios}
+
+{confirmacoes}
 
 Te esperamos! Se não puder vir, avise a gente por aqui.`,
   },

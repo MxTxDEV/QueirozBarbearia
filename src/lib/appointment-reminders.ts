@@ -236,7 +236,14 @@ export async function sendDueMorningReminders(options: { companyIds?: string[]; 
       vars: morningVars({
         customerName: customer.fullName,
         companyName: appts[0].company.name,
-        items: fresh.map((a) => ({ time: formatTime(a.startTime), barberName: a.barber.name, services: a.services.map((s) => s.serviceName) })),
+        items: await Promise.all(
+          fresh.map(async (a) => ({
+            time: formatTime(a.startTime),
+            barberName: a.barber.name,
+            services: a.services.map((s) => s.serviceName),
+            confirmUrl: await confirmationUrlFor(a.id),
+          }))
+        ),
       }),
     }).catch(() => ({ ok: false as const }));
 
