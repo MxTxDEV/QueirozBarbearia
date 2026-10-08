@@ -3,7 +3,7 @@
 import { shopNow } from "@/lib/shop-time";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Repeat, UserPlus } from "lucide-react";
+import { Check, Plus, Repeat, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,18 @@ import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { formatCurrency, formatDuration } from "@/lib/utils";
 import { getAvailableSlotsForAdminAction } from "@/actions/availability";
-import { createAppointmentAsAdmin } from "@/actions/appointments";
+import { createAppointmentAsAdmin, createAppointmentsAsAdmin } from "@/actions/appointments";
 import { quickCreateCustomerAction } from "@/actions/customers";
 import { createRecurringAppointmentAsAdminAction } from "@/actions/recurring-appointments";
 import { RecurrenceFields, type RecurrenceValue } from "@/components/recurrence-fields";
+import { ExtraEntry, type BusyRange, type ExtraBooking } from "./extra-entry";
+
+/** Máximo de horários numa marcação só (o principal + extras) — o mesmo limite do servidor. */
+const MAX_BOOKINGS = 5;
 
 type Service = { id: string; name: string; price: number; durationMinutes: number };
 type Barber = { id: string; name: string; services: Service[] };
-type Customer = { id: string; fullName: string; whatsapp: string };
+type Customer = { id: string; fullName: string; whatsapp: string; notes?: string | null };
 type Slot = { iso: string; label: string };
 
 function todayIso() {
@@ -63,6 +67,7 @@ export function AdminBookingForm({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [extras, setExtras] = useState<ExtraBooking[]>([]);
 
   const barber = barbers.find((b) => b.id === barberId) ?? null;
   const selectedServices = useMemo(
@@ -73,12 +78,44 @@ export function AdminBookingForm({
   // Recorrência é de cliente cadastrado e de um serviço por vez (a série repete "o mesmo serviço").
   const recurringBlockedReason = walkIn
     ? "Cliente não cadastrado não pode ter recorrência — cadastre o cliente."
-    : serviceIds.length > 1
-      ? "A recorrência repete um serviço só — deixe um serviço selecionado."
-      : null;
+    : extras.length > 0
+      ? "Com mais de um horário na mesma marcação não dá pra repetir — remova os horários extras."
+      : serviceIds.length > 1
+        ? "A recorrência repete um serviço só — deixe um serviço selecionado."
+        : null;
   const useRecurring = recurring && !recurringBlockedReason;
   const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const selectedCustomer = walkIn ? null : (customers.find((c) => c.id === customerId) ?? null);
+  const customerNote = selectedCustomer?.notes?.trim() || null;
+
+  // Faixas já ocupadas por cada bloco desta marcação — um bloco não pode pegar o horário do outro.
+  const mainRange: BusyRange | null =
+    selectedSlot && barberId && totalDuration > 0
+      ? { barberId, start: Date.parse(selectedSlot.iso), end: Date.parse(selectedSlot.iso) + totalDuration * 60_000 }
+      : null;
+  const extraRanges = extras.map((extra): BusyRange | null => {
+    if (!extra.slot || !extra.barberId) return null;
+    const barberOfExtra = barbers.find((b) => b.id === extra.barberId);
+    const minutes = barberOfExtra?.services.filter((s) => extra.serviceIds.includes(s.id)).reduce((sum, s) => sum + s.durationMinutes, 0) ?? 0;
+    if (minutes === 0) return null;
+    const start = Date.parse(extra.slot.iso);
+    return { barberId: extra.barberId, start, end: start + minutes * 60_000 };
+  });
+  const busyFor = (skip: number | "main"): BusyRange[] =>
+    [skip === "main" ? null : mainRange, ...extraRanges.filter((_, i) => i !== skip)].filter((r): r is BusyRange => r !== null);
+  const extrasReady = extras.every((extra) => extra.barberId && extra.serviceIds.length > 0 && extra.slot);
+
+  const isSlotBusy = (slot: Slot) => {
+    const start = Date.parse(slot.iso);
+    const end = start + totalDuration * 60_000;
+    return busyFor("main").some((r) => r.barberId === barberId && start < r.end && r.start < end);
+  };
+
+  function addExtra() {
+    // Já nasce com o mesmo barbeiro e dia do principal; basta escolher serviço e horário.
+    setExtras((prev) => [...prev, { key: Math.random().toString(36).slice(2, 10), barberId, serviceIds: [], date, slot: null, notes: "" }]);
+  }
 
   async function refreshSlots(nextBarberId: string, nextDate: string, duration: number) {
     if (!nextBarberId || duration === 0) {
@@ -153,6 +190,32 @@ export function AdminBookingForm({
       });
       return;
     }
+    if (extras.length > 0) {
+      if (!extrasReady) {
+        setError("Complete os horários extras (barbeiro, serviço e horário) ou remova os que não vai usar.");
+        return;
+      }
+      startTransition(async () => {
+        const client = walkIn ? { walkInName: walkInName.trim() } : { customerId };
+        const result = await createAppointmentsAsAdmin([
+          { ...client, barberId, serviceIds, startTimeIso: selectedSlot.iso, notes: notes.trim() || undefined },
+          ...extras.map((extra) => ({
+            ...client,
+            barberId: extra.barberId,
+            serviceIds: extra.serviceIds,
+            startTimeIso: extra.slot!.iso,
+            notes: extra.notes.trim() || undefined,
+          })),
+        ]);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        toast.success(`${extras.length + 1} horários marcados.`);
+        router.push("/admin/appointments");
+      });
+      return;
+    }
     startTransition(async () => {
       const result = await createAppointmentAsAdmin({
         ...(walkIn ? { walkInName: walkInName.trim() } : { customerId }),
@@ -217,6 +280,17 @@ export function AdminBookingForm({
                   </button>
                 )}
               </div>
+              {customerNote && (
+                <div className="mt-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs">
+                  <p className="font-medium text-foreground">Observação no cadastro de {selectedCustomer?.fullName}:</p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-foreground-muted">{customerNote}</p>
+                  {!notes.includes(customerNote) && (
+                    <button type="button" onClick={() => setNotes((prev) => (prev.trim() ? `${prev.trim()}\n${customerNote}` : customerNote))} className="mt-1.5 text-secondary-light hover:underline">
+                      Usar no agendamento
+                    </button>
+                  )}
+                </div>
+              )}
               {creatingCustomer && !walkIn && (
                 <div className="mt-2 space-y-2 rounded-xl border p-3">
                   <p className="text-xs font-medium text-foreground">Cadastrar novo cliente</p>
@@ -320,8 +394,9 @@ export function AdminBookingForm({
                   <button
                     key={slot.iso}
                     type="button"
+                    disabled={isSlotBusy(slot)}
                     onClick={() => setSelectedSlot(slot)}
-                    className={`rounded-xl border px-4 py-2 text-sm transition-colors ${
+                    className={`rounded-xl border px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                       selectedSlot?.iso === slot.iso
                         ? "border-secondary bg-secondary/20 text-foreground"
                         : "border bg-[var(--surface-subtle)] text-foreground-muted hover:bg-[var(--surface-subtle-hover)]"
@@ -332,6 +407,28 @@ export function AdminBookingForm({
                 ))}
               </div>
             </div>
+          )}
+
+          {extras.map((extra, i) => (
+            <ExtraEntry
+              key={extra.key}
+              index={i}
+              value={extra}
+              barbers={barbers}
+              busy={busyFor(i)}
+              onChange={(next) => setExtras((prev) => prev.map((e, j) => (j === i ? next : e)))}
+              onRemove={() => setExtras((prev) => prev.filter((_, j) => j !== i))}
+            />
+          ))}
+          {!useRecurring && extras.length < MAX_BOOKINGS - 1 && (
+            <button
+              type="button"
+              onClick={addExtra}
+              disabled={!barberId}
+              className="flex items-center gap-1.5 rounded-xl border border-dashed border-secondary/60 px-3 py-2 text-sm text-secondary-light hover:bg-secondary/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" /> Adicionar outro horário (mesmo cliente)
+            </button>
           )}
 
           <div className="space-y-2">
@@ -384,8 +481,8 @@ export function AdminBookingForm({
           )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
-          <Button onClick={submit} disabled={pending || !selectedSlot || !hasClient} className="w-full sm:w-auto">
-            {pending ? "Criando..." : useRecurring ? "Criar agendamento recorrente" : "Criar agendamento"}
+          <Button onClick={submit} disabled={pending || !selectedSlot || !hasClient || !extrasReady} className="w-full sm:w-auto">
+            {pending ? "Criando..." : useRecurring ? "Criar agendamento recorrente" : extras.length > 0 ? `Criar ${extras.length + 1} agendamentos` : "Criar agendamento"}
           </Button>
         </CardContent>
       </Card>

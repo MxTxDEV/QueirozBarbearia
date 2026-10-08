@@ -131,6 +131,9 @@ function DayCarousel({
                 <p className="text-xs text-foreground-muted">
                   {item.block.services} · {item.block.barberName}
                 </p>
+                {item.block.notes && (
+                  <p className="mt-1 rounded-lg bg-secondary/10 px-2 py-1 text-xs italic text-foreground">📝 {item.block.notes}</p>
+                )}
               </div>
               <div className="flex items-center justify-between gap-2 pt-1">
                 <p className="text-sm font-medium text-foreground">{item.block.price}</p>

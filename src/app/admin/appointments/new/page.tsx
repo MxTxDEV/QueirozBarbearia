@@ -48,7 +48,7 @@ export default async function NewAppointmentPage({
       <h1 className="text-2xl font-semibold text-foreground">Novo agendamento</h1>
       <AdminBookingForm
         barbers={data}
-        customers={customers.map((c) => ({ id: c.id, fullName: c.fullName, whatsapp: c.whatsapp }))}
+        customers={customers.map((c) => ({ id: c.id, fullName: c.fullName, whatsapp: c.whatsapp, notes: c.notes }))}
         prefill={prefill}
       />
     </div>

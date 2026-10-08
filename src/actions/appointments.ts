@@ -176,6 +176,88 @@ export async function createAppointmentCore(
   }
 }
 
+/** Quantos horários dá pra marcar de uma vez (o mesmo cliente, na mesma tela). */
+const MAX_BATCH_APPOINTMENTS = 5;
+
+/**
+ * Marca vários horários de uma vez para o MESMO cliente (ex: dois cortes seguidos — pai e filho — ou um horário
+ * depois do outro). Cada item tem seu barbeiro/serviços/horário/observação. Antes de gravar, confere se os horários
+ * não batem entre si (o conflito com a agenda é conferido em cada criação); se algum falhar no meio, os que já
+ * tinham sido criados são desfeitos — ou marca tudo, ou não marca nada.
+ */
+export async function createAppointmentsBatchCore(
+  inputs: CreateAppointmentInput[],
+  companyId: string
+): Promise<ActionResult<{ ids: string[] }>> {
+  try {
+    if (inputs.length === 0) return actionError(new Error("Escolha ao menos um horário."));
+    if (inputs.length > MAX_BATCH_APPOINTMENTS) return actionError(new Error(`Dá pra marcar até ${MAX_BATCH_APPOINTMENTS} horários de uma vez.`));
+    const parsed = inputs.map((input) => createSchema.parse(input));
+
+    // Duração de cada item (soma dos serviços) para detectar horários que se atropelam entre si.
+    const serviceIds = [...new Set(parsed.flatMap((p) => p.serviceIds))];
+    const services = await prisma.service.findMany({ where: { id: { in: serviceIds }, companyId, active: true }, select: { id: true, durationMinutes: true } });
+    const durationById = new Map(services.map((s) => [s.id, s.durationMinutes]));
+    const ranges = parsed.map((p) => {
+      const start = new Date(p.startTimeIso).getTime();
+      const minutes = p.serviceIds.reduce((sum, id) => sum + (durationById.get(id) ?? 0), 0);
+      return { barberId: p.barberId, start, end: start + minutes * 60_000 };
+    });
+    for (let i = 0; i < ranges.length; i += 1) {
+      for (let j = i + 1; j < ranges.length; j += 1) {
+        const a = ranges[i];
+        const b = ranges[j];
+        if (a.barberId === b.barberId && a.start < b.end && b.start < a.end) {
+          return actionError(new Error(`Os horários ${i + 1} e ${j + 1} se sobrepõem no mesmo barbeiro. Ajuste um deles.`));
+        }
+      }
+    }
+
+    const createdIds: string[] = [];
+    for (let i = 0; i < parsed.length; i += 1) {
+      const result = await createAppointmentCore(parsed[i], companyId);
+      if (!result.ok || !result.data) {
+        if (createdIds.length > 0) {
+          await prisma.appointment.deleteMany({ where: { id: { in: createdIds }, companyId } });
+          revalidatePath("/admin/appointments");
+        }
+        const reason = !result.ok ? result.error : "não foi possível marcar.";
+        return actionError(new Error(parsed.length > 1 ? `Horário ${i + 1}: ${reason} Nada foi marcado.` : reason));
+      }
+      createdIds.push(result.data.id);
+    }
+    return actionSuccess({ ids: createdIds });
+  } catch (error) {
+    return actionError(error);
+  }
+}
+
+/** Portal do cliente: vários horários de uma vez (o customerId vem da sessão). */
+export async function createAppointmentsAsCustomer(
+  inputs: Omit<CreateAppointmentInput, "customerId" | "walkInName">[]
+): Promise<ActionResult<{ ids: string[] }>> {
+  const customer = await getCurrentCustomer();
+  if (!customer) return actionError(new Error("Sessão expirada. Faça login novamente."));
+  return createAppointmentsBatchCore(
+    inputs.map((input) => ({ ...input, customerId: customer.id })),
+    customer.companyId
+  );
+}
+
+/** Painel: vários horários de uma vez para o mesmo cliente (cadastrado ou avulso). */
+export async function createAppointmentsAsAdmin(inputs: CreateAppointmentInput[]): Promise<ActionResult<{ ids: string[] }>> {
+  const user = await requireAdminContext();
+  const result = await createAppointmentsBatchCore(inputs, user.companyId);
+  if (result.ok && result.data) {
+    for (const id of result.data.ids) {
+      await notifyAppointmentScheduledByShop(id, user.companyId).catch((error) => {
+        console.error("[whatsapp] falha ao avisar o cliente do agendamento feito pela barbearia:", error);
+      });
+    }
+  }
+  return result;
+}
+
 /** Usado pelo portal do cliente — o customerId vem da sessão autenticada, nunca do cliente. */
 export async function createAppointmentAsCustomer(
   input: Omit<CreateAppointmentInput, "customerId" | "walkInName">
@@ -196,6 +278,25 @@ export async function createAppointmentAsAdmin(input: CreateAppointmentInput): P
     });
   }
   return result;
+}
+
+/** Edita a observação de um agendamento (ex: "corte do filho Pedro"). Vazio apaga. */
+export async function updateAppointmentNotesAction(appointmentId: string, notes: string): Promise<ActionResult> {
+  try {
+    const user = await requireAdminContext();
+    const text = notes.trim();
+    if (text.length > 500) return actionError(new Error("Observação muito longa (máximo 500 caracteres)."));
+    const updated = await prisma.appointment.updateMany({
+      where: { id: appointmentId, companyId: user.companyId },
+      data: { notes: text || null },
+    });
+    if (updated.count === 0) return actionError(new Error("Agendamento não encontrado."));
+    await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_notes_updated", entityType: "appointment", entityId: appointmentId, appointmentId });
+    revalidatePath("/admin/appointments");
+    return actionSuccess();
+  } catch (error) {
+    return actionError(error);
+  }
 }
 
 async function loadAppointmentContext(appointmentId: string, companyId: string) {

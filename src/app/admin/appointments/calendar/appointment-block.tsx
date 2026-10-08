@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { BadgeCheck, Repeat } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, Pencil, Repeat, StickyNote } from "lucide-react";
+import { toast } from "sonner";
+import { updateAppointmentNotesAction } from "@/actions/appointments";
 import { cn } from "@/lib/utils";
 import { isMovableStatus, useAppointmentSwapDnd } from "./appointment-dnd";
 
@@ -99,10 +102,17 @@ export function AppointmentBlock({
           <span className="truncate">
             {data.timeLabel} {data.customerName}
           </span>
+          {data.notes && dense && <span className="truncate font-normal italic text-foreground-muted">· {data.notes}</span>}
         </p>
         {!compact && !dense && (
           <p className="truncate text-[10px] text-foreground-muted">
             {data.services} · {data.barberName}
+          </p>
+        )}
+        {data.notes && !dense && (
+          <p className="flex items-center gap-1 truncate text-[10px] italic text-foreground">
+            <StickyNote className="h-2.5 w-2.5 shrink-0 text-secondary-light" aria-hidden />
+            <span className="truncate">{data.notes}</span>
           </p>
         )}
       </div>
@@ -143,7 +153,6 @@ export function AppointmentBlock({
                   }
                 />
               )}
-              {data.notes && <Row label="Observação" value={data.notes} />}
               {data.recurring && (
                 <div className="flex justify-between gap-4">
                   <dt className="shrink-0 text-foreground-muted">Recorrência</dt>
@@ -158,6 +167,8 @@ export function AppointmentBlock({
                 </div>
               )}
             </dl>
+
+            <NotesEditor appointmentId={data.id} notes={data.notes ?? ""} />
 
             {actions && <div className="mt-4 border-t pt-4">{actions}</div>}
 
@@ -183,6 +194,67 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between gap-4">
       <dt className="shrink-0 text-foreground-muted">{label}</dt>
       <dd className="text-right text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+/** Observação do agendamento, editável na hora (ex: o nome do filho quando só o pai tem cadastro). */
+function NotesEditor({ appointmentId, notes }: { appointmentId: string; notes: string }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(notes);
+  const [pending, startTransition] = useTransition();
+
+  function save() {
+    startTransition(async () => {
+      const result = await updateAppointmentNotesAction(appointmentId, value);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Observação salva.");
+      setEditing(false);
+      router.refresh();
+    });
+  }
+
+  if (!editing) {
+    return (
+      <div className="mt-3 rounded-xl border bg-[var(--surface-subtle)] p-3 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1 text-foreground-muted">
+            <StickyNote className="h-3.5 w-3.5" /> Observação
+          </span>
+          <button type="button" onClick={() => { setValue(notes); setEditing(true); }} className="flex items-center gap-1 text-xs text-secondary-light hover:underline">
+            <Pencil className="h-3 w-3" /> {notes ? "Editar" : "Adicionar"}
+          </button>
+        </div>
+        {notes && <p className="mt-1 whitespace-pre-wrap text-foreground">{notes}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-2 rounded-xl border bg-[var(--surface-subtle)] p-3">
+      <label htmlFor={`notes-${appointmentId}`} className="text-sm text-foreground-muted">Observação</label>
+      <textarea
+        id={`notes-${appointmentId}`}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        rows={3}
+        maxLength={500}
+        autoFocus
+        placeholder="Ex.: corte do filho Pedro"
+        className="w-full rounded-lg border bg-transparent p-2 text-sm text-foreground placeholder:text-foreground-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+      />
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={() => setEditing(false)} disabled={pending} className="rounded-lg px-3 py-1 text-xs text-foreground-muted hover:bg-[var(--surface-subtle-hover)]">
+          Cancelar
+        </button>
+        <button type="button" onClick={save} disabled={pending} className="rounded-lg bg-secondary px-3 py-1 text-xs font-medium text-white disabled:opacity-60">
+          {pending ? "Salvando..." : "Salvar"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -34,6 +34,7 @@ export function PortalAppointmentCard({ appt, actionable }: { appt: Appt; action
         </div>
         <p className="text-sm text-foreground-muted">Barbeiro: {appt.barber.name}</p>
         <p className="text-sm text-foreground-muted">{appt.services.map((s) => s.serviceName).join(", ")}</p>
+        {appt.notes && <p className="text-sm italic text-foreground-muted">📝 {appt.notes}</p>}
         {live && appt.clientConfirmedAt && <p className="text-sm font-medium text-success">✅ Você confirmou este horário</p>}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-sm font-medium text-secondary-light">{formatCurrency(appt.totalPrice.toString())}</span>

@@ -3,19 +3,34 @@
 import { shopNow } from "@/lib/shop-time";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, MessageCircle, Scissors } from "lucide-react";
+import { Check, ChevronLeft, MessageCircle, Plus, Scissors, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency, formatDuration, formatDate } from "@/lib/utils";
 import { getAvailableSlotsAction } from "@/actions/availability";
-import { createAppointmentAsCustomer } from "@/actions/appointments";
+import { createAppointmentAsCustomer, createAppointmentsAsCustomer } from "@/actions/appointments";
 import { WaitlistJoinForm } from "./waitlist-join-form";
 import { RecurringRequestPanel } from "./recurring-request-panel";
 
 type Service = { id: string; name: string; price: number; durationMinutes: number };
 type Barber = { id: string; name: string; photoUrl: string | null; specialties: string[]; services: Service[] };
 type Slot = { iso: string; label: string };
+
+/** Horário já montado que espera o envio junto com o atual (ex: corte seu + corte do filho). */
+type CartItem = {
+  barberId: string;
+  barberName: string;
+  serviceIds: string[];
+  serviceNames: string;
+  date: string;
+  slot: Slot;
+  notes: string;
+  price: number;
+  durationMinutes: number;
+};
+
+const MAX_BOOKINGS = 5;
 
 const STEPS = ["Barbeiro", "Serviços", "Data e hora", "Resumo"] as const;
 
@@ -34,6 +49,8 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [pending, startTransition] = useTransition();
 
   const barber = barbers.find((b) => b.id === barberId) ?? null;
@@ -65,15 +82,54 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
     await loadSlots(date);
   }
 
+  // Horários já guardados no carrinho: o mesmo barbeiro não pode ser marcado em cima deles.
+  const slotTakenByCart = (slot: Slot) => {
+    const start = Date.parse(slot.iso);
+    const end = start + totalDuration * 60_000;
+    return cart.some((item) => {
+      const itemStart = Date.parse(item.slot.iso);
+      return item.barberId === barberId && start < itemStart + item.durationMinutes * 60_000 && itemStart < end;
+    });
+  };
+
+  /** Guarda o horário atual e volta pro começo pra escolher mais um (outro barbeiro, outro serviço ou outro horário). */
+  function addAnother() {
+    if (!barber || !selectedSlot) return;
+    setCart((prev) => [
+      ...prev,
+      {
+        barberId: barber.id,
+        barberName: barber.name,
+        serviceIds,
+        serviceNames: selectedServices.map((s) => s.name).join(", "),
+        date,
+        slot: selectedSlot,
+        notes: notes.trim(),
+        price: totalPrice,
+        durationMinutes: totalDuration,
+      },
+    ]);
+    setBarberId(null);
+    setServiceIds([]);
+    setSlots([]);
+    setSelectedSlot(null);
+    setNotes("");
+    setRepeatEnabled(false);
+    setStep(0);
+  }
+
   function submit() {
     if (!barberId || !selectedSlot) return;
     setSubmitError(null);
     startTransition(async () => {
-      const result = await createAppointmentAsCustomer({
-        barberId,
-        serviceIds,
-        startTimeIso: selectedSlot.iso,
-      });
+      const current = { barberId, serviceIds, startTimeIso: selectedSlot.iso, notes: notes.trim() || undefined };
+      const result =
+        cart.length > 0
+          ? await createAppointmentsAsCustomer([
+              ...cart.map((item) => ({ barberId: item.barberId, serviceIds: item.serviceIds, startTimeIso: item.slot.iso, notes: item.notes || undefined })),
+              current,
+            ])
+          : await createAppointmentAsCustomer(current);
       if (!result.ok) {
         setSubmitError(result.error);
         return;
@@ -99,6 +155,12 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
           </div>
         ))}
       </div>
+
+      {cart.length > 0 && step < 3 && (
+        <p className="rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-foreground">
+          Você já separou {cart.length} {cart.length === 1 ? "horário" : "horários"}. Escolha o próximo — eles serão enviados juntos no final.
+        </p>
+      )}
 
       {step === 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -222,8 +284,9 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
               <button
                 key={slot.iso}
                 type="button"
+                disabled={slotTakenByCart(slot)}
                 onClick={() => setSelectedSlot(slot)}
-                className={`rounded-xl border px-4 py-2 text-sm transition-colors ${
+                className={`rounded-xl border px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                   selectedSlot?.iso === slot.iso
                     ? "border-secondary bg-secondary/20 text-foreground"
                     : "border bg-[var(--surface-subtle)] text-foreground-muted hover:bg-[var(--surface-subtle-hover)]"
@@ -248,7 +311,23 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
       {step === 3 && barber && selectedSlot && (
         <Card>
           <CardContent className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Confirme seu agendamento</h2>
+            <h2 className="text-lg font-semibold text-foreground">{cart.length > 0 ? `Confirme seus ${cart.length + 1} agendamentos` : "Confirme seu agendamento"}</h2>
+            {cart.map((item, i) => (
+              <div key={`${item.slot.iso}-${i}`} className="flex items-start justify-between gap-3 rounded-xl border bg-[var(--surface-subtle)] p-3 text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">
+                    {formatDate(item.date)} às {item.slot.label} · {item.barberName}
+                  </p>
+                  <p className="text-foreground-muted">
+                    {item.serviceNames} · {formatCurrency(item.price)}
+                  </p>
+                  {item.notes && <p className="italic text-foreground-muted">📝 {item.notes}</p>}
+                </div>
+                <button type="button" onClick={() => setCart((prev) => prev.filter((_, j) => j !== i))} className="shrink-0 text-danger" aria-label="Remover este horário">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <dt className="text-foreground-muted">Barbeiro</dt>
@@ -280,6 +359,30 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
                 atendimento. Não é o seu número? Saia e entre de novo com o número certo.
               </p>
             </div>
+            <div className="space-y-1.5">
+              <label htmlFor="portal-notes" className="text-sm font-medium text-foreground-muted">
+                Observação (opcional)
+              </label>
+              <textarea
+                id="portal-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                maxLength={500}
+                placeholder="Ex.: é o corte do meu filho Pedro"
+                className="w-full rounded-xl border bg-[var(--surface-subtle)] p-3 text-sm text-foreground placeholder:text-foreground-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              />
+            </div>
+            {cart.length + 1 < MAX_BOOKINGS && !repeatEnabled && (
+              <button
+                type="button"
+                onClick={addAnother}
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-secondary/60 px-3 py-2 text-sm text-secondary-light hover:bg-secondary/10"
+              >
+                <Plus className="h-4 w-4" /> Marcar mais um horário (outro serviço, outra pessoa ou outro dia)
+              </button>
+            )}
+            {cart.length === 0 && (
             <label className="flex items-center gap-2 text-sm text-foreground-muted">
               <input
                 type="checkbox"
@@ -289,6 +392,7 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
               />
               Repetir este agendamento
             </label>
+            )}
 
             {repeatEnabled && barberId && selectedServices[0] && (
               <RecurringRequestPanel
@@ -307,7 +411,7 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
               </Button>
               {!repeatEnabled && (
                 <Button onClick={submit} disabled={pending} className="flex-1">
-                  {pending ? "Enviando..." : "Solicitar agendamento"}
+                  {pending ? "Enviando..." : cart.length > 0 ? `Solicitar ${cart.length + 1} agendamentos` : "Solicitar agendamento"}
                 </Button>
               )}
             </div>
