@@ -1,13 +1,24 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, Pencil, Repeat, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import { updateAppointmentNotesAction } from "@/actions/appointments";
 import { cn } from "@/lib/utils";
-import { isMovableStatus, useAppointmentSwapDnd } from "./appointment-dnd";
+import { ResizeConfirmDialog, isMovableStatus, useAppointmentSwapDnd } from "./appointment-dnd";
+
+export type ResizeConfig = {
+  /** px por hora da grade — converte o arrastar em minutos. */
+  hourHeight: number;
+  /** Início do atendimento, em minutos desde a meia-noite. */
+  startMinute: number;
+  /** Até onde a grade vai (minutos desde a meia-noite): o limite de esticar. */
+  maxEndMinute: number;
+};
+
+const RESIZE_STEP_MIN = 15;
 
 export type BlockData = {
   id: string;
@@ -50,6 +61,7 @@ export function AppointmentBlock({
   style,
   compact = false,
   dense = false,
+  resize,
 }: {
   data: BlockData;
   actions?: React.ReactNode;
@@ -58,8 +70,15 @@ export function AppointmentBlock({
   compact?: boolean;
   /** Bloco curto demais para duas linhas — mostra só a linha principal. */
   dense?: boolean;
+  /** Liga a bolinha de esticar o atendimento (só na grade de horas). */
+  resize?: ResizeConfig;
 }) {
   const [open, setOpen] = useState(false);
+  // Esticar pela bolinha: enquanto arrasta (ou espera a confirmação) o bloco mostra a duração nova.
+  const [resizing, setResizing] = useState(false);
+  const [previewMin, setPreviewMin] = useState<number | null>(null);
+  const [confirmMin, setConfirmMin] = useState<number | null>(null);
+  const resizeFrom = useRef<{ y: number; duration: number } | null>(null);
   const cancelled = data.status === "CANCELLED" || data.status === "NO_SHOW";
   // Só pendente/confirmado se arrasta (trocar de horário) — concluído, cancelado e falta já aconteceram.
   const movable = isMovableStatus(data.status);
@@ -67,6 +86,38 @@ export function AppointmentBlock({
     { id: data.id, customerName: data.customerName, timeLabel: data.timeLabel, barberName: data.barberName, durationMin: data.durationMin },
     movable
   );
+
+  const canResize = Boolean(resize) && movable && !compact;
+  const previewHeight = resize && previewMin !== null ? Math.max(22, (previewMin / 60) * resize.hourHeight - 2) : null;
+
+  function resizeStart(event: React.PointerEvent<HTMLElement>) {
+    if (!resize) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeFrom.current = { y: event.clientY, duration: data.durationMin };
+    setResizing(true);
+    setPreviewMin(data.durationMin);
+  }
+
+  function resizeMove(event: React.PointerEvent<HTMLElement>) {
+    if (!resize || !resizeFrom.current) return;
+    const deltaMin = (event.clientY - resizeFrom.current.y) / (resize.hourHeight / 60);
+    const wanted = Math.round((resizeFrom.current.duration + deltaMin) / RESIZE_STEP_MIN) * RESIZE_STEP_MIN;
+    const max = Math.max(RESIZE_STEP_MIN, resize.maxEndMinute - resize.startMinute);
+    setPreviewMin(Math.min(max, Math.max(RESIZE_STEP_MIN, wanted)));
+  }
+
+  function resizeEnd(event: React.PointerEvent<HTMLElement>) {
+    if (!resizeFrom.current) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    resizeFrom.current = null;
+    setResizing(false);
+    if (previewMin !== null && previewMin !== data.durationMin) setConfirmMin(previewMin);
+    else setPreviewMin(null);
+  }
+
+  const endLabel = resize && previewMin !== null ? minutesLabel(resize.startMinute + previewMin) : null;
 
   return (
     <>
@@ -82,7 +133,8 @@ export function AppointmentBlock({
           }
         }}
         {...handlers}
-        style={style}
+        draggable={movable && !resizing && confirmMin === null}
+        style={previewHeight !== null ? { ...style, height: previewHeight, zIndex: 30 } : style}
         aria-label={`${data.timeLabel} — ${data.customerName}, ${data.statusLabel}`}
         title={movable ? "Arraste sobre outro cliente para trocar, ou para um horário livre para mudar" : undefined}
         className={cn(
@@ -93,7 +145,8 @@ export function AppointmentBlock({
           movable && "cursor-grab active:cursor-grabbing",
           dragging && "opacity-40",
           dragOver && "z-20 scale-[1.03] ring-2 ring-secondary",
-          compact ? "w-full" : "absolute"
+          compact ? "w-full" : "absolute",
+          resizing && "ring-2 ring-secondary"
         )}
       >
         <p className={cn("flex items-center gap-1 truncate text-[11px] font-semibold text-foreground", cancelled && "line-through")}>
@@ -115,7 +168,43 @@ export function AppointmentBlock({
             <span className="truncate">{data.notes}</span>
           </p>
         )}
+        {endLabel && (
+          <span className="pointer-events-none absolute bottom-1 right-9 rounded bg-secondary-dark px-1 text-[10px] font-semibold text-white">até {endLabel}</span>
+        )}
+        {canResize && (
+          <span
+            role="separator"
+            aria-label="Arraste para aumentar ou diminuir o tempo do atendimento"
+            title="Arraste para baixo para aumentar o tempo do atendimento"
+            draggable={false}
+            onPointerDown={resizeStart}
+            onPointerMove={resizeMove}
+            onPointerUp={resizeEnd}
+            onPointerCancel={resizeEnd}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            className="absolute bottom-0 right-1 z-10 flex h-4 w-8 cursor-ns-resize touch-none items-end justify-center"
+          >
+            <span className="mb-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-secondary shadow transition-transform group-hover:scale-125" />
+          </span>
+        )}
       </div>
+
+      {confirmMin !== null && resize && (
+        <ResizeConfirmDialog
+          source={{ id: data.id, customerName: data.customerName, timeLabel: data.timeLabel, barberName: data.barberName, durationMin: data.durationMin }}
+          startMinute={resize.startMinute}
+          newDurationMin={confirmMin}
+          onClose={() => {
+            setConfirmMin(null);
+            setPreviewMin(null);
+          }}
+          onDone={() => {
+            setConfirmMin(null);
+            setPreviewMin(null);
+          }}
+        />
+      )}
 
       {dialog}
 
@@ -257,4 +346,8 @@ function NotesEditor({ appointmentId, notes }: { appointmentId: string; notes: s
       </div>
     </div>
   );
+}
+
+function minutesLabel(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }

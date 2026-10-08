@@ -132,6 +132,7 @@ export function BarberDayGrid({
                       data={appt.block}
                       actions={appt.actions}
                       dense={height < 38 || appt.lanes > 2}
+                      resize={{ hourHeight: HOUR_HEIGHT, startMinute: minutesFromMidnight(appt.startTime), maxEndMinute: endHour * 60 }}
                       style={{
                         top: Math.max(0, top),
                         height,

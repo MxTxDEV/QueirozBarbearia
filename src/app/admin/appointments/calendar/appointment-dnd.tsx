@@ -3,12 +3,13 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, CalendarClock } from "lucide-react";
+import { ArrowLeftRight, CalendarClock, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { minutesToHHMM } from "@/lib/quick-slots";
 import { swapAppointmentsAction } from "@/actions/appointment-swap";
 import { moveAppointmentAction } from "@/actions/appointment-move";
+import { resizeAppointmentAction } from "@/actions/appointment-resize";
 import { TableRow } from "@/components/ui/table";
 import type { BlockData } from "./appointment-block";
 import type { TouchDropTarget } from "./touch-drag";
@@ -388,6 +389,66 @@ function MoveConfirmDialog({
         </label>
       )}
       <p className="text-xs text-foreground-muted">Os serviços, o valor e a duração continuam os mesmos. Nada é cancelado.</p>
+    </ModalShell>
+  );
+}
+
+/** Confirmação de "aumentar/diminuir o atendimento" (bolinha de baixo do bloco). */
+export function ResizeConfirmDialog({
+  source,
+  startMinute,
+  newDurationMin,
+  onClose,
+  onDone,
+}: {
+  source: DragSource;
+  /** Início do atendimento, em minutos desde a meia-noite. */
+  startMinute: number;
+  newDurationMin: number;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const fmt = (minutes: number) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return h > 0 ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m}min`;
+  };
+
+  function confirm() {
+    setError(null);
+    startTransition(async () => {
+      const result = await resizeAppointmentAction({ appointmentId: source.id, durationMin: newDurationMin });
+      if (result.ok) {
+        toast.success(`${source.customerName}: atendimento até ${result.data?.endLabel ?? minutesToHHMM(startMinute + newDurationMin)}.`);
+        router.refresh();
+        onDone();
+      } else setError(result.error);
+    });
+  }
+
+  return (
+    <ModalShell
+      title={newDurationMin > source.durationMin ? "Aumentar o atendimento?" : "Diminuir o atendimento?"}
+      icon={<Timer className="h-5 w-5 text-secondary-light" />}
+      pending={pending}
+      error={error}
+      confirmLabel="Confirmar"
+      pendingLabel="Salvando..."
+      onConfirm={confirm}
+      onClose={onClose}
+    >
+      <Line name={source.customerName}>
+        {minutesToHHMM(startMinute)}–{minutesToHHMM(startMinute + source.durationMin)} ({fmt(source.durationMin)})
+        <span className="block text-foreground">
+          → {minutesToHHMM(startMinute)}–{minutesToHHMM(startMinute + newDurationMin)} ({fmt(newDurationMin)})
+        </span>
+      </Line>
+      <p className="text-xs text-foreground-muted">
+        Pode passar do almoço ou do fim do expediente. Só não pode bater em outro cliente. Os serviços e o valor continuam os mesmos.
+      </p>
     </ModalShell>
   );
 }

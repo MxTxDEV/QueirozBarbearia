@@ -210,6 +210,7 @@ export function TimeGrid({
                       // Abaixo de ~38px não cabem as duas linhas sem cortar texto.
                       // Em coluna estreita (3+ simultâneos) também só cabe uma.
                       dense={height < 38 || appt.lanes > 2}
+                      resize={{ hourHeight: HOUR_HEIGHT, startMinute: minutesFromMidnight(appt.startTime), maxEndMinute: endHour * 60 }}
                       style={{
                         top: Math.max(0, top),
                         height,
