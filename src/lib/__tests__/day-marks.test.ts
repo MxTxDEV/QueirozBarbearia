@@ -24,7 +24,7 @@ describe("day-marks", () => {
     ];
     const forB1 = closuresFor(marks, "b1");
     expect(forB1.wholeDay).toBeNull();
-    expect(forB1.windows).toEqual([{ start: 840, end: 990, reason: "Fora de expediente — Evento (14:00–16:30)" }]);
+    expect(forB1.windows).toEqual([{ start: 840, end: 990, reason: "Fora de expediente — Evento (14:00–16:30)", kind: "OUT_OF_HOURS" }]);
     const forB2 = closuresFor(marks, "b2");
     expect(forB2.wholeDay).toBe("Folga — Marcos");
     expect(closuresFor([mark({ title: "Natal" })], "b1").wholeDay).toBe("Feriado — Natal");
