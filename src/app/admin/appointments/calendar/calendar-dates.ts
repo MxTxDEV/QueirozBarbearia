@@ -107,13 +107,17 @@ export function minutesFromMidnight(d: Date) {
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
+/** Janela padrão da grade: das 05h às 22h, pra dar pra marcar cedo/tarde mesmo nos dias de expediente diferente. */
+export const GRID_START_HOUR = 5;
+export const GRID_END_HOUR = 22;
+
 /**
- * Janela de horas da grade. Parte de 08h–20h e expande conforme os
- * agendamentos existentes, para nenhum bloco ficar fora da grade.
+ * Janela de horas da grade. Parte de 05h–22h e expande se algum
+ * agendamento existente ficar fora disso, para nenhum bloco ficar de fora.
  */
 export function gridHourBounds(appointments: { startTime: Date; endTime: Date }[]) {
-  let startHour = 8;
-  let endHour = 20;
+  let startHour = GRID_START_HOUR;
+  let endHour = GRID_END_HOUR;
   for (const a of appointments) {
     startHour = Math.min(startHour, a.startTime.getUTCHours());
     const endsAt = a.endTime.getUTCMinutes() > 0 ? a.endTime.getUTCHours() + 1 : a.endTime.getUTCHours();
