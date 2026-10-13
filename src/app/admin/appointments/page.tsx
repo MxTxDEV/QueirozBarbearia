@@ -141,8 +141,9 @@ export default async function AppointmentsPage({
   }
 
   /** Atalho do calendário: abre "Novo agendamento" já com data/hora/barbeiro preenchidos. */
-  function buildNewHref(args: { date: string; time?: string; barberId?: string }) {
+  function buildNewHref(args: { date: string; time?: string; barberId?: string; outside?: boolean }) {
     const params = new URLSearchParams({ date: args.date });
+    if (args.outside) params.set("outside", "1");
     if (args.time) params.set("time", args.time);
     const targetBarber = args.barberId ?? barberId;
     if (targetBarber) params.set("barberId", targetBarber);
@@ -530,8 +531,8 @@ export default async function AppointmentsPage({
                     openSlots={dayOpenSlots}
                     closedSegments={dayClosedSegments}
                     breakInfo={dayBreakInfo}
-                    buildNewHref={({ time, barberId: slotBarberId }) =>
-                      buildNewHref({ date: toISODate(from), time, barberId: slotBarberId })
+                    buildNewHref={({ time, barberId: slotBarberId, outside }) =>
+                      buildNewHref({ date: toISODate(from), time, barberId: slotBarberId, outside })
                     }
                     emptyBarberLabel={
                       isBarberLogin ? "Nenhum barbeiro vinculado a este login." : "Cadastre um barbeiro pra ver a agenda por aqui."

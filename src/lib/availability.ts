@@ -8,6 +8,13 @@ export { timeOnDate, dateOnly, overlaps };
 
 const SLOT_STEP_MINUTES = 15;
 
+/**
+ * Janela em que o painel pode marcar "fora do expediente" (mesmo da grade da agenda): das 05h às 22h.
+ * Só vale para quem é da barbearia — o portal do cliente continua preso ao expediente do barbeiro.
+ */
+export const OUTSIDE_HOURS_START = "05:00";
+export const OUTSIDE_HOURS_END = "22:00";
+
 /** Minutos do dia → "HH:MM" (timeOnDate recebe texto). */
 const minutesToHHMMLocal = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED"] as const;
@@ -30,7 +37,7 @@ type ConflictCheckClient = Pick<
 /** Marcas do dia (feriado/folga/fora de expediente) que valem para este barbeiro: o dia todo fechado e/ou janelas fechadas. */
 async function dayClosures(client: ConflictCheckClient, barberId: string, day: Date) {
   const barber = await client.barber.findUnique({ where: { id: barberId }, select: { companyId: true } });
-  if (!barber) return { wholeDay: null as string | null, windows: [] as { start: number; end: number; reason: string }[] };
+  if (!barber) return { wholeDay: null as string | null, windows: [] as { start: number; end: number; reason: string; kind: string }[] };
   const marks = await client.calendarDayMark.findMany({
     where: { companyId: barber.companyId, date: day, OR: [{ barberId: null }, { barberId }] },
   });
@@ -48,15 +55,21 @@ export async function getAvailableSlots(params: {
   barberId: string;
   date: Date;
   totalDurationMinutes: number;
+  /** Painel: também oferece horários fora do expediente/intervalo (folga, férias e feriado continuam fechados). */
+  allowOutsideHours?: boolean;
 }): Promise<TimeSlot[]> {
   const day = dateOnly(params.date);
   const weekday = day.getUTCDay();
+  const outside = params.allowOutsideHours === true;
 
-  const workingHour = await prisma.barberWorkingHour.findUnique({
+  const scheduledHour = await prisma.barberWorkingHour.findUnique({
     where: { barberId_weekday: { barberId: params.barberId, weekday } },
   });
-  if (!workingHour) return [];
-
+  if (!scheduledHour && !outside) return [];
+  // Fora do expediente: a janela é a ampla (05h–22h) e o intervalo de almoço não conta.
+  const workingHour = outside
+    ? { startTime: OUTSIDE_HOURS_START, endTime: OUTSIDE_HOURS_END, breakStart: null, breakEnd: null }
+    : scheduledHour!;
   const timeOffs = await prisma.barberTimeOff.findMany({
     where: {
       barberId: params.barberId,
@@ -76,7 +89,7 @@ export async function getAvailableSlots(params: {
   const breakOverride = await prisma.barberBreakOverride.findUnique({
     where: { barberId_date: { barberId: params.barberId, date: day } },
   });
-  const dayBreak = resolveBreak(workingHour, breakOverride);
+  const dayBreak = outside ? null : resolveBreak(workingHour, breakOverride);
   const breakStart = dayBreak ? timeOnDate(day, dayBreak.start) : null;
   const breakEnd = dayBreak ? timeOnDate(day, dayBreak.end) : null;
 
@@ -109,7 +122,7 @@ export async function getAvailableSlots(params: {
     }),
   ]);
 
-  const markedWindows = marked.windows.map((w) => ({ start: timeOnDate(day, minutesToHHMMLocal(w.start)), end: timeOnDate(day, minutesToHHMMLocal(w.end)) }));
+  const markedWindows = marked.windows.filter((w) => !(outside && w.kind === "OUT_OF_HOURS")).map((w) => ({ start: timeOnDate(day, minutesToHHMMLocal(w.start)), end: timeOnDate(day, minutesToHHMMLocal(w.end)) }));
 
   const slots: TimeSlot[] = [];
   const durationMs = params.totalDurationMinutes * 60_000;
@@ -168,6 +181,8 @@ export async function hasSchedulingConflict(
     /** Um ou mais agendamentos a ignorar (a troca de horários ignora os DOIS que estão sendo trocados). */
     excludeAppointmentId?: string | string[];
     excludeWaitlistEntryId?: string;
+    /** Painel: aceita fora do expediente e no intervalo (mas não folga, férias, feriado, bloqueio nem outro cliente). */
+    allowOutsideHours?: boolean;
   },
   client: ConflictCheckClient = prisma
 ): Promise<boolean> {
@@ -182,19 +197,22 @@ export async function hasSchedulingConflict(
   // ter vindo do seletor de horários da UI (ex: ocorrências de recorrência,
   // que calculam o horário a partir da regra da série, não do seletor).
   const weekday = day.getUTCDay();
-  const workingHour = await client.barberWorkingHour.findUnique({
+  const outside = params.allowOutsideHours === true;
+  const scheduledHour = await client.barberWorkingHour.findUnique({
     where: { barberId_weekday: { barberId: params.barberId, weekday } },
   });
-  if (!workingHour) return true;
+  if (!scheduledHour && !outside) return true;
 
-  const dayStart = timeOnDate(day, workingHour.startTime);
-  const dayEnd = timeOnDate(day, workingHour.endTime);
+  const dayStart = timeOnDate(day, outside ? OUTSIDE_HOURS_START : scheduledHour!.startTime);
+  const dayEnd = timeOnDate(day, outside ? OUTSIDE_HOURS_END : scheduledHour!.endTime);
   if (params.startTime < dayStart || params.endTime > dayEnd) return true;
 
-  const breakOverride = await client.barberBreakOverride.findUnique({
-    where: { barberId_date: { barberId: params.barberId, date: day } },
-  });
-  const dayBreak = resolveBreak(workingHour, breakOverride);
+  const breakOverride = outside
+    ? null
+    : await client.barberBreakOverride.findUnique({
+        where: { barberId_date: { barberId: params.barberId, date: day } },
+      });
+  const dayBreak = scheduledHour && !outside ? resolveBreak(scheduledHour, breakOverride) : null;
   if (dayBreak) {
     const breakStart = timeOnDate(day, dayBreak.start);
     const breakEnd = timeOnDate(day, dayBreak.end);
@@ -210,6 +228,7 @@ export async function hasSchedulingConflict(
   const marked = await dayClosures(client, params.barberId, day);
   if (marked.wholeDay) return true;
   for (const window of marked.windows) {
+    if (outside && window.kind === "OUT_OF_HOURS") continue;
     if (overlaps(params.startTime, params.endTime, timeOnDate(day, minutesToHHMMLocal(window.start)), timeOnDate(day, minutesToHHMMLocal(window.end)))) return true;
   }
 

@@ -45,7 +45,7 @@ export function BarberDayGrid({
   closedSegments?: Record<string, ClosedSegment[]>;
   /** Intervalo arrastável de cada barbeiro neste dia (ausente = não dá pra mover). */
   breakInfo?: Record<string, BreakInfo | undefined>;
-  buildNewHref?: (args: { time: string; barberId: string }) => string;
+  buildNewHref?: (args: { time: string; barberId: string; outside?: boolean }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const gridHeight = hours.length * HOUR_HEIGHT;
@@ -102,7 +102,14 @@ export function BarberDayGrid({
                 {(closedSegments?.[barber.id] ?? [])
                   .filter((segment) => !(breakInfo?.[barber.id] && segment.reason === "Intervalo"))
                   .map((segment) => (
-                    <ClosedOverlay key={`${segment.start}-${segment.reason}`} segment={segment} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
+                    <ClosedOverlay
+                      key={`${segment.start}-${segment.reason}`}
+                      segment={segment}
+                      startHour={startHour}
+                      endHour={endHour}
+                      hourHeight={HOUR_HEIGHT}
+                      hrefTemplate={buildNewHref?.({ time: "TIME_PLACEHOLDER", barberId: barber.id, outside: true })}
+                    />
                   ))}
                 {breakInfo?.[barber.id] && (
                   <DraggableBreak info={breakInfo[barber.id]!} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />

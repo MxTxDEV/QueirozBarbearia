@@ -85,12 +85,12 @@ export async function moveAppointmentAction(input: MoveAppointmentInput): Promis
     await prisma.$transaction(
       async (tx) => {
         const conflict = await hasSchedulingConflict(
-          { barberId: targetBarberId, startTime, endTime, excludeAppointmentId: appt.id },
+          { barberId: targetBarberId, startTime, endTime, excludeAppointmentId: appt.id, allowOutsideHours: true },
           tx
         );
         if (conflict) {
           throw new MoveError(
-            `${appointmentClientName(appt)} não cabe em ${formatDate(appointmentDate)} ${formatTime(startTime)}–${formatTime(endTime)} com ${barber.name}: fora do expediente, no intervalo/folga, ou já há outro agendamento nesse período.`
+            `${appointmentClientName(appt)} não cabe em ${formatDate(appointmentDate)} ${formatTime(startTime)}–${formatTime(endTime)} com ${barber.name}: em dia de folga/feriado, em bloqueio, ou já há outro agendamento nesse período.`
           );
         }
 

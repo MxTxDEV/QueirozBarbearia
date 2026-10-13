@@ -5,12 +5,12 @@ import { getCurrentCustomer } from "@/lib/customer-auth";
 import { requireAdminContext } from "@/lib/require-admin";
 import { getAvailableSlots } from "@/lib/availability";
 
-async function computeSlots(barberId: string, companyId: string, dateStr: string, totalDurationMinutes: number) {
+async function computeSlots(barberId: string, companyId: string, dateStr: string, totalDurationMinutes: number, allowOutsideHours = false) {
   const barber = await prisma.barber.findFirst({ where: { id: barberId, companyId }, select: { id: true } });
   if (!barber) return [];
 
   const date = new Date(`${dateStr}T00:00:00.000Z`);
-  const slots = await getAvailableSlots({ barberId, date, totalDurationMinutes });
+  const slots = await getAvailableSlots({ barberId, date, totalDurationMinutes, allowOutsideHours });
   return slots.map((s) => ({ iso: s.start.toISOString(), label: s.label }));
 }
 
@@ -33,7 +33,7 @@ export async function getAvailableSlotsAction(barberId: string, dateStr: string,
  * cliente: esse era o bug relatado de "nenhum horário disponível em
  * nenhuma data" ao agendar pelo painel.
  */
-export async function getAvailableSlotsForAdminAction(barberId: string, dateStr: string, totalDurationMinutes: number) {
+export async function getAvailableSlotsForAdminAction(barberId: string, dateStr: string, totalDurationMinutes: number, allowOutsideHours = false) {
   const user = await requireAdminContext();
-  return computeSlots(barberId, user.companyId, dateStr, totalDurationMinutes);
+  return computeSlots(barberId, user.companyId, dateStr, totalDurationMinutes, allowOutsideHours === true);
 }

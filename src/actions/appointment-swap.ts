@@ -114,12 +114,12 @@ export async function swapAppointmentsAction(
           [second, secondTo],
         ] as const) {
           const conflict = await hasSchedulingConflict(
-            { barberId: to.barberId, startTime: to.start, endTime: to.end, excludeAppointmentId: [first.id, second.id] },
+            { barberId: to.barberId, startTime: to.start, endTime: to.end, excludeAppointmentId: [first.id, second.id], allowOutsideHours: true },
             tx
           );
           if (conflict) {
             throw new SwapError(
-              `${appointmentClientName(appt)} não cabe no horário de ${formatTime(to.start)}–${formatTime(to.end)} (${formatDate(to.appointmentDate)}): há outro agendamento, bloqueio ou fica fora do expediente/intervalo.`
+              `${appointmentClientName(appt)} não cabe no horário de ${formatTime(to.start)}–${formatTime(to.end)} (${formatDate(to.appointmentDate)}): há outro agendamento, bloqueio ou folga.`
             );
           }
         }

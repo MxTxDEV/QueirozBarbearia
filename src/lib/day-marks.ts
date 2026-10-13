@@ -58,13 +58,13 @@ export function markReason(mark: MarkLike): string {
 export const appliesToBarber = (mark: Pick<MarkLike, "barberId">, barberId: string) => mark.barberId === null || mark.barberId === barberId;
 
 /** O que as marcas aplicáveis a UM barbeiro naquele dia fecham: o dia todo (com o motivo) e/ou janelas. */
-export function closuresFor(marks: MarkLike[], barberId: string): { wholeDay: string | null; windows: (Interval & { reason: string })[] } {
+export function closuresFor(marks: MarkLike[], barberId: string): { wholeDay: string | null; windows: (Interval & { reason: string; kind: string })[] } {
   let wholeDay: string | null = null;
-  const windows: (Interval & { reason: string })[] = [];
+  const windows: (Interval & { reason: string; kind: string })[] = [];
   for (const mark of marks) {
     if (!appliesToBarber(mark, barberId)) continue;
     if (hasWindow(mark)) {
-      windows.push({ start: hhmmToMinutes(mark.startTime as string), end: hhmmToMinutes(mark.endTime as string), reason: markReason(mark) });
+      windows.push({ start: hhmmToMinutes(mark.startTime as string), end: hhmmToMinutes(mark.endTime as string), reason: markReason(mark), kind: mark.kind });
     } else {
       wholeDay = wholeDay ?? markReason(mark);
     }

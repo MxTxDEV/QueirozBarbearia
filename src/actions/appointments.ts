@@ -51,7 +51,7 @@ type CreateAppointmentInput = z.infer<typeof createSchema>;
 export async function createAppointmentCore(
   input: CreateAppointmentInput,
   companyId: string,
-  options?: { excludeWaitlistEntryId?: string }
+  options?: { excludeWaitlistEntryId?: string; /** Só o painel: aceita fora do expediente/intervalo. */ allowOutsideHours?: boolean }
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const data = createSchema.parse(input);
@@ -84,6 +84,7 @@ export async function createAppointmentCore(
       startTime,
       endTime,
       excludeWaitlistEntryId: options?.excludeWaitlistEntryId,
+      allowOutsideHours: options?.allowOutsideHours,
     });
     if (conflict) {
       return actionError(new Error("Esse horário acabou de ser reservado por outro cliente. Escolha outro horário."));
@@ -98,7 +99,7 @@ export async function createAppointmentCore(
     const appointment = await prisma.$transaction(
       async (tx) => {
         const conflictInTx = await hasSchedulingConflict(
-          { barberId: data.barberId, startTime, endTime, excludeWaitlistEntryId: options?.excludeWaitlistEntryId },
+          { barberId: data.barberId, startTime, endTime, excludeWaitlistEntryId: options?.excludeWaitlistEntryId, allowOutsideHours: options?.allowOutsideHours },
           tx
         );
         if (conflictInTx) throw new Error("CONFLICT");
@@ -187,7 +188,8 @@ const MAX_BATCH_APPOINTMENTS = 5;
  */
 export async function createAppointmentsBatchCore(
   inputs: CreateAppointmentInput[],
-  companyId: string
+  companyId: string,
+  options?: { allowOutsideHours?: boolean }
 ): Promise<ActionResult<{ ids: string[] }>> {
   try {
     if (inputs.length === 0) return actionError(new Error("Escolha ao menos um horário."));
@@ -215,7 +217,7 @@ export async function createAppointmentsBatchCore(
 
     const createdIds: string[] = [];
     for (let i = 0; i < parsed.length; i += 1) {
-      const result = await createAppointmentCore(parsed[i], companyId);
+      const result = await createAppointmentCore(parsed[i], companyId, { allowOutsideHours: options?.allowOutsideHours });
       if (!result.ok || !result.data) {
         if (createdIds.length > 0) {
           await prisma.appointment.deleteMany({ where: { id: { in: createdIds }, companyId } });
@@ -245,9 +247,12 @@ export async function createAppointmentsAsCustomer(
 }
 
 /** Painel: vários horários de uma vez para o mesmo cliente (cadastrado ou avulso). */
-export async function createAppointmentsAsAdmin(inputs: CreateAppointmentInput[]): Promise<ActionResult<{ ids: string[] }>> {
+export async function createAppointmentsAsAdmin(
+  inputs: CreateAppointmentInput[],
+  options?: { allowOutsideHours?: boolean }
+): Promise<ActionResult<{ ids: string[] }>> {
   const user = await requireAdminContext();
-  const result = await createAppointmentsBatchCore(inputs, user.companyId);
+  const result = await createAppointmentsBatchCore(inputs, user.companyId, { allowOutsideHours: options?.allowOutsideHours === true });
   if (result.ok && result.data) {
     for (const id of result.data.ids) {
       await notifyAppointmentScheduledByShop(id, user.companyId).catch((error) => {
@@ -268,9 +273,12 @@ export async function createAppointmentAsCustomer(
 }
 
 /** Usado pelo painel administrativo, onde o admin escolhe o cliente manualmente. */
-export async function createAppointmentAsAdmin(input: CreateAppointmentInput): Promise<ActionResult<{ id: string }>> {
+export async function createAppointmentAsAdmin(
+  input: CreateAppointmentInput,
+  options?: { allowOutsideHours?: boolean }
+): Promise<ActionResult<{ id: string }>> {
   const user = await requireAdminContext();
-  const result = await createAppointmentCore(input, user.companyId);
+  const result = await createAppointmentCore(input, user.companyId, { allowOutsideHours: options?.allowOutsideHours === true });
   // O barbeiro/recepção marcou pelo cliente: avisa o cliente no WhatsApp na hora (nunca derruba o agendamento).
   if (result.ok && result.data) {
     await notifyAppointmentScheduledByShop(result.data.id, user.companyId).catch((error) => {

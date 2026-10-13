@@ -7,7 +7,7 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 export default async function NewAppointmentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; time?: string; barberId?: string }>;
+  searchParams: Promise<{ date?: string; time?: string; barberId?: string; outside?: string }>;
 }) {
   const user = await requireAdminContext();
   const sp = await searchParams;
@@ -40,6 +40,7 @@ export default async function NewAppointmentPage({
     date: sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : undefined,
     time: sp.time && /^\d{2}:\d{2}$/.test(sp.time) ? sp.time : undefined,
     barberId: sp.barberId && data.some((b) => b.id === sp.barberId) ? sp.barberId : undefined,
+    outside: sp.outside === "1",
   };
 
   return (

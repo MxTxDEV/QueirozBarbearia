@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -30,6 +30,7 @@ export function ExtraEntry({
   value,
   barbers,
   busy,
+  allowOutsideHours,
   onChange,
   onRemove,
 }: {
@@ -38,6 +39,8 @@ export function ExtraEntry({
   barbers: Barber[];
   /** Horários já escolhidos nos outros blocos — não dá pra marcar por cima deles. */
   busy: BusyRange[];
+  /** Mesma opção do formulário: oferece horários fora do expediente. */
+  allowOutsideHours: boolean;
   onChange: (next: ExtraBooking) => void;
   onRemove: () => void;
 }) {
@@ -56,7 +59,7 @@ export function ExtraEntry({
     }
     setLoading(true);
     try {
-      setSlots(await getAvailableSlotsForAdminAction(barberId, date, minutes));
+      setSlots(await getAvailableSlotsForAdminAction(barberId, date, minutes, allowOutsideHours));
     } finally {
       setLoading(false);
     }
@@ -67,6 +70,20 @@ export function ExtraEntry({
     const end = start + duration * 60_000;
     return busy.some((r) => r.barberId === value.barberId && start < r.end && r.start < end);
   };
+
+  // A opção "fora do expediente" mudou: recarrega os horários do bloco (a escolha anterior já foi limpa pelo formulário).
+  useEffect(() => {
+    if (!value.barberId || duration === 0) return;
+    let cancelled = false;
+    getAvailableSlotsForAdminAction(value.barberId, value.date, duration, allowOutsideHours).then((result) => {
+      if (!cancelled) setSlots(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Só reage à troca da opção; o resto recarrega pelos próprios cliques do bloco.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowOutsideHours]);
 
   const htmlId = `extra-${value.key}`;
 

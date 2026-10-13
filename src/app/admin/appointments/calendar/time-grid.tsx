@@ -98,7 +98,7 @@ export function TimeGrid({
   breakMoveHint?: string;
   /** Dias marcados (feriado/folga/fora de expediente) por YYYY-MM-DD — aparecem no cabeçalho do dia. */
   dayMarks?: Record<string, DayMarkRow[]>;
-  buildNewHref?: (args: { date: string; time: string; barberId?: string }) => string;
+  buildNewHref?: (args: { date: string; time: string; barberId?: string; outside?: boolean }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const gridHeight = hours.length * HOUR_HEIGHT;
@@ -178,6 +178,7 @@ export function TimeGrid({
                       endHour={endHour}
                       hourHeight={HOUR_HEIGHT}
                       hint={segment.reason === "Intervalo" ? breakMoveHint : undefined}
+                      hrefTemplate={buildNewHref?.({ date: day.toISOString().slice(0, 10), time: "TIME_PLACEHOLDER", outside: true })}
                     />
                   ))}
                 {breakInfo?.[day.toISOString().slice(0, 10)] && (

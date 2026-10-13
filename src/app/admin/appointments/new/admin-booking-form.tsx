@@ -30,7 +30,7 @@ function todayIso() {
   return shopNow().toISOString().slice(0, 10);
 }
 
-export type BookingPrefill = { date?: string; time?: string; barberId?: string };
+export type BookingPrefill = { date?: string; time?: string; barberId?: string; outside?: boolean };
 
 export function AdminBookingForm({
   barbers,
@@ -68,6 +68,8 @@ export function AdminBookingForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [extras, setExtras] = useState<ExtraBooking[]>([]);
+  // Fora do expediente (e no intervalo): o painel pode marcar das 05h às 22h, além do horário do barbeiro.
+  const [outsideHours, setOutsideHours] = useState(prefill?.outside ?? false);
 
   const barber = barbers.find((b) => b.id === barberId) ?? null;
   const selectedServices = useMemo(
@@ -78,7 +80,9 @@ export function AdminBookingForm({
   // Recorrência é de cliente cadastrado e de um serviço por vez (a série repete "o mesmo serviço").
   const recurringBlockedReason = walkIn
     ? "Cliente não cadastrado não pode ter recorrência — cadastre o cliente."
-    : extras.length > 0
+    : outsideHours
+      ? "Recorrência segue o expediente do barbeiro — desmarque \"fora do expediente\" para repetir."
+      : extras.length > 0
       ? "Com mais de um horário na mesma marcação não dá pra repetir — remova os horários extras."
       : serviceIds.length > 1
         ? "A recorrência repete um serviço só — deixe um serviço selecionado."
@@ -117,7 +121,7 @@ export function AdminBookingForm({
     setExtras((prev) => [...prev, { key: Math.random().toString(36).slice(2, 10), barberId, serviceIds: [], date, slot: null, notes: "" }]);
   }
 
-  async function refreshSlots(nextBarberId: string, nextDate: string, duration: number) {
+  async function refreshSlots(nextBarberId: string, nextDate: string, duration: number, outside = outsideHours) {
     if (!nextBarberId || duration === 0) {
       setSlots([]);
       return;
@@ -125,7 +129,7 @@ export function AdminBookingForm({
     setLoadingSlots(true);
     setSelectedSlot(null);
     try {
-      const result = await getAvailableSlotsForAdminAction(nextBarberId, nextDate, duration);
+      const result = await getAvailableSlotsForAdminAction(nextBarberId, nextDate, duration, outside);
       setSlots(result);
       if (desiredTime && nextDate === (prefill?.date ?? nextDate)) {
         const match = result.find((slot) => slot.label === desiredTime) ?? null;
@@ -206,7 +210,7 @@ export function AdminBookingForm({
             startTimeIso: extra.slot!.iso,
             notes: extra.notes.trim() || undefined,
           })),
-        ]);
+        ], { allowOutsideHours: outsideHours });
         if (!result.ok) {
           setError(result.error);
           return;
@@ -223,7 +227,7 @@ export function AdminBookingForm({
         serviceIds,
         startTimeIso: selectedSlot.iso,
         notes: notes.trim() || undefined,
-      });
+      }, { allowOutsideHours: outsideHours });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -375,6 +379,21 @@ export function AdminBookingForm({
           {barberId && serviceIds.length > 0 && (
             <div className="space-y-2">
               <Label>Data</Label>
+              <label className="flex items-center gap-2 text-xs text-foreground-muted">
+                <input
+                  type="checkbox"
+                  checked={outsideHours}
+                  onChange={(e) => {
+                    setOutsideHours(e.target.checked);
+                    if (e.target.checked) setRecurring(false);
+                    // Os horários mudam (mais ou menos opções): recarrega e limpa a escolha de cada bloco.
+                    setExtras((prev) => prev.map((extra) => ({ ...extra, slot: null })));
+                    refreshSlots(barberId, date, totalDuration, e.target.checked);
+                  }}
+                  className="h-3.5 w-3.5"
+                />
+                Agendar fora do expediente (05h às 22h, inclusive no intervalo)
+              </label>
               <Input
                 type="date"
                 value={date}
@@ -416,6 +435,7 @@ export function AdminBookingForm({
               value={extra}
               barbers={barbers}
               busy={busyFor(i)}
+              allowOutsideHours={outsideHours}
               onChange={(next) => setExtras((prev) => prev.map((e, j) => (j === i ? next : e)))}
               onRemove={() => setExtras((prev) => prev.filter((_, j) => j !== i))}
             />
