@@ -36,6 +36,10 @@ ARG DIRECT_DATABASE_URL
 ENV DATABASE_URL=${DATABASE_URL}
 ENV DIRECT_DATABASE_URL=${DIRECT_DATABASE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
+# Teto de heap do Node no build: em servidores com pouca RAM o processo é
+# morto pelo kernel (OOM) sem mensagem de erro — o Coolify só mostra
+# "exit code 255". Com o teto, o V8 coleta lixo antes de estourar.
+ENV NODE_OPTIONS=--max-old-space-size=1536
 
 RUN pnpm build
 

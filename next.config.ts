@@ -38,6 +38,13 @@ const nextConfig: NextConfig = {
   // pra imagem de produção.
   output: "standalone",
   experimental: {
+    // Build em container (Coolify/Docker): cada build parte de uma camada
+    // limpa, então o cache em disco do Turbopack nunca é reaproveitado e só
+    // consome memória/IO extra. E um único worker de coleta/geração de
+    // páginas mantém o pico de RAM baixo (servidores pequenos matavam o
+    // build por falta de memória logo após o TypeScript).
+    turbopackFileSystemCacheForBuild: false,
+    cpus: 1,
     serverActions: {
       bodySizeLimit: "3mb",
     },
