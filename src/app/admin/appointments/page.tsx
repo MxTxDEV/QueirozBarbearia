@@ -41,7 +41,7 @@ import { describeFrequency } from "@/lib/recurring-helpers";
 import { MiniCalendar } from "./calendar/mini-calendar";
 import { DayMarkButton } from "./calendar/day-mark-dialog";
 import { listDayMarksInRange, listUpcomingDayMarks, type DayMarkRow } from "@/lib/data/day-marks";
-import { MARK_COLOR, markReason, type MarkKind } from "@/lib/day-marks";
+import { MARK_COLOR, markKindForAppointment, markReason, type MarkKind } from "@/lib/day-marks";
 import type { BreakInfo } from "./calendar/break-types";
 import { getOpenIntervals, type DayAvailability } from "@/lib/data/calendar-availability";
 import { openSlotStarts, minutesToHHMM, intersectSegments, coversWholeDay, type ClosedSegment } from "@/lib/quick-slots";
@@ -187,6 +187,20 @@ export default async function AppointmentsPage({
     for (const row of rows) (byDay[row.date] ??= []).push(row);
     return byDay;
   };
+  // Na lista não há grade de datas: busca as marcas que cobrem os dias dos agendamentos mostrados.
+  let rowMarks = rangeMarks;
+  if (!isCalendar && appointments.length > 0) {
+    const times = appointments.map((a) => a.appointmentDate.getTime());
+    rowMarks = await listDayMarksInRange(user.companyId, new Date(Math.min(...times)), new Date(Math.max(...times) + 86_400_000));
+  }
+  const rowMarksByDay = groupMarks(rowMarks);
+  /** Feriado/folga/fora de expediente que atinge ESTE agendamento (pinta só a linha/bloco dele). */
+  const markKindOf = (appt: (typeof appointments)[number]): MarkKind | null =>
+    markKindForAppointment(rowMarksByDay[toISODate(appt.appointmentDate)], {
+      barberId: appt.barberId,
+      startMin: appt.startTime.getUTCHours() * 60 + appt.startTime.getUTCMinutes(),
+      endMin: appt.endTime.getUTCHours() * 60 + appt.endTime.getUTCMinutes(),
+    });
   const rangeMarksByDay = groupMarks(rangeMarks);
   const miniMarksByDay = groupMarks(miniMarks);
 
@@ -333,6 +347,7 @@ export default async function AppointmentsPage({
     timeLabel: `${formatTime(appt.startTime)}–${formatTime(appt.endTime)}`,
     durationMin: Math.round((appt.endTime.getTime() - appt.startTime.getTime()) / 60_000),
     clientConfirmedAt: appt.clientConfirmedAt?.toISOString() ?? null,
+    markKind: markKindOf(appt),
     price: formatCurrency(appt.totalPrice.toString()),
   });
 
@@ -497,7 +512,6 @@ export default async function AppointmentsPage({
               today={today}
               counts={monthCounts}
               closedDays={closedDayKeys}
-              marks={rangeMarksByDay}
               buildHref={buildMonthDayHref}
             />
           ) : (
@@ -531,7 +545,6 @@ export default async function AppointmentsPage({
                     endHour={endHour}
                     openSlots={dayOpenSlots}
                     closedSegments={dayClosedSegments}
-                    marks={rangeMarksByDay[toISODate(from)] ?? []}
                     breakInfo={dayBreakInfo}
                     buildNewHref={({ time, barberId: slotBarberId, outside }) =>
                       buildNewHref({ date: toISODate(from), time, barberId: slotBarberId, outside })
@@ -563,7 +576,6 @@ export default async function AppointmentsPage({
                     closedSegments={weekClosedSegments}
                     breakInfo={rangeBreakInfo}
                     dayMarks={rangeMarksByDay}
-                    fillBarberId={singleBarberId}
                     breakMoveHint={singleBarberId ? undefined : "filtre um barbeiro para mover o intervalo"}
                     buildNewHref={buildNewHref}
                     appointments={appointments.map<GridAppointment>((appt) => ({
@@ -627,6 +639,7 @@ export default async function AppointmentsPage({
                   <SwappableRow
                     key={appt.id}
                     status={appt.status}
+                    tint={markKindOf(appt) ? MARK_COLOR[markKindOf(appt)!].row : undefined}
                     source={{
                       id: appt.id,
                       customerName: appointmentClientName(appt),

@@ -7,6 +7,7 @@ import { BadgeCheck, Pencil, Repeat, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import { updateAppointmentNotesAction } from "@/actions/appointments";
 import { cn } from "@/lib/utils";
+import { MARK_COLOR, MARK_LABEL, type MarkKind } from "@/lib/day-marks";
 import { ResizeConfirmDialog, isMovableStatus, useAppointmentSwapDnd } from "./appointment-dnd";
 
 export type ResizeConfig = {
@@ -39,6 +40,8 @@ export type BlockData = {
   price: string;
   /** Quando o cliente confirmou pelo link do WhatsApp (ISO); nulo = ainda não confirmou. */
   clientConfirmedAt?: string | null;
+  /** Dia marcado (feriado/folga/fora de expediente) que atinge este agendamento: pinta só o bloco dele. */
+  markKind?: MarkKind | null;
 };
 
 /** Cor da faixa por status — segue a mesma semântica dos badges do sistema. */
@@ -141,6 +144,7 @@ export function AppointmentBlock({
           "group overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-left transition-all",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60",
           STATUS_STYLE[data.status] ?? STATUS_STYLE.NO_SHOW,
+          data.markKind && MARK_COLOR[data.markKind].block,
           cancelled && "opacity-60",
           movable && "cursor-grab active:cursor-grabbing",
           dragging && "opacity-40",
@@ -232,6 +236,7 @@ export function AppointmentBlock({
               <Row label="Barbeiro" value={data.barberName} />
               <Row label="Valor" value={data.price} />
               <Row label="Status" value={data.statusLabel} />
+              {data.markKind && <Row label="Dia" value={MARK_LABEL[data.markKind]} />}
               {(data.status === "PENDING" || data.status === "CONFIRMED") && (
                 <Row
                   label="Cliente"

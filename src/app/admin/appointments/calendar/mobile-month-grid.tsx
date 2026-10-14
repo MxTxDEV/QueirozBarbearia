@@ -2,8 +2,6 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEKDAY_SHORT, isSameDay } from "./calendar-dates";
-import { MARK_COLOR, dominantKind } from "@/lib/day-marks";
-import type { DayMarkRow } from "@/lib/data/day-marks";
 
 export type MonthDayCount = { day: Date; count: number; hasPending: boolean };
 
@@ -23,7 +21,6 @@ export function MobileMonthGrid({
   counts,
   buildHref,
   closedDays,
-  marks = {},
 }: {
   days: Date[];
   month: number;
@@ -32,8 +29,6 @@ export function MobileMonthGrid({
   buildHref: (day: Date) => string;
   /** Dias (YYYY-MM-DD) em que ninguém atende. */
   closedDays?: Set<string>;
-  /** Feriado/folga/fora de expediente por dia (YYYY-MM-DD): o dia ganha a cor da marca. */
-  marks?: Record<string, DayMarkRow[]>;
 }) {
   const countMap = new Map(counts.map((c) => [c.day.toISOString(), c]));
 
@@ -51,7 +46,6 @@ export function MobileMonthGrid({
           const info = countMap.get(day.toISOString());
           const hasItems = !!info && info.count > 0;
           const closed = closedDays?.has(day.toISOString().slice(0, 10)) ?? false;
-          const markKind = dominantKind(marks[day.toISOString().slice(0, 10)] ?? []);
 
           return (
             <Link
@@ -60,8 +54,7 @@ export function MobileMonthGrid({
               className={cn(
                 "flex aspect-square flex-col items-center justify-center gap-1 rounded-xl text-sm transition-colors",
                 outsideMonth ? "text-foreground-muted/40" : "text-foreground",
-                isToday ? "bg-secondary-dark font-semibold text-white" : "hover:bg-[var(--surface-subtle-hover)]",
-                markKind && !isToday && MARK_COLOR[markKind].cell
+                isToday ? "bg-secondary-dark font-semibold text-white" : "hover:bg-[var(--surface-subtle-hover)]"
               )}
             >
               <span>{day.getUTCDate()}</span>

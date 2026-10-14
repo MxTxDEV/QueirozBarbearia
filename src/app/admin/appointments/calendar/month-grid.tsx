@@ -75,11 +75,10 @@ export function MonthGrid({
                     className={cn(
                       "relative min-h-[104px] border-b border-l p-1.5",
                       outsideMonth && "opacity-40",
-                      markKind && MARK_COLOR[markKind].top,
-                      markKind && MARK_COLOR[markKind].fill
+                      markKind && MARK_COLOR[markKind].top
                     )}
                     style={
-                      closed && !markKind
+                      closed
                         ? {
                             backgroundColor: "var(--surface-subtle)",
                             backgroundImage: "repeating-linear-gradient(135deg, var(--border-glass) 0 1px, transparent 1px 9px)",

@@ -21,9 +21,9 @@ export const MARK_HINT: Record<MarkKind, string> = {
 };
 
 /** Cores de cada tipo (mini calendário, calendário e legenda) — as mesmas em todo lugar. */
-export const MARK_COLOR: Record<MarkKind, { dot: string; cell: string; chip: string; text: string; ring: string; top: string; fill: string; band: string }> = {
-  HOLIDAY: { dot: "bg-red-500", cell: "bg-red-500/25 ring-1 ring-red-500/50", chip: "border-red-500/50 bg-red-500/15 text-red-300", text: "text-red-300", ring: "ring-red-500", top: "border-t-[3px] border-t-red-500", fill: "bg-red-500/[0.18]", band: "bg-red-500/[0.28] border-y border-red-500/60" },
-  DAY_OFF: { dot: "bg-sky-500", cell: "bg-sky-500/25 ring-1 ring-sky-500/50", chip: "border-sky-500/50 bg-sky-500/15 text-sky-300", text: "text-sky-300", ring: "ring-sky-500", top: "border-t-[3px] border-t-sky-500", fill: "bg-sky-500/[0.18]", band: "bg-sky-500/[0.28] border-y border-sky-500/60" },
+export const MARK_COLOR: Record<MarkKind, { dot: string; cell: string; chip: string; text: string; ring: string; top: string; fill: string; band: string; block: string; row: string }> = {
+  HOLIDAY: { dot: "bg-red-500", cell: "bg-red-500/25 ring-1 ring-red-500/50", chip: "border-red-500/50 bg-red-500/15 text-red-300", text: "text-red-300", ring: "ring-red-500", top: "border-t-[3px] border-t-red-500", fill: "bg-red-500/[0.18]", band: "bg-red-500/[0.28] border-y border-red-500/60", block: "border-l-red-500 bg-red-500/30 hover:bg-red-500/40", row: "bg-red-500/[0.16] hover:bg-red-500/[0.22] shadow-[inset_4px_0_0_0_var(--color-red-500)]" },
+  DAY_OFF: { dot: "bg-sky-500", cell: "bg-sky-500/25 ring-1 ring-sky-500/50", chip: "border-sky-500/50 bg-sky-500/15 text-sky-300", text: "text-sky-300", ring: "ring-sky-500", top: "border-t-[3px] border-t-sky-500", fill: "bg-sky-500/[0.18]", band: "bg-sky-500/[0.28] border-y border-sky-500/60", block: "border-l-sky-500 bg-sky-500/30 hover:bg-sky-500/40", row: "bg-sky-500/[0.16] hover:bg-sky-500/[0.22] shadow-[inset_4px_0_0_0_var(--color-sky-500)]" },
   OUT_OF_HOURS: {
     dot: "bg-violet-500",
     cell: "bg-violet-500/25 ring-1 ring-violet-500/50",
@@ -33,6 +33,8 @@ export const MARK_COLOR: Record<MarkKind, { dot: string; cell: string; chip: str
     top: "border-t-[3px] border-t-violet-500",
     fill: "bg-violet-500/[0.18]",
     band: "bg-violet-500/[0.28] border-y border-violet-500/60",
+    block: "border-l-violet-500 bg-violet-500/30 hover:bg-violet-500/40",
+    row: "bg-violet-500/[0.16] hover:bg-violet-500/[0.22] shadow-[inset_4px_0_0_0_var(--color-violet-500)]",
   },
 };
 
@@ -87,4 +89,24 @@ export function validateMarkWindow(startTime: string | null | undefined, endTime
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)) return "Horário inválido.";
   if (hhmmToMinutes(endTime) <= hhmmToMinutes(startTime)) return "O fim precisa ser depois do início.";
   return null;
+}
+
+/**
+ * Qual marca (feriado / folga / fora de expediente) atinge UM agendamento — é ela que pinta só a linha/bloco dele.
+ * Vale a marca da barbearia toda ou do barbeiro dele; marca com horário só conta se o atendimento encosta nessa janela.
+ * Se mais de uma atinge, manda: feriado > folga > fora de expediente.
+ */
+export function markKindForAppointment(
+  marks: MarkLike[] | undefined,
+  appt: { barberId: string; startMin: number; endMin: number }
+): MarkKind | null {
+  if (!marks?.length) return null;
+  const hit = marks.filter((m) => {
+    if (!appliesToBarber(m, appt.barberId)) return false;
+    if (!hasWindow(m)) return true;
+    const start = hhmmToMinutes(m.startTime as string);
+    const end = hhmmToMinutes(m.endTime as string);
+    return appt.startMin < end && start < appt.endMin;
+  });
+  return dominantKind(hit);
 }

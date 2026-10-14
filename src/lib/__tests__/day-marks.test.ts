@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appliesToBarber, closuresFor, dominantKind, hasWindow, markReason, validateMarkWindow } from "../day-marks";
+import { appliesToBarber, closuresFor, dominantKind, hasWindow, markKindForAppointment, markReason, validateMarkWindow } from "../day-marks";
 
 const mark = (over: Partial<Parameters<typeof markReason>[0]> = {}) => ({ kind: "HOLIDAY", barberId: null, title: null, startTime: null, endTime: null, ...over });
 
@@ -44,5 +44,27 @@ describe("day-marks", () => {
     expect(validateMarkWindow("10:00", null)).toContain("início e o fim");
     expect(validateMarkWindow("12:00", "10:00")).toContain("depois do início");
     expect(validateMarkWindow("25:00", "26:00")).toContain("inválido");
+  });
+});
+
+describe("markKindForAppointment", () => {
+  const at = (barberId: string, startMin: number, endMin: number) => ({ barberId, startMin, endMin });
+  it("sem marcas, nada pinta", () => {
+    expect(markKindForAppointment([], at("b1", 600, 630))).toBeNull();
+    expect(markKindForAppointment(undefined, at("b1", 600, 630))).toBeNull();
+  });
+  it("marca do dia todo pinta todos os agendamentos; de um barbeiro, só os dele", () => {
+    expect(markKindForAppointment([mark()], at("b1", 600, 630))).toBe("HOLIDAY");
+    expect(markKindForAppointment([mark({ kind: "DAY_OFF", barberId: "b2" })], at("b1", 600, 630))).toBeNull();
+    expect(markKindForAppointment([mark({ kind: "DAY_OFF", barberId: "b2" })], at("b2", 600, 630))).toBe("DAY_OFF");
+  });
+  it("marca com horário só pinta quem encosta na janela", () => {
+    const window = [mark({ kind: "OUT_OF_HOURS", startTime: "14:00", endTime: "16:00" })];
+    expect(markKindForAppointment(window, at("b1", 13 * 60, 14 * 60))).toBeNull();
+    expect(markKindForAppointment(window, at("b1", 13 * 60 + 30, 14 * 60 + 15))).toBe("OUT_OF_HOURS");
+    expect(markKindForAppointment(window, at("b1", 16 * 60, 16 * 60 + 30))).toBeNull();
+  });
+  it("feriado vence folga e fora de expediente", () => {
+    expect(markKindForAppointment([mark({ kind: "DAY_OFF" }), mark({ kind: "HOLIDAY" })], at("b1", 600, 630))).toBe("HOLIDAY");
   });
 });

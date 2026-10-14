@@ -2,10 +2,7 @@ import { AppointmentBlock } from "./appointment-block";
 import { assignLanes, type GridAppointment } from "./time-grid";
 import { minutesFromMidnight } from "./calendar-dates";
 import { QuickAddSlot } from "./quick-add-slot";
-import { cn } from "@/lib/utils";
 import { ClosedOverlay } from "./closed-overlay";
-import { MarkFill, headerFill } from "./mark-fill";
-import type { DayMarkRow } from "@/lib/data/day-marks";
 import { DraggableBreak } from "./draggable-break";
 import { AppointmentDropZone } from "./appointment-dnd";
 import type { BreakInfo } from "./break-types";
@@ -34,7 +31,6 @@ export function BarberDayGrid({
   closedSegments,
   breakInfo,
   buildNewHref,
-  marks = [],
 }: {
   /** Dia exibido (YYYY-MM-DD) — destino quando um agendamento é solto numa coluna. */
   date: string;
@@ -50,8 +46,6 @@ export function BarberDayGrid({
   /** Intervalo arrastável de cada barbeiro neste dia (ausente = não dá pra mover). */
   breakInfo?: Record<string, BreakInfo | undefined>;
   buildNewHref?: (args: { time: string; barberId: string; outside?: boolean }) => string;
-  /** Feriado/folga/fora de expediente deste dia: pinta a coluna de cada barbeiro afetado com a cor da marca. */
-  marks?: DayMarkRow[];
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const gridHeight = hours.length * HOUR_HEIGHT;
@@ -67,7 +61,7 @@ export function BarberDayGrid({
         <div className="flex border-b">
           <div className="w-14 shrink-0" />
           {barbers.map((barber) => (
-            <div key={barber.id} className={cn("flex-1 px-2 pb-2 text-center", headerFill(marks, barber.id))}>
+            <div key={barber.id} className="flex-1 px-2 pb-2 text-center">
               <p className="truncate text-sm font-semibold text-foreground">{barber.name}</p>
             </div>
           ))}
@@ -117,7 +111,6 @@ export function BarberDayGrid({
                       hrefTemplate={buildNewHref?.({ time: "TIME_PLACEHOLDER", barberId: barber.id, outside: true })}
                     />
                   ))}
-                <MarkFill marks={marks} barberId={barber.id} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
                 {breakInfo?.[barber.id] && (
                   <DraggableBreak info={breakInfo[barber.id]!} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
                 )}

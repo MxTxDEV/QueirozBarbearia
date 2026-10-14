@@ -3,7 +3,6 @@ import { AppointmentBlock, type BlockData } from "./appointment-block";
 import { WEEKDAY_SHORT, isSameDay, minutesFromMidnight } from "./calendar-dates";
 import { QuickAddSlot } from "./quick-add-slot";
 import { ClosedOverlay } from "./closed-overlay";
-import { MarkFill, headerFill } from "./mark-fill";
 import { DraggableBreak } from "./draggable-break";
 import { AppointmentDropZone } from "./appointment-dnd";
 import type { BreakInfo } from "./break-types";
@@ -83,7 +82,6 @@ export function TimeGrid({
   breakMoveHint,
   buildNewHref,
   dayMarks = {},
-  fillBarberId = null,
 }: {
   days: Date[];
   appointments: GridAppointment[];
@@ -100,8 +98,6 @@ export function TimeGrid({
   breakMoveHint?: string;
   /** Dias marcados (feriado/folga/fora de expediente) por YYYY-MM-DD — aparecem no cabeçalho do dia. */
   dayMarks?: Record<string, DayMarkRow[]>;
-  /** Agenda filtrada em um barbeiro: as marcas só dele também pintam a coluna. */
-  fillBarberId?: string | null;
   buildNewHref?: (args: { date: string; time: string; barberId?: string; outside?: boolean }) => string;
 }) {
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
@@ -116,10 +112,7 @@ export function TimeGrid({
           {days.map((day) => {
             const isToday = isSameDay(day, today);
             return (
-              <div
-                key={day.toISOString()}
-                className={cn("flex-1 px-2 pb-2 text-center", headerFill(dayMarks[day.toISOString().slice(0, 10)] ?? [], fillBarberId))}
-              >
+              <div key={day.toISOString()} className="flex-1 px-2 pb-2 text-center">
                 <p className="text-[11px] uppercase tracking-wide text-foreground-muted">
                   {WEEKDAY_SHORT[day.getUTCDay()]}
                 </p>
@@ -188,13 +181,6 @@ export function TimeGrid({
                       hrefTemplate={buildNewHref?.({ date: day.toISOString().slice(0, 10), time: "TIME_PLACEHOLDER", outside: true })}
                     />
                   ))}
-                <MarkFill
-                  marks={dayMarks[day.toISOString().slice(0, 10)] ?? []}
-                  barberId={fillBarberId}
-                  startHour={startHour}
-                  endHour={endHour}
-                  hourHeight={HOUR_HEIGHT}
-                />
                 {breakInfo?.[day.toISOString().slice(0, 10)] && (
                   <DraggableBreak info={breakInfo[day.toISOString().slice(0, 10)]!} startHour={startHour} endHour={endHour} hourHeight={HOUR_HEIGHT} />
                 )}

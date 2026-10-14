@@ -95,10 +95,13 @@ export function useAppointmentSwapDnd(source: DragSource, movable: boolean) {
 export function SwappableRow({
   source,
   status,
+  tint,
   children,
 }: {
   source: DragSource;
   status: string;
+  /** Classes de cor da linha inteira (dia marcado: feriado/folga/fora de expediente). */
+  tint?: string;
   children: React.ReactNode;
 }) {
   const movable = isMovableStatus(status);
@@ -108,7 +111,7 @@ export function SwappableRow({
       <TableRow
         {...handlers}
         title={movable ? "Arraste sobre outro cliente para trocar os horários" : undefined}
-        className={cn(movable && "cursor-grab active:cursor-grabbing", dragging && "opacity-40", dragOver && "bg-secondary/15 outline outline-2 -outline-offset-2 outline-secondary")}
+        className={cn(movable && "cursor-grab active:cursor-grabbing", tint, dragging && "opacity-40", dragOver && "bg-secondary/15 outline outline-2 -outline-offset-2 outline-secondary")}
       >
         {children}
       </TableRow>
