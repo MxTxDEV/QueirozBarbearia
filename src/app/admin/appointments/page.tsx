@@ -360,7 +360,7 @@ export default async function AppointmentsPage({
     day,
     dayLabel: periodLabel("day", day),
     isToday: isSameDay(day, today),
-    newHref: day.getTime() >= today.getTime() && !closedDayKeys.has(toISODate(day)) ? buildNewHref({ date: toISODate(day) }) : undefined,
+    newHref: day.getTime() >= today.getTime() ? buildNewHref({ date: toISODate(day), outside: closedDayKeys.has(toISODate(day)) }) : undefined,
     closed: closedDayKeys.has(toISODate(day)),
     items: appointments
       .filter((appt) => isSameDay(appt.appointmentDate, day))
@@ -495,7 +495,7 @@ export default async function AppointmentsPage({
               prevHref={buildMobileDayHref(addDays(mobileDay, -1))}
               nextHref={buildMobileDayHref(addDays(mobileDay, 1))}
               todayHref={buildMobileDayHref(today)}
-              newHref={mobileDay.getTime() >= today.getTime() && !mobileDayClosed ? buildNewHref({ date: toISODate(mobileDay) }) : undefined}
+              newHref={mobileDay.getTime() >= today.getTime() ? buildNewHref({ date: toISODate(mobileDay), outside: mobileDayClosed }) : undefined}
               freeSlots={mobileFreeSlots}
               closed={mobileDayClosed}
               items={mobileDayAppointments.map<DayAgendaItem>((appt) => ({
@@ -524,7 +524,7 @@ export default async function AppointmentsPage({
                 days={days}
                 month={startOfMonth(anchor).getUTCMonth()}
                 today={today}
-                buildNewHref={(day) => buildNewHref({ date: toISODate(day) })}
+                buildNewHref={(day) => buildNewHref({ date: toISODate(day), outside: closedDayKeys.has(toISODate(day)) })}
                 closedDays={closedDayKeys}
                 breakInfo={rangeBreakInfo}
                 marks={rangeMarksByDay}

@@ -10,7 +10,8 @@ const SLOT_STEP_MINUTES = 15;
 
 /**
  * Janela em que o painel pode marcar "fora do expediente" (mesmo da grade da agenda): das 05h às 22h.
- * Só vale para quem é da barbearia — o portal do cliente continua preso ao expediente do barbeiro.
+ * Só vale para quem é da barbearia (administrador e barbeiros) — o portal do cliente continua preso ao
+ * expediente, às folgas e aos feriados.
  */
 export const OUTSIDE_HOURS_START = "05:00";
 export const OUTSIDE_HOURS_END = "22:00";
@@ -55,7 +56,7 @@ export async function getAvailableSlots(params: {
   barberId: string;
   date: Date;
   totalDurationMinutes: number;
-  /** Painel: também oferece horários fora do expediente/intervalo (folga, férias e feriado continuam fechados). */
+  /** Equipe: oferece qualquer dia — fora do expediente, intervalo, folga, férias e feriado (só não passa por cima de bloqueio nem de outro cliente). */
   allowOutsideHours?: boolean;
 }): Promise<TimeSlot[]> {
   const day = dateOnly(params.date);
@@ -77,10 +78,10 @@ export async function getAvailableSlots(params: {
       endDate: { gte: day },
     },
   });
-  if (timeOffs.length > 0) return [];
+  if (timeOffs.length > 0 && !outside) return [];
 
   // Feriado / folga / fora de expediente marcado na agenda: o dia inteiro fechado, ou só uma janela.
-  const marked = await dayClosures(prisma, params.barberId, day);
+  const marked = outside ? { wholeDay: null, windows: [] as { start: number; end: number; reason: string; kind: string }[] } : await dayClosures(prisma, params.barberId, day);
   if (marked.wholeDay) return [];
 
   const dayStart = timeOnDate(day, workingHour.startTime);
@@ -122,7 +123,7 @@ export async function getAvailableSlots(params: {
     }),
   ]);
 
-  const markedWindows = marked.windows.filter((w) => !(outside && w.kind === "OUT_OF_HOURS")).map((w) => ({ start: timeOnDate(day, minutesToHHMMLocal(w.start)), end: timeOnDate(day, minutesToHHMMLocal(w.end)) }));
+  const markedWindows = marked.windows.map((w) => ({ start: timeOnDate(day, minutesToHHMMLocal(w.start)), end: timeOnDate(day, minutesToHHMMLocal(w.end)) }));
 
   const slots: TimeSlot[] = [];
   const durationMs = params.totalDurationMinutes * 60_000;
@@ -181,7 +182,7 @@ export async function hasSchedulingConflict(
     /** Um ou mais agendamentos a ignorar (a troca de horários ignora os DOIS que estão sendo trocados). */
     excludeAppointmentId?: string | string[];
     excludeWaitlistEntryId?: string;
-    /** Painel: aceita fora do expediente e no intervalo (mas não folga, férias, feriado, bloqueio nem outro cliente). */
+    /** Equipe: aceita qualquer dia — fora do expediente, intervalo, folga, férias e feriado (mas não bloqueio nem outro cliente). */
     allowOutsideHours?: boolean;
   },
   client: ConflictCheckClient = prisma
@@ -219,16 +220,17 @@ export async function hasSchedulingConflict(
     if (overlaps(params.startTime, params.endTime, breakStart, breakEnd)) return true;
   }
 
-  const timeOff = await client.barberTimeOff.findFirst({
-    where: { barberId: params.barberId, startDate: { lte: day }, endDate: { gte: day } },
-  });
-  if (timeOff) return true;
+  // Folga/férias do barbeiro e feriado/folga/fora de expediente marcados na agenda: a equipe passa por cima.
+  if (!outside) {
+    const timeOff = await client.barberTimeOff.findFirst({
+      where: { barberId: params.barberId, startDate: { lte: day }, endDate: { gte: day } },
+    });
+    if (timeOff) return true;
+  }
 
-  // Feriado / folga / fora de expediente marcado na agenda.
-  const marked = await dayClosures(client, params.barberId, day);
+  const marked = outside ? { wholeDay: null, windows: [] as { start: number; end: number }[] } : await dayClosures(client, params.barberId, day);
   if (marked.wholeDay) return true;
   for (const window of marked.windows) {
-    if (outside && window.kind === "OUT_OF_HOURS") continue;
     if (overlaps(params.startTime, params.endTime, timeOnDate(day, minutesToHHMMLocal(window.start)), timeOnDate(day, minutesToHHMMLocal(window.end)))) return true;
   }
 

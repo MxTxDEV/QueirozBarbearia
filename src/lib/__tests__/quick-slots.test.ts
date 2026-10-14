@@ -115,3 +115,18 @@ describe("intersectSegments", () => {
     expect(intersectSegments([{ start: 0, end: 600, reason: "x" }], [])).toEqual([]);
   });
 });
+
+describe("trecho trancado: só o bloqueio manual segura a equipe", () => {
+  it("bloqueio vem marcado como locked; expediente, intervalo e folga não", () => {
+    const segs = buildClosedSegments({ working: { start: 540, end: 1080 }, breakInterval: { start: 720, end: 780 }, blocks: [{ start: 900, end: 960, reason: "Dentista" }] });
+    expect(segs.find((s) => s.reason === "Dentista")?.locked).toBe(true);
+    expect(segs.find((s) => s.reason === "Intervalo")?.locked).toBeFalsy();
+    expect(segs.filter((s) => s.reason === "Fora do expediente").every((s) => !s.locked)).toBe(true);
+    expect(buildClosedSegments({ working: null, timeOff: true, timeOffReason: "Feriado" })[0].locked).toBeFalsy();
+  });
+  it("na interseção (semana) o trecho continua locked se qualquer lado for", () => {
+    const a = [{ start: 0, end: 100, reason: "Bloqueado", locked: true }];
+    const b = [{ start: 50, end: 200, reason: "Folga" }];
+    expect(intersectSegments(a, b)[0].locked).toBe(true);
+  });
+});

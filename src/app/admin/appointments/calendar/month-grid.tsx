@@ -101,7 +101,7 @@ export function MonthGrid({
                           <Lock className="h-3.5 w-3.5" />
                         </span>
                       )}
-                      {!closed && buildNewHref && day.getTime() >= today.getTime() && (
+                      {buildNewHref && day.getTime() >= today.getTime() && (
                         <Link
                           href={buildNewHref(day)}
                           aria-label={`Novo agendamento em ${day.getUTCDate()}/${day.getUTCMonth() + 1}`}

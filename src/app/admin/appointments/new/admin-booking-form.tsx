@@ -80,9 +80,7 @@ export function AdminBookingForm({
   // Recorrência é de cliente cadastrado e de um serviço por vez (a série repete "o mesmo serviço").
   const recurringBlockedReason = walkIn
     ? "Cliente não cadastrado não pode ter recorrência — cadastre o cliente."
-    : outsideHours
-      ? "Recorrência segue o expediente do barbeiro — desmarque \"fora do expediente\" para repetir."
-      : extras.length > 0
+    : extras.length > 0
       ? "Com mais de um horário na mesma marcação não dá pra repetir — remova os horários extras."
       : serviceIds.length > 1
         ? "A recorrência repete um serviço só — deixe um serviço selecionado."
@@ -385,14 +383,13 @@ export function AdminBookingForm({
                   checked={outsideHours}
                   onChange={(e) => {
                     setOutsideHours(e.target.checked);
-                    if (e.target.checked) setRecurring(false);
                     // Os horários mudam (mais ou menos opções): recarrega e limpa a escolha de cada bloco.
                     setExtras((prev) => prev.map((extra) => ({ ...extra, slot: null })));
                     refreshSlots(barberId, date, totalDuration, e.target.checked);
                   }}
                   className="h-3.5 w-3.5"
                 />
-                Agendar fora do expediente (05h às 22h, inclusive no intervalo)
+                Agendar mesmo fora do expediente, em feriado ou folga (05h às 22h)
               </label>
               <Input
                 type="date"

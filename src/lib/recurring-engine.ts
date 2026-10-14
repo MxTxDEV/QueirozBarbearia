@@ -146,7 +146,9 @@ type MaterializeResult = "CONFIRMED" | "CONFLICT" | "WAITING_LIST";
 async function materializeOccurrence(
   occurrence: RecurringAppointmentOccurrence,
   series: SeriesWithRelations,
-  enrollConflictsInWaitlist: boolean
+  enrollConflictsInWaitlist: boolean,
+  /** Quem manda é a equipe (série criada por ela, ou edição feita por ela): vale mesmo em feriado, folga ou fora do expediente. */
+  staffOverride = false
 ): Promise<MaterializeResult> {
   const created = await createAppointmentCore(
     {
@@ -155,7 +157,8 @@ async function materializeOccurrence(
       serviceIds: [series.serviceId],
       startTimeIso: occurrence.scheduledStartTime.toISOString(),
     },
-    series.companyId
+    series.companyId,
+    { allowOutsideHours: staffOverride }
   );
 
   if (created.ok) {
@@ -345,7 +348,7 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
         orderBy: { occurrenceNumber: "asc" },
       });
       for (const occ of pending) {
-        await materializeOccurrence(occ, fullSeries, true);
+        await materializeOccurrence(occ, fullSeries, true, isStaffCreated);
       }
       // Marcou o horário e a recorrência de uma vez: o cliente recebe UMA mensagem na hora com as datas.
       await notifyRecurringScheduledByShop(series.id, params.companyId).catch((error) => {
@@ -622,7 +625,8 @@ async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
       // execução concorrente já gerou esta ocorrência. Idempotente, segue.
       continue;
     }
-    const result = await materializeOccurrence(occ, series, true);
+    // Série criada pela equipe segue valendo nos meses seguintes mesmo em feriado/folga.
+    const result = await materializeOccurrence(occ, series, true, Boolean(series.createdByUserId));
     if (result === "CONFIRMED") confirmed++;
     else conflicts++;
   }
@@ -730,7 +734,7 @@ export async function editOccurrenceCore(params: {
       },
     });
 
-    const result = await materializeOccurrence(updated, series, true);
+    const result = await materializeOccurrence(updated, series, true, Boolean(params.actorUserId));
     await logAudit({
       companyId: params.companyId,
       userId: params.actorUserId,
@@ -809,7 +813,7 @@ export async function editFutureOccurrencesCore(params: {
           status: "PENDING",
         },
       });
-      await materializeOccurrence(replacement, series, true);
+      await materializeOccurrence(replacement, series, true, Boolean(params.actorUserId));
       regenerated++;
     }
 

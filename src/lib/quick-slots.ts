@@ -58,7 +58,8 @@ export function hhmmToMinutes(hhmm: string): number {
 // Horários "trancados" (fechados) do calendário
 // ---------------------------------------------------------------------------
 
-export type ClosedSegment = Interval & { reason: string };
+/** `locked`: bloqueio manual do barbeiro — nem a equipe agenda por cima (o resto do "fechado" a equipe pode furar). */
+export type ClosedSegment = Interval & { reason: string; locked?: boolean };
 
 const DAY_MINUTES = 24 * 60;
 
@@ -86,11 +87,11 @@ export function buildClosedSegments(params: {
     { start: params.working.end, end: DAY_MINUTES, reason: "Fora do expediente" },
   ];
   if (params.breakInterval) ordered.push({ ...params.breakInterval, reason: "Intervalo" });
-  for (const b of params.blocks ?? []) ordered.push({ start: b.start, end: b.end, reason: b.reason?.trim() || "Bloqueado" });
+  for (const b of params.blocks ?? []) ordered.push({ start: b.start, end: b.end, reason: b.reason?.trim() || "Bloqueado", locked: true });
 
   const result: ClosedSegment[] = [];
   for (const seg of ordered) {
-    for (const piece of subtractIntervals([seg], result)) result.push({ ...piece, reason: seg.reason });
+    for (const piece of subtractIntervals([seg], result)) result.push({ ...piece, reason: seg.reason, locked: seg.locked });
   }
   return result.filter((s) => s.end > s.start).sort((a, b) => a.start - b.start);
 }
@@ -102,7 +103,7 @@ export function intersectSegments(a: ClosedSegment[], b: ClosedSegment[]): Close
     for (const y of b) {
       const start = Math.max(x.start, y.start);
       const end = Math.min(x.end, y.end);
-      if (end > start) result.push({ start, end, reason: x.reason });
+      if (end > start) result.push({ start, end, reason: x.reason, locked: x.locked || y.locked });
     }
   }
   return result.sort((p, q) => p.start - q.start);

@@ -35,8 +35,8 @@ export function ClosedOverlay({
   const top = ((start - startHour * 60) / 60) * hourHeight;
   const height = ((end - start) / 60) * hourHeight;
 
-  // Só o que é "horário" (expediente, intervalo): folga, feriado e bloqueio continuam fechados de verdade.
-  const bookable = Boolean(hrefTemplate) && /^(Fora do expediente|Fora de expediente|Intervalo|Não atende neste dia)/.test(segment.reason);
+  // A equipe agenda em qualquer trecho fechado (expediente, intervalo, folga, feriado...). Só o bloqueio manual do barbeiro segura.
+  const bookable = Boolean(hrefTemplate) && !segment.locked;
 
   function pick(event: React.MouseEvent<HTMLElement>) {
     if (!bookable || !hrefTemplate) return;
