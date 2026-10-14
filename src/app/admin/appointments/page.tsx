@@ -497,6 +497,7 @@ export default async function AppointmentsPage({
               today={today}
               counts={monthCounts}
               closedDays={closedDayKeys}
+              marks={rangeMarksByDay}
               buildHref={buildMonthDayHref}
             />
           ) : (
@@ -530,6 +531,7 @@ export default async function AppointmentsPage({
                     endHour={endHour}
                     openSlots={dayOpenSlots}
                     closedSegments={dayClosedSegments}
+                    marks={rangeMarksByDay[toISODate(from)] ?? []}
                     breakInfo={dayBreakInfo}
                     buildNewHref={({ time, barberId: slotBarberId, outside }) =>
                       buildNewHref({ date: toISODate(from), time, barberId: slotBarberId, outside })
@@ -561,6 +563,7 @@ export default async function AppointmentsPage({
                     closedSegments={weekClosedSegments}
                     breakInfo={rangeBreakInfo}
                     dayMarks={rangeMarksByDay}
+                    fillBarberId={singleBarberId}
                     breakMoveHint={singleBarberId ? undefined : "filtre um barbeiro para mover o intervalo"}
                     buildNewHref={buildNewHref}
                     appointments={appointments.map<GridAppointment>((appt) => ({

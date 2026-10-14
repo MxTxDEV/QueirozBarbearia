@@ -21,9 +21,9 @@ export const MARK_HINT: Record<MarkKind, string> = {
 };
 
 /** Cores de cada tipo (mini calendário, calendário e legenda) — as mesmas em todo lugar. */
-export const MARK_COLOR: Record<MarkKind, { dot: string; cell: string; chip: string; text: string; ring: string; top: string }> = {
-  HOLIDAY: { dot: "bg-red-500", cell: "bg-red-500/25 ring-1 ring-red-500/50", chip: "border-red-500/50 bg-red-500/15 text-red-300", text: "text-red-300", ring: "ring-red-500", top: "border-t-[3px] border-t-red-500" },
-  DAY_OFF: { dot: "bg-sky-500", cell: "bg-sky-500/25 ring-1 ring-sky-500/50", chip: "border-sky-500/50 bg-sky-500/15 text-sky-300", text: "text-sky-300", ring: "ring-sky-500", top: "border-t-[3px] border-t-sky-500" },
+export const MARK_COLOR: Record<MarkKind, { dot: string; cell: string; chip: string; text: string; ring: string; top: string; fill: string; band: string }> = {
+  HOLIDAY: { dot: "bg-red-500", cell: "bg-red-500/25 ring-1 ring-red-500/50", chip: "border-red-500/50 bg-red-500/15 text-red-300", text: "text-red-300", ring: "ring-red-500", top: "border-t-[3px] border-t-red-500", fill: "bg-red-500/[0.18]", band: "bg-red-500/[0.28] border-y border-red-500/60" },
+  DAY_OFF: { dot: "bg-sky-500", cell: "bg-sky-500/25 ring-1 ring-sky-500/50", chip: "border-sky-500/50 bg-sky-500/15 text-sky-300", text: "text-sky-300", ring: "ring-sky-500", top: "border-t-[3px] border-t-sky-500", fill: "bg-sky-500/[0.18]", band: "bg-sky-500/[0.28] border-y border-sky-500/60" },
   OUT_OF_HOURS: {
     dot: "bg-violet-500",
     cell: "bg-violet-500/25 ring-1 ring-violet-500/50",
@@ -31,6 +31,8 @@ export const MARK_COLOR: Record<MarkKind, { dot: string; cell: string; chip: str
     text: "text-violet-300",
     ring: "ring-violet-500",
     top: "border-t-[3px] border-t-violet-500",
+    fill: "bg-violet-500/[0.18]",
+    band: "bg-violet-500/[0.28] border-y border-violet-500/60",
   },
 };
 
