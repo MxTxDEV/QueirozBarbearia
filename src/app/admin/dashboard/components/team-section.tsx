@@ -53,7 +53,7 @@ export function TeamSection({
             {performance.map((b) => (
               <div
                 key={b.id}
-                className="rounded-2xl border border-white/10 p-4 transition-colors hover:bg-[var(--surface-subtle)]"
+                className="rounded-2xl border p-4 transition-colors hover:bg-[var(--surface-subtle)]"
               >
                 <p className="font-medium text-foreground">{b.name}</p>
                 <p className="mt-1 text-xl font-semibold tracking-tight text-foreground">{formatCurrency(b.revenue)}</p>

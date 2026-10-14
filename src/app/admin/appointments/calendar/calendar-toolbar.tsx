@@ -60,7 +60,7 @@ export function CalendarToolbar({
             href={buildHref({ view: v })}
             className={cn(
               "rounded-full px-3 py-1 text-sm font-medium transition-all",
-              view === v ? "bg-secondary-dark text-white" : "text-foreground-muted hover:text-foreground"
+              view === v ? "seg-active" : "text-foreground-muted hover:text-foreground"
             )}
           >
             {CALENDAR_VIEW_LABEL[v]}

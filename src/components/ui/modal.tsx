@@ -35,10 +35,10 @@ export function Modal({
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/60" onClick={busy ? undefined : onClose} />
-      <div className={cn("relative z-10 w-full max-w-md space-y-4 rounded-2xl border bg-[var(--background-elevated)] p-5 text-left shadow-xl", className)}>
+      <div className={cn("relative z-10 w-full max-w-md space-y-4 rounded-2xl border bg-[var(--background-elevated)] p-6 text-left shadow-[var(--shadow-2)]", className)}>
         <div className="flex items-center gap-2 text-foreground">
           {icon}
-          <p className="text-lg font-semibold">{title}</p>
+          <p className="text-lg font-semibold tracking-tight">{title}</p>
         </div>
         {children}
       </div>

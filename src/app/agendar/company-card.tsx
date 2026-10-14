@@ -14,7 +14,7 @@ export function CompanyCard({ company }: { company: PublicCompanyCardData }) {
       href={`/agendar/${company.slug}`}
       className="glass glass-hover group flex flex-col overflow-hidden rounded-3xl"
     >
-      <div className="relative h-32 w-full shrink-0 overflow-hidden bg-gradient-to-br from-secondary-dark/40 to-accent-dark/30">
+      <div className="relative h-32 w-full shrink-0 overflow-hidden bg-gradient-to-br from-secondary-dark/35 to-[var(--surface-raised)]">
         {company.coverImageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img

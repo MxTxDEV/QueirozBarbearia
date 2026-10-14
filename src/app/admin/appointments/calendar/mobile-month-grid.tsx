@@ -67,7 +67,7 @@ export function MobileMonthGrid({
                   !hasItems && "bg-transparent",
                   hasItems && isToday && "bg-white",
                   hasItems && !isToday && info!.hasPending && "bg-warning",
-                  hasItems && !isToday && !info!.hasPending && "bg-secondary-light"
+                  hasItems && !isToday && !info!.hasPending && "bg-accent-light"
                 )}
               />
               )}

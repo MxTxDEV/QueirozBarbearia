@@ -28,7 +28,7 @@ const TableRow = ({ className, ...props }: React.HTMLAttributes<HTMLTableRowElem
 const TableHead = ({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
   <th
     className={cn(
-      "h-10 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-foreground-muted",
+      "h-10 px-4 text-left align-middle text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted",
       className
     )}
     {...props}

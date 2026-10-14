@@ -102,7 +102,7 @@ export function MiniCalendar({
                   "mt-1 h-1 w-1 rounded-full",
                   !info && "bg-transparent",
                   info && isToday && "bg-white",
-                  info && !isToday && (info.hasPending ? "bg-warning" : "bg-secondary-light")
+                  info && !isToday && (info.hasPending ? "bg-warning" : "bg-accent-light")
                 )}
               />
             </Link>

@@ -140,7 +140,7 @@ export function TouchDraggable({
         whiteSpace: "nowrap",
         padding: "6px 12px",
         borderRadius: "9999px",
-        background: "var(--secondary-dark, #0369a1)",
+        background: "var(--secondary-dark, #d81b22)",
         color: "#fff",
         fontSize: "13px",
         fontWeight: "600",

@@ -261,7 +261,7 @@ export function PdvClient({
                   onClick={() => setCatalogTab("SERVICE")}
                   className={cn(
                     "flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                    catalogTab === "SERVICE" ? "bg-secondary-dark text-white" : "text-foreground-muted"
+                    catalogTab === "SERVICE" ? "seg-active" : "text-foreground-muted"
                   )}
                 >
                   <Scissors className="h-3.5 w-3.5" /> Serviços
@@ -271,7 +271,7 @@ export function PdvClient({
                   onClick={() => setCatalogTab("PRODUCT")}
                   className={cn(
                     "flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors",
-                    catalogTab === "PRODUCT" ? "bg-secondary-dark text-white" : "text-foreground-muted"
+                    catalogTab === "PRODUCT" ? "seg-active" : "text-foreground-muted"
                   )}
                 >
                   <Package className="h-3.5 w-3.5" /> Produtos

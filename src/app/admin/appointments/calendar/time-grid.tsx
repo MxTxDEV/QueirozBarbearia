@@ -161,7 +161,7 @@ export function TimeGrid({
                 className="relative flex-1 border-l"
               >
                 {hours.map((h) => (
-                  <div key={h} className="relative border-b border-white/[0.06]" style={{ height: HOUR_HEIGHT }}>
+                  <div key={h} className="relative border-b border-[var(--border-glass)]" style={{ height: HOUR_HEIGHT }}>
                     {[25, 50, 75].map((pct) => (
                       <span key={pct} className="absolute inset-x-0 border-t border-dashed border-foreground/[0.04]" style={{ top: `${pct}%` }} />
                     ))}

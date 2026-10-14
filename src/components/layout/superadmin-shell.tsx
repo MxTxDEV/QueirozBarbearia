@@ -59,7 +59,7 @@ export function SuperAdminShell({ children, userName }: { children: React.ReactN
               Ver site
             </Link>
             <div className="hidden items-center gap-2 sm:flex">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent-light to-accent text-xs font-semibold text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-secondary to-secondary-dark text-xs font-semibold text-white">
                 {userName.slice(0, 1).toUpperCase()}
               </span>
               <span className="text-sm font-medium text-foreground">{userName}</span>

@@ -26,14 +26,14 @@ export function Hero({
   const firstName = userName.split(" ")[0];
 
   return (
-    <div className="glass-strong relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-14">
+    <div className="glass-strong relative overflow-hidden rounded-3xl px-6 py-10 sm:px-10 sm:py-14">
       <div
         className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full opacity-25 blur-[100px]"
         style={{ background: "radial-gradient(circle, var(--secondary) 0%, transparent 70%)" }}
       />
       <div
         className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full opacity-15 blur-[100px]"
-        style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, var(--secondary-dark) 0%, transparent 70%)" }}
       />
 
       <div className="relative flex flex-col gap-8">
@@ -65,7 +65,7 @@ export function Hero({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-6 border-t border-white/10 pt-6 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-6 border-t pt-6 sm:grid-cols-4">
           <HeroStat label="Atendimentos" value={String(overview.appointmentsCount)} />
           <HeroStat label="Ocupação" value={`${occupancyPercent}%`} />
           <HeroStat label="Concluídos" value={String(overview.completedCount)} />

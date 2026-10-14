@@ -1,10 +1,15 @@
 @import "tailwindcss";
 
 /*
-  Dark Luxury: preto rico como base, branco para tipografia e azul claro
-  como cor de destaque (a mesma paleta pedida antes — branco, azul claro,
-  preto — agora aplicada em um tema escuro premium). Estilo visual:
-  glassmorphism + minimalismo + bento grid.
+  Identidade iCortes: preto profundo (#080B0B) como base, branco suave
+  (#F5F5F5) para tipografia e vermelho (#E11D24) como cor de marca — sobre
+  superfícies em cinza escuro (#1F1F1F e derivados). Estilo visual: premium,
+  minimalista, com vidro discreto e bordas sutis.
+
+  Convenção das cores: `secondary*` = cor de MARCA (vermelho; botões,
+  navegação ativa, foco, links). `accent*` = INFORMAÇÃO (azul; status
+  "confirmado" na agenda etc.) — mantido azul de propósito, porque carrega
+  significado em telas funcionais. `success/warning/danger` idem.
 
   Variáveis de superfície (--surface-*, --border-glass) são a única fonte
   de verdade para bordas e preenchimentos sutis — os componentes usam
@@ -13,18 +18,21 @@
   fixas, para que trocar de tema exija editar só este arquivo.
 */
 :root {
-  --background: #08090b;
-  --background-elevated: #101114;
-  --foreground: #f7f8fa;
-  --foreground-muted: #9aa1ac;
+  --background: #080b0b;
+  --background-elevated: #121515;
+  --foreground: #f5f5f5;
+  --foreground-muted: #9ea4a4;
 
-  --primary: #f7f8fa;
+  --primary: #f5f5f5;
   --primary-light: #ffffff;
-  --primary-dark: #c7cbd1;
+  --primary-dark: #c9cccc;
 
-  --secondary: #0ea5e9;
-  --secondary-light: #38bdf8;
-  --secondary-dark: #0369a1;
+  /* Marca iCortes. --secondary-dark é o fundo de botão sólido (texto
+     branco sobre ele fecha >= 4.5:1, mesmo com hover:brightness-110);
+     --secondary-light é a versão para TEXTO sobre fundo escuro. */
+  --secondary: #e11d24;
+  --secondary-light: #ff5a55;
+  --secondary-dark: #d81b22;
 
   --accent: #3b82f6;
   --accent-light: #60a5fa;
@@ -38,11 +46,16 @@
   --accent-dark: #1d4ed8;
   --danger-button: #dc2626;
 
-  --surface-glass: rgba(255, 255, 255, 0.045);
-  --surface-glass-hover: rgba(255, 255, 255, 0.08);
-  --surface-subtle: rgba(255, 255, 255, 0.035);
-  --surface-subtle-hover: rgba(255, 255, 255, 0.07);
-  --border-glass: rgba(255, 255, 255, 0.1);
+  --surface-glass: rgba(245, 245, 245, 0.04);
+  --surface-glass-hover: rgba(245, 245, 245, 0.07);
+  --surface-subtle: rgba(245, 245, 245, 0.03);
+  --surface-subtle-hover: rgba(245, 245, 245, 0.065);
+  --border-glass: rgba(245, 245, 245, 0.09);
+  /* Realce de borda (hover/foco) e superfície elevada em cinza #1F1F1F. */
+  --border-strong: rgba(245, 245, 245, 0.18);
+  --surface-raised: #1f1f1f;
+  /* Brilho de marca (sombra de botão/item ativo). */
+  --brand-glow: rgba(225, 29, 36, 0.28);
 
   --success: #34d399;
   --warning: #fbbf24;
@@ -53,7 +66,7 @@
      de --danger neste tema (só existe como token separado porque no claro
      as duas precisam de opacidades bem diferentes — ver bloco do tema
      claro logo abaixo). */
-  --badge-secondary-bg: rgba(14, 165, 233, 0.15);
+  --badge-secondary-bg: rgba(225, 29, 36, 0.14);
   --badge-accent-bg: rgba(59, 130, 246, 0.15);
   --badge-success-bg: rgba(52, 211, 153, 0.15);
   --badge-warning-bg: rgba(251, 191, 36, 0.15);
@@ -65,8 +78,8 @@
     o padrão pra qualquer painel/card; nível 2 é reservado pra conteúdo que
     flutua sobre a interface (modal, dropdown, command palette).
   */
-  --shadow-1: 0 8px 32px rgba(0, 0, 0, 0.35);
-  --shadow-2: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.45), 0 18px 48px rgba(0, 0, 0, 0.5);
 
   /*
     Movimento: uma curva só (padrão de saída rápida, entrada suave) e duas
@@ -101,26 +114,32 @@
   claro; aqui usamos tons mais saturados/escuros da mesma família de cor.
 */
 :root[data-theme="light"] {
-  --background: #f4f5f7;
+  --background: #f5f5f5;
   --background-elevated: #ffffff;
-  --foreground: #14161a;
-  --foreground-muted: #5b6472;
+  --foreground: #080b0b;
+  --foreground-muted: #596060;
 
-  --primary: #14161a;
-  --primary-light: #1f2229;
-  --primary-dark: #05060a;
+  --primary: #080b0b;
+  --primary-light: #1f1f1f;
+  --primary-dark: #000000;
 
   /* #0284c7 (rec original) dava só 4.10:1 sobre branco em texto de link
      (ex: "Ver perfil") — abaixo do mínimo AA de 4.5:1. Escurecido um pouco
      mais pra 5.17:1, confirmado via auditoria de contraste automatizada. */
-  --secondary-light: #0273ad;
+  /* Vermelho de marca como TEXTO sobre fundo claro: #c8161d = 5.8:1 sobre
+     branco (o #e11d24 puro só dá 4.8:1 e cai abaixo de AA sobre #f5f5f5). */
+  --secondary-light: #c8161d;
   --accent-light: #2563eb;
 
-  --surface-glass: rgba(15, 23, 42, 0.035);
-  --surface-glass-hover: rgba(15, 23, 42, 0.06);
-  --surface-subtle: rgba(15, 23, 42, 0.028);
-  --surface-subtle-hover: rgba(15, 23, 42, 0.055);
-  --border-glass: rgba(15, 23, 42, 0.1);
+  /* No claro o cartão é mais BRANCO que o fundo (elevação), não mais cinza. */
+  --surface-glass: rgba(255, 255, 255, 0.78);
+  --surface-glass-hover: rgba(255, 255, 255, 0.95);
+  --surface-subtle: rgba(8, 11, 11, 0.026);
+  --surface-subtle-hover: rgba(8, 11, 11, 0.05);
+  --border-glass: rgba(8, 11, 11, 0.1);
+  --border-strong: rgba(8, 11, 11, 0.2);
+  --surface-raised: #ffffff;
+  --brand-glow: rgba(225, 29, 36, 0.2);
 
   /* #059669/#b45309/#dc2626 (tons originais) passavam como link/texto
      isolado mas falhavam quando usados como fundo tingido de Badge (~3:1,
@@ -137,7 +156,7 @@
      (falha de contraste confirmada na auditoria; ver --success/--warning/
      --danger acima, que sozinhos já não bastavam). Cores-base (secondary/
      accent) não mudam entre temas, só a opacidade do tingimento. */
-  --badge-secondary-bg: rgba(14, 165, 233, 0.03);
+  --badge-secondary-bg: rgba(225, 29, 36, 0.05);
   --badge-accent-bg: rgba(59, 130, 246, 0.03);
   --badge-success-bg: rgba(4, 120, 87, 0.03);
   --badge-warning-bg: rgba(146, 64, 14, 0.03);
@@ -146,8 +165,8 @@
   /* Mesma ideia de 2 níveis do escuro, mas bem mais leve — sobre fundo
      claro, a opacidade que dá profundidade no escuro vira mancha cinza
      pesada em vez de sombra sutil. */
-  --shadow-1: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-2: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --shadow-1: 0 1px 2px rgba(8, 11, 11, 0.05), 0 6px 20px rgba(8, 11, 11, 0.06);
+  --shadow-2: 0 2px 4px rgba(8, 11, 11, 0.06), 0 14px 36px rgba(8, 11, 11, 0.12);
 }
 
 @theme inline {
@@ -173,7 +192,7 @@
   --color-warning: var(--warning);
   --color-danger: var(--danger);
 
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -210,8 +229,8 @@ body {
   content: "";
   position: absolute;
   border-radius: 999px;
-  filter: blur(140px);
-  opacity: 0.16;
+  filter: blur(160px);
+  opacity: 0.08;
 }
 
 .app-backdrop::before {
@@ -227,19 +246,19 @@ body {
   height: 580px;
   bottom: -220px;
   left: -180px;
-  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
-  opacity: 0.11;
+  background: radial-gradient(circle, var(--secondary-dark) 0%, transparent 70%);
+  opacity: 0.05;
 }
 
 /* No claro os mesmos brilhos ficam bem mais discretos — sobre fundo
    escuro eles dão profundidade; sobre fundo claro, opacidade alta vira
    mancha colorida em vez de textura sutil. */
 [data-theme="light"] .app-backdrop::before {
-  opacity: 0.08;
+  opacity: 0.05;
 }
 
 [data-theme="light"] .app-backdrop::after {
-  opacity: 0.06;
+  opacity: 0.03;
 }
 
 /* Camada 3: cards e componentes de vidro translúcido */
@@ -259,12 +278,11 @@ body {
 
 .glass-hover:hover {
   background: var(--surface-glass-hover);
-  border-color: rgba(255, 255, 255, 0.18);
-  transform: translateY(-1px);
+  border-color: var(--border-strong);
 }
 
 .glass-strong {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, rgba(245, 245, 245, 0.07), rgba(245, 245, 245, 0.025));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-glass);
@@ -275,12 +293,20 @@ body {
    sobre fundo claro precisa de bem menos peso, senão vira uma linha
    pesada em vez de um destaque sutil. A sombra (--shadow-1/--shadow-2) já
    é resolvida pelo token, então esta regra só cuida da borda. */
-[data-theme="light"] .glass-hover:hover {
-  border-color: rgba(15, 23, 42, 0.16);
+[data-theme="light"] .glass-strong {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.75));
 }
 
-[data-theme="light"] .glass-strong {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+/*
+  Estado ativo de controles segmentados (Calendário/Lista, Dia/Semana/Mês,
+  períodos do dashboard, abas do PDV): superfície neutra elevada em vez de
+  um bloco vermelho sólido — o vermelho fica reservado às ações primárias,
+  ao item ativo da navegação e ao "hoje".
+*/
+.seg-active {
+  background: var(--surface-raised);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--border-strong), 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 /*
@@ -349,10 +375,10 @@ body {
   principal da marca, claro é a variante dos dois blocos abaixo.
 */
 .ic-landing {
-  --ic-bg: #08090a;
-  --ic-bg-elevated: #101211;
-  --ic-card: #1a1a1a;
-  --ic-card-hover: #212121;
+  --ic-bg: #080b0b;
+  --ic-bg-elevated: #121515;
+  --ic-card: #1f1f1f;
+  --ic-card-hover: #262626;
   --ic-border: rgba(245, 245, 245, 0.1);
   --ic-border-strong: rgba(245, 245, 245, 0.18);
   --ic-red: #e11d24;
@@ -408,11 +434,11 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(245, 245, 245, 0.16);
   border-radius: 999px;
 }
 [data-theme="light"] ::-webkit-scrollbar-thumb {
-  background-color: rgba(15, 23, 42, 0.18);
+  background-color: rgba(8, 11, 11, 0.2);
 }
 ::-webkit-scrollbar-track {
   background: transparent;

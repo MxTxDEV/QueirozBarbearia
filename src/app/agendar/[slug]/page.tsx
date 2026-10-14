@@ -59,7 +59,7 @@ export default async function CompanyBookingLandingPage({ params }: Props) {
         <ThemeToggle />
       </header>
 
-      <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-secondary-dark/40 to-accent-dark/30 sm:h-64">
+      <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-secondary-dark/35 to-[var(--surface-raised)] sm:h-64">
         {company.coverImageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={company.coverImageUrl} alt="" className="h-full w-full object-cover" />

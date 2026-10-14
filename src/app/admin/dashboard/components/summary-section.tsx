@@ -28,7 +28,7 @@ export function SummarySection({
   ];
 
   return (
-    <div className="glass-strong rounded-[2rem] p-8 text-center sm:p-10">
+    <div className="glass-strong rounded-3xl p-8 text-center sm:p-10">
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-foreground-muted">
         Visão geral — {DASHBOARD_PERIOD_LABEL[period].toLowerCase()}
       </p>
