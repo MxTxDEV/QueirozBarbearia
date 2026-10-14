@@ -96,10 +96,10 @@ describe("buildClosedSegments", () => {
       ],
     });
     expect(segs.filter((s) => s.start >= 540 && s.end <= 1140)).toEqual([
-      { start: 700, end: 720, reason: "Médico" },
-      { start: 720, end: 780, reason: "Intervalo" },
-      { start: 780, end: 800, reason: "Médico" },
-      { start: 900, end: 960, reason: "Bloqueado" },
+      { start: 700, end: 720, reason: "Médico", locked: true },
+      { start: 720, end: 780, reason: "Intervalo", locked: undefined },
+      { start: 780, end: 800, reason: "Médico", locked: true },
+      { start: 900, end: 960, reason: "Bloqueado", locked: true },
     ]);
   });
 });
