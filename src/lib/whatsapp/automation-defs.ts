@@ -13,6 +13,7 @@ export const AUTOMATION_KINDS = [
   "MONTHLY_SUMMARY",
   "BOOKED_BY_SHOP",
   "RECURRING_BOOKED_BY_SHOP",
+  "REQUEST_RECEIVED",
   "CONFIRMATION",
   "CANCELLATION",
   "THANKS",
@@ -175,6 +176,26 @@ Datas marcadas:
 {observacao}
 
 Todo dia 1º do mês e um dia antes de cada horário, avisamos você por aqui. Se precisar mudar alguma data, é só nos chamar!`,
+  },
+  REQUEST_RECEIVED: {
+    label: "Pedido de horário recebido",
+    when: "Na hora em que o cliente pede um horário pelo link de agendamento (ainda aguardando a confirmação da barbearia).",
+    group: "booking",
+    variables: [NOME, BARBEARIA, DATA, HORA, BARBEIRO, SERVICOS, TOTAL],
+    defaultTemplate: `Olá, {nome}! 💈
+
+Recebemos o seu pedido de horário na {barbearia}:
+
+📅 Data: {data}
+⏰ Horário: {hora}
+✂️ Barbeiro: {barbeiro}
+
+Serviços:
+{servicos}
+
+💰 Total: R$ {total}
+
+Assim que a barbearia confirmar, avisamos você por aqui. Até lá, o horário ainda não está confirmado.`,
   },
   CONFIRMATION: {
     label: "Horário confirmado",
@@ -414,6 +435,7 @@ export const DEFAULT_RULES: DefaultRule[] = [
   { key: "MONTHLY_SUMMARY", kind: "MONTHLY_SUMMARY", name: "Resumo do mês", dayOfMonth: 1, sendTime: "09:00", sortOrder: 0 },
   { key: "BOOKED_BY_SHOP", kind: "BOOKED_BY_SHOP", name: "Barbearia marcou um horário", sortOrder: 0 },
   { key: "RECURRING_BOOKED_BY_SHOP", kind: "RECURRING_BOOKED_BY_SHOP", name: "Barbearia marcou horário + recorrência", sortOrder: 0 },
+  { key: "REQUEST_RECEIVED", kind: "REQUEST_RECEIVED", name: "Pedido de horário recebido", sortOrder: 0 },
   { key: "CONFIRMATION", kind: "CONFIRMATION", name: "Horário confirmado", sortOrder: 0 },
   { key: "CANCELLATION", kind: "CANCELLATION", name: "Horário cancelado", sortOrder: 0 },
   { key: "THANKS", kind: "THANKS", name: "Agradecimento + avaliação", sortOrder: 0 },

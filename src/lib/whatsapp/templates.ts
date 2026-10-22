@@ -146,6 +146,8 @@ export const recurringApprovedTemplate = (d: Parameters<typeof recurringApproved
   renderDefault("RECURRING_APPROVED", recurringApprovedVars(d));
 export const recurringRejectedTemplate = (d: Parameters<typeof recurringRejectedVars>[0]) =>
   renderDefault("RECURRING_REJECTED", recurringRejectedVars(d));
+export const appointmentRequestReceivedTemplate = (d: AppointmentMessageData & { companyName?: string }) =>
+  renderDefault("REQUEST_RECEIVED", appointmentVars(d));
 export const appointmentScheduledByShopTemplate = (d: AppointmentMessageData & { companyName: string }) =>
   renderDefault("BOOKED_BY_SHOP", appointmentVars(d));
 export const recurringScheduledByShopTemplate = (d: Parameters<typeof recurringBookedVars>[0]) =>

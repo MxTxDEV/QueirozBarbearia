@@ -271,6 +271,16 @@ export async function sendRecurringRejected(
   return sendAutomated({ companyId, kind: "RECURRING_REJECTED", phone, customerId, vars: recurringRejectedVars(data) });
 }
 
+/** Tempo real: o cliente acabou de pedir um horário pelo link — avisa que recebemos e que aguarda confirmação. */
+export async function sendAppointmentRequestReceived(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: AppointmentMessageData & { companyName: string }
+) {
+  return sendAutomated({ companyId, kind: "REQUEST_RECEIVED", phone, customerId, vars: appointmentVars(data) });
+}
+
 /** Tempo real: a barbearia marcou um horário avulso pro cliente. */
 export async function sendAppointmentScheduledByShop(
   companyId: string,

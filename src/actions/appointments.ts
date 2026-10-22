@@ -13,6 +13,7 @@ import { toNumber } from "@/lib/serialize";
 import { createNotification } from "@/lib/notifications";
 import { logAudit } from "@/lib/audit";
 import { notifyAppointmentScheduledByShop } from "@/lib/shop-booking-notices";
+import { notifyAppointmentRequestReceived } from "@/lib/request-received-notice";
 import { appointmentClientName } from "@/lib/appointment-client";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import {
@@ -240,10 +241,19 @@ export async function createAppointmentsAsCustomer(
 ): Promise<ActionResult<{ ids: string[] }>> {
   const customer = await getCurrentCustomer();
   if (!customer) return actionError(new Error("Sessão expirada. Faça login novamente."));
-  return createAppointmentsBatchCore(
+  const result = await createAppointmentsBatchCore(
     inputs.map((input) => ({ ...input, customerId: customer.id })),
     customer.companyId
   );
+  // Avisa o cliente no WhatsApp que o pedido foi recebido (nunca derruba o agendamento).
+  if (result.ok && result.data) {
+    for (const id of result.data.ids) {
+      await notifyAppointmentRequestReceived(id, customer.companyId).catch((error) => {
+        console.error("[whatsapp] falha ao avisar o cliente que o pedido foi recebido:", error);
+      });
+    }
+  }
+  return result;
 }
 
 /** Painel: vários horários de uma vez para o mesmo cliente (cadastrado ou avulso). */
@@ -269,7 +279,14 @@ export async function createAppointmentAsCustomer(
 ): Promise<ActionResult<{ id: string }>> {
   const customer = await getCurrentCustomer();
   if (!customer) return actionError(new Error("Sessão expirada. Faça login novamente."));
-  return createAppointmentCore({ ...input, customerId: customer.id }, customer.companyId);
+  const result = await createAppointmentCore({ ...input, customerId: customer.id }, customer.companyId);
+  // Avisa o cliente no WhatsApp que o pedido foi recebido (nunca derruba o agendamento).
+  if (result.ok && result.data) {
+    await notifyAppointmentRequestReceived(result.data.id, customer.companyId).catch((error) => {
+      console.error("[whatsapp] falha ao avisar o cliente que o pedido foi recebido:", error);
+    });
+  }
+  return result;
 }
 
 /** Usado pelo painel administrativo, onde o admin escolhe o cliente manualmente. */
