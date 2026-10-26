@@ -14,6 +14,7 @@ import {
   markNoShowAction,
 } from "@/actions/appointments";
 import type { AppointmentStatus } from "@prisma/client";
+import { EditAppointmentButton } from "./edit-appointment-button";
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Não foi possível concluir a ação. Tente novamente.";
@@ -72,6 +73,7 @@ export function AppointmentRowActions({
           Confirmar
         </Button>
       )}
+      {open && <EditAppointmentButton id={id} />}
       {(status === "PENDING" || status === "CONFIRMED") && (
         <Button
           type="button"
