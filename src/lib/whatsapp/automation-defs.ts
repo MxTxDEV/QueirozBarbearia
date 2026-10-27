@@ -70,7 +70,7 @@ const FREQUENCIA: TemplateVariable = { key: "frequencia", label: "Frequência da
 export const KIND_DEFS: Record<AutomationKind, KindDef> = {
   REMINDER_BEFORE: {
     label: "Lembrete antes do horário",
-    when: "Um tempo antes do horário marcado (você escolhe: 1 dia, 2 horas, 1 hora…). Pode ter vários.",
+    when: "Um tempo antes do horário marcado (você escolhe: 1 dia, 2 horas, 1 hora…). Pode ter vários. Quem marcou já dentro desse prazo não recebe — foi avisado na hora do agendamento.",
     group: "reminders",
     timing: "before",
     variables: [
@@ -91,7 +91,7 @@ Nos vemos em breve!`,
   },
   REMINDER_MORNING: {
     label: "Lembrete “é hoje” (manhã do dia)",
-    when: "No dia do horário, a partir da hora que você definir (ex: 7h). Uma mensagem por cliente, com todos os horários dele no dia.",
+    when: "No dia do horário, a partir da hora que você definir (ex: 7h). Uma mensagem por cliente, com todos os horários dele no dia. Quem marcou o horário no próprio dia, depois dessa hora, não recebe — já foi avisado na hora do agendamento.",
     group: "reminders",
     timing: "morning",
     variables: [

@@ -228,6 +228,16 @@ export async function sendDueMorningReminders(options: { companyIds?: string[]; 
       continue;
     }
 
+    // Reivindica ANTES de enviar: se outro disparo (cron externo + agendador embutido) pegou o mesmo horário
+    // agora há pouco, este pula — ninguém recebe a mensagem em dobro. Carimba mesmo se o envio falhar
+    // (uma falha do provedor não pode virar reenvio em loop).
+    const claimed: typeof fresh = [];
+    for (const a of fresh) {
+      const claim = await prisma.appointment.updateMany({ where: { id: a.id, reminderMorningSentAt: null }, data: { reminderMorningSentAt: new Date() } });
+      if (claim.count === 1) claimed.push(a);
+    }
+    if (claimed.length === 0) continue;
+
     const result = await sendWithRule({
       companyId: appts[0].companyId,
       rule,
@@ -237,7 +247,7 @@ export async function sendDueMorningReminders(options: { companyIds?: string[]; 
         customerName: customer.fullName,
         companyName: appts[0].company.name,
         items: await Promise.all(
-          fresh.map(async (a) => ({
+          claimed.map(async (a) => ({
             time: formatTime(a.startTime),
             barberName: a.barber.name,
             services: a.services.map((s) => s.serviceName),
@@ -247,10 +257,6 @@ export async function sendDueMorningReminders(options: { companyIds?: string[]; 
       }),
     }).catch(() => ({ ok: false as const }));
 
-    await prisma.appointment.updateMany({
-      where: { id: { in: fresh.map((a) => a.id) }, reminderMorningSentAt: null },
-      data: { reminderMorningSentAt: new Date() },
-    });
     if (result.ok) sent++;
     else failed++;
     await sleep(spacingMs);

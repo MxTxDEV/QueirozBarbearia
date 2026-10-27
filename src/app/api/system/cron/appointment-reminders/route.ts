@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { originFromHeaders, rememberOrigin } from "@/lib/app-url";
 import { sendDueAppointmentReminders } from "@/lib/appointment-reminders";
 import { sendMonthlyRecurrenceNotices } from "@/lib/monthly-recurrence-notices";
+import { markSchedulerRun } from "@/lib/scheduler-status";
 
 /** Compara em tempo constante — evita que a duração da comparação vaze, byte a byte, o segredo correto. */
 function secretsMatch(provided: string, expected: string) {
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await sendDueAppointmentReminders();
+    await markSchedulerRun().catch(() => undefined); // a tela WhatsApp mostra "lembretes em dia" também pelo cron externo
     // Carona no mesmo agendador: o aviso mensal de recorrência (só age nos dias 1–3, 9h–19h), em lotes
     // pequenos pra esta resposta continuar rápida — a fila anda a cada execução. Falha aqui não derruba os lembretes.
     const monthlyNotices = await sendMonthlyRecurrenceNotices({ limit: 5 }).catch((error) => {

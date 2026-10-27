@@ -10,6 +10,7 @@ import { AutomationsEditor, type RuleDto } from "./automations-editor";
 import { listAutomations } from "@/lib/whatsapp/automations";
 import { loadMessageSettings, resolveBookingLink } from "@/lib/whatsapp/message-settings";
 import Link from "next/link";
+import { SchedulerNotice } from "./scheduler-notice";
 
 /**
  * Sempre dinâmica: a página consulta o estado da conexão do WhatsApp em
@@ -46,6 +47,7 @@ export default async function WhatsappSettingsPage({ searchParams }: { searchPar
       <div className="space-y-6">
         <PageHeader subtitle="Escolha o que é enviado, para quem, quando e com qual texto." />
         <Tabs active="mensagens" canEditMessages />
+        <SchedulerNotice />
         <AutomationsEditor rules={dtos} companyName={user.companyName ?? ""} messageSettings={messageSettings} suggestedLink={suggestedLink} />
       </div>
     );
@@ -68,6 +70,7 @@ export default async function WhatsappSettingsPage({ searchParams }: { searchPar
     <div className="space-y-6">
       <PageHeader subtitle="Status da integração e histórico de mensagens enviadas." />
       <Tabs active="conexao" canEditMessages={canEditMessages} />
+      <SchedulerNotice />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>

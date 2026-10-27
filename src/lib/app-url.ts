@@ -24,6 +24,9 @@ export function originFromHeaders(get: (name: string) => string | null | undefin
 export async function getAppBaseUrl(companyId?: string): Promise<string | null> {
   const fromEnv = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
   if (fromEnv && /^https?:\/\//.test(fromEnv)) return fromEnv.replace(/\/+$/, "");
+  // O Coolify injeta o endereço público do app (COOLIFY_URL, às vezes uma lista separada por vírgula).
+  const fromCoolify = (process.env.COOLIFY_URL ?? "").split(",").map((v) => v.trim()).find((v) => /^https?:\/\//.test(v));
+  if (fromCoolify) return fromCoolify.replace(/\/+$/, "");
   // O link de divulgação que a própria barbearia cadastrou já diz qual é o endereço público do sistema.
   if (companyId) {
     const setting = await prisma.systemSetting.findUnique({ where: { companyId_key: { companyId, key: "wa_booking_link" } }, select: { value: true } });
@@ -36,7 +39,11 @@ export async function getAppBaseUrl(companyId?: string): Promise<string | null> 
   try {
     const h = await headers();
     const origin = originFromHeaders((name) => h.get(name));
-    if (origin) return origin;
+    if (origin) {
+      // Guarda para os envios automáticos (agendador embutido), que rodam fora de qualquer requisição.
+      rememberOrigin(origin);
+      return origin;
+    }
   } catch {
     // fora de uma requisição (cron/job): cai no último endereço visto
   }
