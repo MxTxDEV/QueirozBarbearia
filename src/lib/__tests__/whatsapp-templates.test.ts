@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { appointmentScheduledByShopTemplate, morningReminderTemplate, recurringScheduledByShopTemplate } from "../whatsapp/templates";
+import { appointmentReminderTemplate, appointmentScheduledByShopTemplate, morningReminderTemplate, recurringScheduledByShopTemplate } from "../whatsapp/templates";
+import { ensureObservation } from "../whatsapp/automation-defs";
 
 const wall = (y: number, m: number, d: number, h = 0, min = 0) => new Date(Date.UTC(y, m - 1, d, h, min));
 
@@ -86,5 +87,49 @@ describe("templates de agendamento feito pela barbearia", () => {
     });
     expect(none).not.toContain("Confirme");
     expect(none).not.toContain("\n\n\n");
+  });
+});
+
+describe("observação do agendamento nos lembretes", () => {
+  const base = { customerName: "João", companyName: "Queiroz", date: "07/10/2026", time: "15:00", barberName: "Marcos", services: ["Corte"], totalPrice: "45,00" };
+
+  it("lembrete antes do horário mostra a observação", () => {
+    const text = appointmentReminderTemplate({ ...base, notes: "corte do filho Pedro", when: "amanhã" });
+    expect(text).toContain("📝 Observação: corte do filho Pedro");
+  });
+  it("sem observação, o lembrete não ganha linha vazia nem o rótulo", () => {
+    const text = appointmentReminderTemplate({ ...base, notes: null, when: "amanhã" });
+    expect(text).not.toContain("Observação");
+    expect(text).not.toMatch(/\n{3,}/);
+  });
+  it("observação com quebras de linha vira uma linha só", () => {
+    expect(appointmentReminderTemplate({ ...base, notes: "corte\ndo filho\n  Pedro", when: "hoje" })).toContain("📝 Observação: corte do filho Pedro");
+  });
+  it("lembrete da manhã traz a observação de cada horário", () => {
+    const text = morningReminderTemplate({
+      customerName: "João",
+      companyName: "Queiroz",
+      items: [
+        { time: "09:00", barberName: "Marcos", services: ["Corte"], notes: "corte do filho Pedro" },
+        { time: "15:00", barberName: "Marcos", services: ["Barba"] },
+      ],
+    });
+    expect(text).toContain("⏰ 09:00 — Corte com Marcos\n📝 Observação: corte do filho Pedro");
+    expect(text).toContain("⏰ 15:00 — Barba com Marcos");
+    expect(text.match(/Observação/g)).toHaveLength(1);
+  });
+});
+
+describe("ensureObservation (texto personalizado sem o campo)", () => {
+  const note = "📝 Observação: corte do filho Pedro";
+  it("acrescenta no fim quando o texto não usa {observacao}", () => {
+    expect(ensureObservation("Olá! Seu horário é amanhã.", "Olá! Seu horário é {quando}.", note)).toBe(`Olá! Seu horário é amanhã.\n\n${note}`);
+  });
+  it("não repete quando o texto já usa {observacao}", () => {
+    expect(ensureObservation(`Oi\n${note}`, "Oi\n{observacao}", note)).toBe(`Oi\n${note}`);
+  });
+  it("sem observação, não muda nada", () => {
+    expect(ensureObservation("Oi", "Oi", "")).toBe("Oi");
+    expect(ensureObservation("Oi", "Oi", undefined)).toBe("Oi");
   });
 });

@@ -5,7 +5,8 @@ import { CloudApiWhatsAppProvider } from "./cloud-api-provider";
 import { EvolutionApiWhatsAppProvider } from "./evolution-provider";
 import { getEvolutionConfig, getEvolutionConnectionState, getEvolutionConnectedNumber } from "./evolution-client";
 import type { WhatsAppProvider, AppointmentMessageData, WhatsappSendResult } from "./types";
-import { renderTemplate, pickRule, type AutomationKind } from "./automation-defs";
+import { renderTemplate, pickRule, ensureObservation, type AutomationKind } from "./automation-defs";
+import { firstName } from "@/lib/utils";
 import { automationsOfKind, companyDisplayName, getCustomerSegments, templateOf } from "./automations";
 import { bookingLinkVar, withBookingFooter } from "./message-settings";
 import {
@@ -211,11 +212,15 @@ export async function sendWithRule(params: {
 }): Promise<WhatsappSendResult> {
   const companyName = params.vars.barbearia ?? (await companyDisplayName(params.companyId));
   const template = templateOf(params.rule);
-  const filled = renderTemplate(template, {
+  let filled = renderTemplate(template, {
     ...params.vars,
+    // As mensagens automáticas chamam o cliente só pelo primeiro nome.
+    ...(params.vars.nome !== undefined ? { nome: firstName(String(params.vars.nome)) } : {}),
     barbearia: companyName,
     link_agendamento: await bookingLinkVar(params.companyId),
   });
+  // Lembrete antes do horário: a observação do agendamento sempre vai (mesmo em texto personalizado sem o campo).
+  if (params.rule.kind === "REMINDER_BEFORE") filled = ensureObservation(filled, template, params.vars.observacao);
   // Link de divulgação ao fim de toda mensagem automática (a menos que a barbearia desligue o rodapé).
   const message = await withBookingFooter(params.companyId, filled, template);
   return sendWhatsapp({ companyId: params.companyId, phone: params.phone, customerId: params.customerId, message });

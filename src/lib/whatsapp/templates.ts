@@ -17,8 +17,13 @@ export const renderDefault = (kind: AutomationKind, vars: Vars) => renderTemplat
 
 // ---- valores por tipo de mensagem --------------------------------------------------------------
 
+/** Observação numa linha só ("corte do filho\nPedro" → "corte do filho Pedro"); vazio se não houver. */
+const oneLineNote = (notes: string | null | undefined) => (notes ?? "").replace(/\s+/g, " ").trim();
+
 export function appointmentVars(d: AppointmentMessageData & { companyName?: string; when?: string; confirmUrl?: string | null }): Vars {
+  const note = oneLineNote(d.notes);
   return {
+    observacao: note ? `📝 Observação: ${note}` : "",
     link: d.confirmUrl ?? "",
     confirmacao: d.confirmUrl ? `✅ Confirme seu horário com um toque:\n${d.confirmUrl}` : "",
     nome: d.customerName,
@@ -110,7 +115,7 @@ export function recurringBookedVars(d: {
 export function morningVars(d: {
   customerName: string;
   companyName: string;
-  items: { time: string; barberName: string; services: string[]; confirmUrl?: string | null }[];
+  items: { time: string; barberName: string; services: string[]; confirmUrl?: string | null; notes?: string | null }[];
 }): Vars {
   const withLink = d.items.filter((i) => i.confirmUrl);
   // Um horário: frase + link. Vários: um link por horário, identificado pela hora.
@@ -125,7 +130,12 @@ export function morningVars(d: {
     nome: d.customerName,
     barbearia: d.companyName,
     chamada: d.items.length > 1 ? "Você tem horários marcados hoje" : "Você tem um horário marcado hoje",
-    horarios: d.items.map((i) => `⏰ ${i.time} — ${i.services.join(", ")} com ${i.barberName}`).join("\n"),
+    horarios: d.items
+      .map((i) => {
+        const note = oneLineNote(i.notes);
+        return `⏰ ${i.time} — ${i.services.join(", ")} com ${i.barberName}${note ? `\n📝 Observação: ${note}` : ""}`;
+      })
+      .join("\n"),
   };
 }
 

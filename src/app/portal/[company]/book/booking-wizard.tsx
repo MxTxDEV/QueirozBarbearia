@@ -11,7 +11,6 @@ import { formatCurrency, formatDuration, formatDate } from "@/lib/utils";
 import { getAvailableSlotsAction } from "@/actions/availability";
 import { createAppointmentAsCustomer, createAppointmentsAsCustomer } from "@/actions/appointments";
 import { WaitlistJoinForm } from "./waitlist-join-form";
-import { RecurringRequestPanel } from "./recurring-request-panel";
 
 type Service = { id: string; name: string; price: number; durationMinutes: number };
 type Barber = { id: string; name: string; photoUrl: string | null; specialties: string[]; services: Service[] };
@@ -48,7 +47,6 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [repeatEnabled, setRepeatEnabled] = useState(false);
   const [notes, setNotes] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [pending, startTransition] = useTransition();
@@ -114,7 +112,6 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
     setSlots([]);
     setSelectedSlot(null);
     setNotes("");
-    setRepeatEnabled(false);
     setStep(0);
   }
 
@@ -373,7 +370,7 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
                 className="w-full rounded-xl border bg-[var(--surface-subtle)] p-3 text-sm text-foreground placeholder:text-foreground-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
               />
             </div>
-            {cart.length + 1 < MAX_BOOKINGS && !repeatEnabled && (
+            {cart.length + 1 < MAX_BOOKINGS && (
               <button
                 type="button"
                 onClick={addAnother}
@@ -382,38 +379,14 @@ export function BookingWizard({ barbers, companySlug, whatsapp }: { barbers: Bar
                 <Plus className="h-4 w-4" /> Marcar mais um horário (outro serviço, outra pessoa ou outro dia)
               </button>
             )}
-            {cart.length === 0 && (
-            <label className="flex items-center gap-2 text-sm text-foreground-muted">
-              <input
-                type="checkbox"
-                checked={repeatEnabled}
-                onChange={(e) => setRepeatEnabled(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Repetir este agendamento
-            </label>
-            )}
-
-            {repeatEnabled && barberId && selectedServices[0] && (
-              <RecurringRequestPanel
-                barberId={barberId}
-                serviceId={selectedServices[0].id}
-                startDate={date}
-                startTime={selectedSlot.label}
-                onSuccess={() => router.push(`/portal/${companySlug}/recurring-appointments?requested=1`)}
-              />
-            )}
-
             {submitError && <p className="text-sm text-danger">{submitError}</p>}
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setStep(2)} disabled={pending}>
                 <ChevronLeft className="h-4 w-4" /> Voltar
               </Button>
-              {!repeatEnabled && (
-                <Button onClick={submit} disabled={pending} className="flex-1">
-                  {pending ? "Enviando..." : cart.length > 0 ? `Solicitar ${cart.length + 1} agendamentos` : "Solicitar agendamento"}
-                </Button>
-              )}
+              <Button onClick={submit} disabled={pending} className="flex-1">
+                {pending ? "Enviando..." : cart.length > 0 ? `Solicitar ${cart.length + 1} agendamentos` : "Solicitar agendamento"}
+              </Button>
             </div>
           </CardContent>
         </Card>

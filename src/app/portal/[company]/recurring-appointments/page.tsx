@@ -23,7 +23,7 @@ export default async function PortalRecurringAppointmentsPage({ params }: { para
         {series.length === 0 && (
           <Card>
             <CardContent className="text-center text-sm text-foreground-muted">
-              Nenhuma recorrência ainda. Ative &quot;Repetir este agendamento&quot; ao agendar um horário.
+              Nenhuma recorrência ainda. A recorrência é combinada com o seu barbeiro — peça a ele para deixar o seu horário fixo.
             </CardContent>
           </Card>
         )}

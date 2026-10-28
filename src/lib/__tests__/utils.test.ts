@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCurrency, formatDuration, normalizeWhatsapp, formatWhatsappDisplay, weekdayName } from "@/lib/utils";
+import { formatCurrency, formatDuration, normalizeWhatsapp, formatWhatsappDisplay, weekdayName, firstName } from "@/lib/utils";
 
 describe("formatCurrency", () => {
   it("formats a number as BRL", () => {
@@ -65,5 +65,24 @@ describe("weekdayName", () => {
 
   it("returns an empty string for an out-of-range index", () => {
     expect(weekdayName(9)).toBe("");
+  });
+});
+
+describe("firstName", () => {
+  it("devolve só o primeiro nome", () => {
+    expect(firstName("Fábio Henrique Pedrosa Andrade")).toBe("Fábio");
+    expect(firstName("Luis Henrique teles Silva")).toBe("Luis");
+    expect(firstName("  Maria   Clara ")).toBe("Maria");
+  });
+  it("nome já sem sobrenome fica igual", () => expect(firstName("João")).toBe("João"));
+  it("ajusta a inicial de nome digitado todo em minúsculas ou MAIÚSCULAS", () => {
+    expect(firstName("joão silva")).toBe("João");
+    expect(firstName("MARCOS OLIVEIRA")).toBe("Marcos");
+    expect(firstName("álvaro neto")).toBe("Álvaro");
+  });
+  it("vazio continua vazio", () => {
+    expect(firstName("")).toBe("");
+    expect(firstName(undefined)).toBe("");
+    expect(firstName(null)).toBe("");
   });
 });

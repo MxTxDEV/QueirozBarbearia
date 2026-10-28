@@ -65,6 +65,11 @@ const CONFIRMACAO: TemplateVariable = {
   label: "Frase + link para confirmar o horário (some se não houver link)",
   example: "✅ Confirme seu horário com um toque:\nhttps://seusite.com/confirmar/abc123xyz",
 };
+const OBSERVACAO: TemplateVariable = {
+  key: "observacao",
+  label: "Observação do agendamento (some se não houver)",
+  example: "📝 Observação: corte do filho Pedro",
+};
 const FREQUENCIA: TemplateVariable = { key: "frequencia", label: "Frequência da recorrência", example: "Toda semana" };
 
 export const KIND_DEFS: Record<AutomationKind, KindDef> = {
@@ -74,7 +79,7 @@ export const KIND_DEFS: Record<AutomationKind, KindDef> = {
     group: "reminders",
     timing: "before",
     variables: [
-      NOME, BARBEARIA, DATA, HORA, BARBEIRO, SERVICOS, TOTAL, LINK, CONFIRMACAO,
+      NOME, BARBEARIA, DATA, HORA, BARBEIRO, SERVICOS, TOTAL, LINK, CONFIRMACAO, OBSERVACAO,
       { key: "quando", label: "“hoje”, “amanhã” ou “no dia 09/10/2026”", example: "amanhã" },
     ],
     defaultTemplate: `Olá, {nome}! 💈
@@ -84,6 +89,7 @@ Passando para lembrar que você possui um horário agendado {quando}:
 📅 {data}
 ⏰ {hora}
 ✂️ Barbeiro: {barbeiro}
+{observacao}
 
 {confirmacao}
 
@@ -97,7 +103,7 @@ Nos vemos em breve!`,
     variables: [
       NOME, BARBEARIA,
       { key: "chamada", label: "“Você tem um horário marcado hoje” (ajusta para vários)", example: "Você tem um horário marcado hoje" },
-      { key: "horarios", label: "Lista dos horários do dia", example: "⏰ 15:00 — Corte Social com Marcos" },
+      { key: "horarios", label: "Lista dos horários do dia (com a observação, se houver)", example: "⏰ 15:00 — Corte Social com Marcos\n📝 Observação: corte do filho Pedro" },
       {
         key: "confirmacoes",
         label: "Link para confirmar o horário (um por horário; some se não houver link)",
@@ -474,6 +480,17 @@ export function pickRule<T extends { enabled: boolean; audience: string; sortOrd
     .filter((rule) => rule.enabled && matchesAudience(rule.audience, segments))
     .sort((a, b) => Number(a.audience === "ALL") - Number(b.audience === "ALL") || a.sortOrder - b.sortOrder);
   return candidates[0] ?? null;
+}
+
+/**
+ * Lembrete com a observação do agendamento: se o texto da barbearia (editado) não usa o campo
+ * {observacao}, a observação entra no fim da mensagem — quem personalizou o texto antes deste campo
+ * existir também passa a mostrá-la.
+ */
+export function ensureObservation(message: string, template: string, observacao: string | number | undefined): string {
+  const note = typeof observacao === "string" ? observacao.trim() : "";
+  if (!note || templateFields(template).includes("observacao")) return message;
+  return `${message}\n\n${note}`;
 }
 
 /** "amanhã" / "hoje" / "no dia 09/10/2026" — `diffDays` = dias entre hoje e o dia do horário. */

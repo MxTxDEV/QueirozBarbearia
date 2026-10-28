@@ -50,33 +50,6 @@ const createRecurringSchema = z.object({
 
 export type CreateRecurringAppointmentInput = z.infer<typeof createRecurringSchema>;
 
-/** Cliente solicita — nasce PENDING_APPROVAL, nunca ativa ocorrências imediatamente (regra fundamental do pedido). */
-export async function requestRecurringAppointmentAsCustomerAction(
-  input: CreateRecurringAppointmentInput
-): Promise<ActionResult<{ id: string }>> {
-  const customer = await getCurrentCustomer();
-  if (!customer) return actionError(new Error("Sessão expirada. Faça login novamente."));
-  try {
-    const data = createRecurringSchema.parse(input);
-    const result = await createRecurringAppointmentCore({
-      companyId: customer.companyId,
-      customerId: customer.id,
-      barberId: data.barberId,
-      serviceId: data.serviceId,
-      startDate: dateOnly(new Date(`${data.startDate}T00:00:00.000Z`)),
-      startTime: data.startTime,
-      frequencyUnit: data.frequencyUnit,
-      intervalValue: data.intervalValue,
-      endDate: data.endDate ? dateOnly(new Date(`${data.endDate}T00:00:00.000Z`)) : null,
-      occurrencesLimit: data.occurrencesLimit ?? null,
-    });
-    if (result.ok) revalidateRecurring();
-    return result;
-  } catch (error) {
-    return actionError(error);
-  }
-}
-
 const createRecurringAsAdminSchema = createRecurringSchema.extend({
   customerId: z.string().min(1, "Selecione um cliente."),
 });

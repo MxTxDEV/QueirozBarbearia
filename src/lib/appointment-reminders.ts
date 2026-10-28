@@ -145,6 +145,7 @@ export async function sendDueBeforeReminders(companyIds: string[], options: { li
           barberName: appt.barber.name,
           services: appt.services.map((s) => s.serviceName),
           totalPrice: formatCurrency(appt.totalPrice.toString()).replace("R$", "").trim(),
+          notes: appt.notes,
           when: whenLabel(diffDays, formatDate(appt.appointmentDate)),
           confirmUrl: await confirmationUrlFor(appt.id),
         }),
@@ -251,6 +252,7 @@ export async function sendDueMorningReminders(options: { companyIds?: string[]; 
             time: formatTime(a.startTime),
             barberName: a.barber.name,
             services: a.services.map((s) => s.serviceName),
+            notes: a.notes,
             confirmUrl: await confirmationUrlFor(a.id),
           }))
         ),

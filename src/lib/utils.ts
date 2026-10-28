@@ -42,6 +42,20 @@ export function weekdayName(weekday: number) {
   return WEEKDAY_NAMES[weekday] ?? "";
 }
 
+/**
+ * Primeiro nome, para as mensagens automáticas ("Olá, Fábio!" e não "Olá, Fábio Henrique Pedrosa Andrade!").
+ * Nome digitado todo em minúsculas ou MAIÚSCULAS ganha a inicial maiúscula; o resto fica como cadastrado.
+ */
+export function firstName(full: string | null | undefined): string {
+  const raw = (full ?? "").trim();
+  const first = raw.split(/\s+/)[0] ?? "";
+  if (!first) return raw;
+  if (first === first.toLocaleLowerCase("pt-BR") || first === first.toLocaleUpperCase("pt-BR")) {
+    return first.charAt(0).toLocaleUpperCase("pt-BR") + first.slice(1).toLocaleLowerCase("pt-BR");
+  }
+  return first;
+}
+
 /** Normaliza um número de telefone brasileiro para o formato internacional +55DDNNNNNNNNN. */
 export function normalizeWhatsapp(raw: string): string | null {
   const digits = raw.replace(/\D/g, "");
