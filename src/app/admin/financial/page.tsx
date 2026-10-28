@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChevronRight, Receipt, User } from "lucide-react";
 import { requireAdminOnly } from "@/lib/require-admin";
+import { PaymentMethodsSection } from "./payment-methods-section";
 
 const PERIODS: { value: PeriodFilter; label: string }[] = [
   { value: "today", label: "Hoje" },
@@ -89,6 +90,8 @@ export default async function FinancialOverviewPage({
           </div>
         </div>
       </div>
+
+      <PaymentMethodsSection companyId={user.companyId} period={period} />
 
       {barbersRevenue.barbers.length > 0 && (
         <div className="space-y-3">

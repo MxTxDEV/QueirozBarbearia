@@ -15,6 +15,7 @@ import {
 } from "@/actions/appointments";
 import type { AppointmentStatus } from "@prisma/client";
 import { EditAppointmentButton } from "./edit-appointment-button";
+import { paidLabel } from "@/lib/payment-labels";
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Não foi possível concluir a ação. Tente novamente.";
@@ -24,11 +25,14 @@ export function AppointmentRowActions({
   id,
   status,
   hasPayment,
+  paymentMethods,
   recurring,
 }: {
   id: string;
   status: AppointmentStatus;
   hasPayment?: boolean;
+  /** Formas de pagamento já registradas (PIX, CASH…): o selo "Pago" diz qual foi. */
+  paymentMethods?: string[];
   /** Agendamento de uma recorrência: cancelar vale só pra este dia. */
   recurring?: boolean;
 }) {
@@ -109,7 +113,7 @@ export function AppointmentRowActions({
           </Button>
         </Link>
       )}
-      {status === "COMPLETED" && hasPayment && <Badge variant="success">Pago</Badge>}
+      {status === "COMPLETED" && hasPayment && <Badge variant="success">{paidLabel(paymentMethods ?? [])}</Badge>}
     </div>
   );
 }

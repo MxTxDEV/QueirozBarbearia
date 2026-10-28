@@ -352,7 +352,7 @@ export default async function AppointmentsPage({
   });
 
   const renderActions = (appt: (typeof appointments)[number]) => (
-    <AppointmentRowActions key={appt.id} id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} recurring={!!appt.recurringOccurrence} />
+    <AppointmentRowActions key={appt.id} id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} paymentMethods={appt.payments.map((p) => p.paymentMethod)} recurring={!!appt.recurringOccurrence} />
   );
 
   // Visão de Semana no celular: um carrossel por dia, empilhados.
@@ -692,7 +692,7 @@ export default async function AppointmentsPage({
                       )}
                     </TableCell>
                     <TableCell>
-                      <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} recurring={!!appt.recurringOccurrence} />
+                      <AppointmentRowActions id={appt.id} status={appt.status} hasPayment={appt.payments.length > 0} paymentMethods={appt.payments.map((p) => p.paymentMethod)} recurring={!!appt.recurringOccurrence} />
                     </TableCell>
                   </SwappableRow>
                 ))}

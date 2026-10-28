@@ -2,6 +2,7 @@ import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/serialize";
+import { breakdownByMethod, type IncomeRow } from "@/lib/payment-breakdown";
 
 export type PeriodFilter = "today" | "week" | "month" | "year" | "all";
 
@@ -64,6 +65,40 @@ export async function listTransactions(companyId: string, period: PeriodFilter =
     include: { customer: true },
     take: 100,
   });
+}
+
+/**
+ * Entradas do período separadas por forma de pagamento (débito, crédito, Pix, dinheiro…), com os
+ * clientes de cada uma. Usa o mesmo livro-razão e o mesmo período do "Saldo" e das "Entradas" da
+ * tela Financeiro — a soma das formas bate com as Entradas.
+ */
+export async function getIncomeByPaymentMethod(companyId: string, period: PeriodFilter) {
+  const { from, to } = periodToDates(period);
+  const where = from && to ? { companyId, transactionDate: { gte: from, lt: to } } : { companyId };
+
+  const rows = await prisma.financialTransaction.findMany({
+    where: { ...where, type: "INCOME" },
+    select: {
+      paymentMethod: true,
+      amount: true,
+      description: true,
+      customerId: true,
+      customer: { select: { fullName: true } },
+      appointment: { select: { walkInName: true } },
+    },
+  });
+
+  const incomeRows: IncomeRow[] = rows.map((r) => {
+    const name = r.customer?.fullName ?? r.appointment?.walkInName ?? r.description;
+    return {
+      method: r.paymentMethod,
+      amount: toNumber(r.amount),
+      // Cliente cadastrado agrupa pelo cadastro; avulso/lançamento manual, pelo nome/descrição.
+      clientKey: r.customerId ? `c:${r.customerId}` : `t:${name.trim().toLowerCase()}`,
+      clientName: name,
+    };
+  });
+  return breakdownByMethod(incomeRows);
 }
 
 export async function listExpenses(companyId: string) {
