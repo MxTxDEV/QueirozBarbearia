@@ -14,6 +14,8 @@ import { createNotification } from "@/lib/notifications";
 import { logAudit } from "@/lib/audit";
 import { notifyAppointmentScheduledByShop } from "@/lib/shop-booking-notices";
 import { notifyAppointmentRequestReceived } from "@/lib/request-received-notice";
+import { loadCustomerSlotConfig } from "@/lib/customer-slot-settings";
+import { hhmmToMin, isOnCustomerGrid, type CustomerSlotConfig } from "@/lib/customer-slots";
 import { appointmentClientName } from "@/lib/appointment-client";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import {
@@ -52,7 +54,13 @@ type CreateAppointmentInput = z.infer<typeof createSchema>;
 export async function createAppointmentCore(
   input: CreateAppointmentInput,
   companyId: string,
-  options?: { excludeWaitlistEntryId?: string; /** Só o painel: aceita fora do expediente/intervalo. */ allowOutsideHours?: boolean }
+  options?: {
+    excludeWaitlistEntryId?: string;
+    /** Só o painel: aceita fora do expediente/intervalo. */
+    allowOutsideHours?: boolean;
+    /** Portal do cliente: o horário tem que estar na grade que a barbearia escolheu (45 em 45 min, etc.). */
+    customerGrid?: CustomerSlotConfig;
+  }
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const data = createSchema.parse(input);
@@ -78,6 +86,18 @@ export async function createAppointmentCore(
 
     if (startTime.getTime() < shopNow().getTime() - 60_000) {
       return actionError(new Error("Não é possível agendar em um horário no passado."));
+    }
+
+    // Cliente só marca nos horários da grade da barbearia — mesmo que alguém chame a ação por fora da tela.
+    if (options?.customerGrid && !options.allowOutsideHours) {
+      const workingHour = await prisma.barberWorkingHour.findUnique({
+        where: { barberId_weekday: { barberId: data.barberId, weekday: appointmentDate.getUTCDay() } },
+        select: { startTime: true },
+      });
+      const startMin = startTime.getUTCHours() * 60 + startTime.getUTCMinutes();
+      if (!workingHour || !isOnCustomerGrid(startMin, hhmmToMin(workingHour.startTime), options.customerGrid)) {
+        return actionError(new Error("Esse horário não está disponível para agendamento online. Escolha um dos horários mostrados."));
+      }
     }
 
     const conflict = await hasSchedulingConflict({
@@ -190,7 +210,7 @@ const MAX_BATCH_APPOINTMENTS = 5;
 export async function createAppointmentsBatchCore(
   inputs: CreateAppointmentInput[],
   companyId: string,
-  options?: { allowOutsideHours?: boolean }
+  options?: { allowOutsideHours?: boolean; customerGrid?: CustomerSlotConfig }
 ): Promise<ActionResult<{ ids: string[] }>> {
   try {
     if (inputs.length === 0) return actionError(new Error("Escolha ao menos um horário."));
@@ -218,7 +238,7 @@ export async function createAppointmentsBatchCore(
 
     const createdIds: string[] = [];
     for (let i = 0; i < parsed.length; i += 1) {
-      const result = await createAppointmentCore(parsed[i], companyId, { allowOutsideHours: options?.allowOutsideHours });
+      const result = await createAppointmentCore(parsed[i], companyId, { allowOutsideHours: options?.allowOutsideHours, customerGrid: options?.customerGrid });
       if (!result.ok || !result.data) {
         if (createdIds.length > 0) {
           await prisma.appointment.deleteMany({ where: { id: { in: createdIds }, companyId } });
@@ -243,7 +263,8 @@ export async function createAppointmentsAsCustomer(
   if (!customer) return actionError(new Error("Sessão expirada. Faça login novamente."));
   const result = await createAppointmentsBatchCore(
     inputs.map((input) => ({ ...input, customerId: customer.id })),
-    customer.companyId
+    customer.companyId,
+    { customerGrid: await loadCustomerSlotConfig(customer.companyId) }
   );
   // Avisa o cliente no WhatsApp que o pedido foi recebido (nunca derruba o agendamento).
   if (result.ok && result.data) {
@@ -279,7 +300,9 @@ export async function createAppointmentAsCustomer(
 ): Promise<ActionResult<{ id: string }>> {
   const customer = await getCurrentCustomer();
   if (!customer) return actionError(new Error("Sessão expirada. Faça login novamente."));
-  const result = await createAppointmentCore({ ...input, customerId: customer.id }, customer.companyId);
+  const result = await createAppointmentCore({ ...input, customerId: customer.id }, customer.companyId, {
+    customerGrid: await loadCustomerSlotConfig(customer.companyId),
+  });
   // Avisa o cliente no WhatsApp que o pedido foi recebido (nunca derruba o agendamento).
   if (result.ok && result.data) {
     await notifyAppointmentRequestReceived(result.data.id, customer.companyId).catch((error) => {

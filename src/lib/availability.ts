@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { timeOnDate, dateOnly, overlaps, resolveBreak } from "@/lib/availability-helpers";
 import { closuresFor } from "@/lib/day-marks";
+import { firstGridMinute, hhmmToMin, type CustomerSlotConfig } from "@/lib/customer-slots";
 
 export { timeOnDate, dateOnly, overlaps };
 
@@ -58,6 +59,11 @@ export async function getAvailableSlots(params: {
   totalDurationMinutes: number;
   /** Equipe: oferece qualquer dia — fora do expediente, intervalo, folga, férias e feriado (só não passa por cima de bloqueio nem de outro cliente). */
   allowOutsideHours?: boolean;
+  /**
+   * Portal do cliente: em vez de todos os horários de 15 em 15 min (o que a equipe vê), só a grade escolhida
+   * pela barbearia ("a cada N minutos", contada de uma hora de início). Nunca vale junto de `allowOutsideHours`.
+   */
+  customerGrid?: CustomerSlotConfig;
 }): Promise<TimeSlot[]> {
   const day = dateOnly(params.date);
   const weekday = day.getUTCDay();
@@ -128,10 +134,15 @@ export async function getAvailableSlots(params: {
   const slots: TimeSlot[] = [];
   const durationMs = params.totalDurationMinutes * 60_000;
 
+  // Cliente: segue a grade da barbearia (início + intervalo). Equipe: de 15 em 15 min a partir da abertura.
+  const grid = outside ? undefined : params.customerGrid;
+  const stepMs = (grid ? grid.stepMin : SLOT_STEP_MINUTES) * 60_000;
+  const firstCandidate = grid ? new Date(day.getTime() + firstGridMinute(grid, hhmmToMin(workingHour.startTime)) * 60_000) : new Date(dayStart);
+
   for (
-    let candidate = new Date(dayStart);
+    let candidate = firstCandidate;
     candidate.getTime() + durationMs <= dayEnd.getTime();
-    candidate = new Date(candidate.getTime() + SLOT_STEP_MINUTES * 60_000)
+    candidate = new Date(candidate.getTime() + stepMs)
   ) {
     const candidateEnd = new Date(candidate.getTime() + durationMs);
 

@@ -7,6 +7,9 @@ import { requireAdminContext, requireAdminOnly } from "@/lib/require-admin";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { saveUploadedLogo, deleteUploadedLogo, saveUploadedCoverImage, deleteUploadedCoverImage } from "@/lib/uploads";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
+import { logAudit } from "@/lib/audit";
+import { CUSTOMER_SLOT_KEYS } from "@/lib/customer-slot-settings";
+import { CUSTOMER_SLOT_STEP_MAX, CUSTOMER_SLOT_STEP_MIN, isValidHHMM } from "@/lib/customer-slots";
 
 const nameSchema = z.object({ systemName: z.string().min(2, "Informe um nome.") });
 
@@ -175,6 +178,65 @@ export async function updateLocationAction(_prev: ActionResult | undefined, form
 
   revalidatePath("/admin/settings");
   revalidatePath("/agendar");
+  return actionSuccess();
+}
+
+const customerSlotsSchema = z
+  .object({
+    stepMin: z.coerce
+      .number({ error: "Informe o intervalo em minutos." })
+      .int("Use minutos inteiros.")
+      .min(CUSTOMER_SLOT_STEP_MIN, `O intervalo mínimo é de ${CUSTOMER_SLOT_STEP_MIN} minutos.`)
+      .max(CUSTOMER_SLOT_STEP_MAX, `O intervalo máximo é de ${CUSTOMER_SLOT_STEP_MAX} minutos.`),
+    /** Ligado: a contagem começa no início do expediente de cada barbeiro (sem hora fixa). */
+    useShopStart: z.boolean(),
+    start: z.string().trim().optional(),
+  })
+  .refine((d) => d.useShopStart || (d.start && isValidHHMM(d.start)), { message: "Informe a hora em que a contagem começa (ex: 08:00).", path: ["start"] });
+
+/**
+ * Horários que o CLIENTE vê ao agendar pelo link: "a cada N minutos" (padrão 45), contados de uma hora de
+ * início (ou do início do expediente de cada barbeiro). Não muda o painel da barbearia (continua de 15 em 15).
+ */
+export async function updateCustomerSlotsAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  try {
+    const user = await requireAdminOnly();
+    const data = customerSlotsSchema.parse({
+      stepMin: formData.get("stepMin"),
+      useShopStart: formData.get("useShopStart") === "on",
+      start: formData.get("start") ?? undefined,
+    });
+    const start = data.useShopStart ? null : (data.start as string);
+
+    await prisma.systemSetting.upsert({
+      where: { companyId_key: { companyId: user.companyId, key: CUSTOMER_SLOT_KEYS.step } },
+      update: { value: String(data.stepMin) },
+      create: { companyId: user.companyId, key: CUSTOMER_SLOT_KEYS.step, value: String(data.stepMin) },
+    });
+    if (start) {
+      await prisma.systemSetting.upsert({
+        where: { companyId_key: { companyId: user.companyId, key: CUSTOMER_SLOT_KEYS.start } },
+        update: { value: start },
+        create: { companyId: user.companyId, key: CUSTOMER_SLOT_KEYS.start, value: start },
+      });
+    } else {
+      await prisma.systemSetting.deleteMany({ where: { companyId: user.companyId, key: CUSTOMER_SLOT_KEYS.start } });
+    }
+
+    await logAudit({
+      companyId: user.companyId,
+      userId: user.id,
+      action: "customer_slots_updated",
+      entityType: "company",
+      entityId: user.companyId,
+      metadata: { stepMin: data.stepMin, start },
+    });
+  } catch (error) {
+    return actionError(error);
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/portal/[company]", "layout");
   return actionSuccess();
 }
 

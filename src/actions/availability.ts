@@ -4,13 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { requireAdminContext } from "@/lib/require-admin";
 import { getAvailableSlots } from "@/lib/availability";
+import { loadCustomerSlotConfig } from "@/lib/customer-slot-settings";
+import type { CustomerSlotConfig } from "@/lib/customer-slots";
 
-async function computeSlots(barberId: string, companyId: string, dateStr: string, totalDurationMinutes: number, allowOutsideHours = false) {
+async function computeSlots(barberId: string, companyId: string, dateStr: string, totalDurationMinutes: number, allowOutsideHours = false, customerGrid?: CustomerSlotConfig) {
   const barber = await prisma.barber.findFirst({ where: { id: barberId, companyId }, select: { id: true } });
   if (!barber) return [];
 
   const date = new Date(`${dateStr}T00:00:00.000Z`);
-  const slots = await getAvailableSlots({ barberId, date, totalDurationMinutes, allowOutsideHours });
+  const slots = await getAvailableSlots({ barberId, date, totalDurationMinutes, allowOutsideHours, customerGrid });
   return slots.map((s) => ({ iso: s.start.toISOString(), label: s.label }));
 }
 
@@ -21,7 +23,8 @@ async function computeSlots(barberId: string, companyId: string, dateStr: string
 export async function getAvailableSlotsAction(barberId: string, dateStr: string, totalDurationMinutes: number) {
   const customer = await getCurrentCustomer();
   if (!customer) return [];
-  return computeSlots(barberId, customer.companyId, dateStr, totalDurationMinutes);
+  // O cliente vê só a grade que a barbearia definiu (padrão: de 45 em 45 min); a equipe, todos os horários.
+  return computeSlots(barberId, customer.companyId, dateStr, totalDurationMinutes, false, await loadCustomerSlotConfig(customer.companyId));
 }
 
 /**

@@ -7,10 +7,13 @@ import { BookingLinkSection } from "./booking-link-section";
 import { CoverImageForm } from "./cover-image-form";
 import { ReviewLinkForm } from "./review-link-form";
 import { LocationSection } from "./location-section";
+import { CustomerSlotsSection } from "./customer-slots-section";
+import { loadCustomerSlotConfig } from "@/lib/customer-slot-settings";
 
 export default async function SettingsPage() {
   const user = await requireAdminContext();
-  const [systemNameSetting, company] = await Promise.all([
+  const [customerSlots, systemNameSetting, company] = await Promise.all([
+    loadCustomerSlotConfig(user.companyId),
     prisma.systemSetting.findUnique({ where: { companyId_key: { companyId: user.companyId, key: "system_name" } } }),
     prisma.company.findUnique({
       where: { id: user.companyId },
@@ -68,6 +71,17 @@ export default async function SettingsPage() {
             <div className="border-t pt-6">
               <BookingLinkSection slug={company.slug} onlineBookingEnabled={company.onlineBookingEnabled} />
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {user.role === "ADMIN" && company && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Horários para o cliente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CustomerSlotsSection current={customerSlots} />
           </CardContent>
         </Card>
       )}
