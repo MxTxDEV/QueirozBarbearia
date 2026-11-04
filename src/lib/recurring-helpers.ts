@@ -65,6 +65,25 @@ export function nthOccurrenceDate(startDate: Date, unit: RecurringFrequencyUnit,
   return addUtcMonthsClamped(startDate, interval * n);
 }
 
+/**
+ * Índice (0-based) da primeira data da série DEPOIS de `after`. É o "ponto de partida" da geração progressiva:
+ * o cursor é a última data já gerada — nunca a quantidade de linhas da tabela, que cresce com edições
+ * ("alterar desta e das próximas" cria linhas substitutas) e faria a geração pular datas.
+ */
+export function firstIndexAfter(startDate: Date, unit: RecurringFrequencyUnit, interval: number, after: Date): number {
+  if (after.getTime() < startDate.getTime()) return 0;
+  const diffDays = Math.floor((after.getTime() - startDate.getTime()) / 86_400_000);
+  // Estimativa por baixo (nunca passa do índice certo); o laço ajusta até a primeira data > after.
+  let n =
+    unit === "DAYS"
+      ? Math.floor(diffDays / interval)
+      : unit === "WEEKS"
+        ? Math.floor(diffDays / (7 * interval))
+        : Math.max(0, Math.floor(diffDays / (31 * interval)) - 1);
+  while (nthOccurrenceDate(startDate, unit, interval, n).getTime() <= after.getTime()) n++;
+  return n;
+}
+
 export type GenerateOccurrencesParams = {
   startDate: Date;
   frequencyUnit: RecurringFrequencyUnit;

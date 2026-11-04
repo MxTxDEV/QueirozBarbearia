@@ -5,6 +5,7 @@ import {
   addUtcWeeks,
   nthOccurrenceDate,
   generateOccurrenceDates,
+  firstIndexAfter,
   describeFrequency,
   RECURRING_FREQUENCY_PRESETS,
 } from "@/lib/recurring-helpers";
@@ -219,6 +220,91 @@ describe("describeFrequency", () => {
   it("every preset resolves to a non-empty label", () => {
     for (const preset of RECURRING_FREQUENCY_PRESETS) {
       expect(describeFrequency(preset.unit, preset.interval)).toBe(preset.label);
+    }
+  });
+});
+
+const D = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d));
+
+describe("firstIndexAfter — ponto de partida da geração progressiva", () => {
+  const FREQS = [
+    { unit: "WEEKS", interval: 1 },
+    { unit: "DAYS", interval: 7 },
+    { unit: "DAYS", interval: 14 },
+    { unit: "DAYS", interval: 15 },
+    { unit: "DAYS", interval: 21 },
+    { unit: "DAYS", interval: 30 },
+    { unit: "WEEKS", interval: 2 },
+    { unit: "MONTHS", interval: 1 },
+    { unit: "MONTHS", interval: 2 },
+  ] as const;
+  // inclui início no dia 31 (meses curtos), 29/02 em ano bissexto e virada de ano
+  const STARTS = [D(2026, 11, 13), D(2026, 12, 31), D(2027, 1, 31), D(2028, 2, 29), D(2026, 10, 14)];
+
+  it("depois da n-ésima data, o próximo índice é n+1 (para todas as frequências)", () => {
+    for (const start of STARTS) {
+      for (const { unit, interval } of FREQS) {
+        for (let n = 0; n < 30; n++) {
+          const at = nthOccurrenceDate(start, unit, interval, n);
+          expect(firstIndexAfter(start, unit, interval, at), `${iso(start)} ${unit}/${interval} n=${n}`).toBe(n + 1);
+        }
+      }
+    }
+  });
+
+  it("uma data entre duas ocorrências aponta para a seguinte", () => {
+    for (const start of STARTS) {
+      for (const { unit, interval } of FREQS) {
+        for (let n = 0; n < 20; n++) {
+          const a = nthOccurrenceDate(start, unit, interval, n);
+          const b = nthOccurrenceDate(start, unit, interval, n + 1);
+          const mid = new Date((a.getTime() + b.getTime()) / 2);
+          expect(firstIndexAfter(start, unit, interval, mid), `${iso(start)} ${unit}/${interval} n=${n}`).toBe(n + 1);
+        }
+      }
+    }
+  });
+
+  it("antes do início da série, começa do zero", () => {
+    expect(firstIndexAfter(D(2026, 11, 13), "WEEKS", 1, D(2026, 11, 1))).toBe(0);
+  });
+
+  it("caso real: semanal de sexta — depois de 15/01/2027 a próxima é 22/01", () => {
+    const start = D(2026, 11, 13);
+    const idx = firstIndexAfter(start, "WEEKS", 1, D(2027, 1, 15));
+    expect(iso(nthOccurrenceDate(start, "WEEKS", 1, idx))).toBe("2027-01-22");
+  });
+
+  it("caso real: de 14 em 14 dias — depois de 27/01/2027 a próxima é 10/02", () => {
+    const start = D(2026, 11, 18); // quarta — 27/01/2027 cai na grade de 14 em 14 dias
+    expect(iso(nthOccurrenceDate(start, "DAYS", 14, 5))).toBe("2027-01-27");
+    const idx = firstIndexAfter(start, "DAYS", 14, D(2027, 1, 27));
+    expect(iso(nthOccurrenceDate(start, "DAYS", 14, idx))).toBe("2027-02-10");
+  });
+});
+
+describe("geração progressiva sem pular nem repetir datas", () => {
+  it("lotes sucessivos (cursor = última data) reproduzem exatamente a série inteira, mesmo com linhas extras", () => {
+    for (const { unit, interval } of [
+      { unit: "WEEKS", interval: 1 },
+      { unit: "DAYS", interval: 14 },
+      { unit: "DAYS", interval: 15 },
+      { unit: "MONTHS", interval: 1 },
+    ] as const) {
+      const start = D(2026, 11, 13);
+      const all = generateOccurrenceDates({ startDate: start, frequencyUnit: unit, intervalValue: interval, occurrencesLimit: 40 }).map((r) => iso(r.date));
+      // primeiro lote (criação): até start + 3 meses; depois, lotes de 3 em 3 meses a partir do cursor
+      let cursor: Date | null = null;
+      const got: string[] = [];
+      for (let horizonMonths = 3; horizonMonths <= 60 && got.length < 40; horizonMonths += 3) {
+        const horizon = new Date(start.getTime());
+        horizon.setUTCMonth(horizon.getUTCMonth() + horizonMonths);
+        const startIndex: number = cursor ? firstIndexAfter(start, unit, interval, cursor) : 0;
+        const batch = generateOccurrenceDates({ startDate: start, frequencyUnit: unit, intervalValue: interval, startIndex, horizonDate: horizon });
+        for (const b of batch) got.push(iso(b.date));
+        if (batch.length) cursor = batch[batch.length - 1].date;
+      }
+      expect(got.slice(0, 40)).toEqual(all);
     }
   });
 });

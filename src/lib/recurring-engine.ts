@@ -5,13 +5,13 @@ import type { Barber, Customer, RecurringAppointment, RecurringAppointmentOccurr
 import { dateOnly, timeOnDate } from "@/lib/availability";
 import { resolveBreak } from "@/lib/availability-helpers";
 import { closuresFor } from "@/lib/day-marks";
-import { generateOccurrenceDates, RECURRING_GENERATION_HORIZON_MONTHS, describeFrequency } from "@/lib/recurring-helpers";
+import { generateOccurrenceDates, firstIndexAfter, RECURRING_GENERATION_HORIZON_MONTHS, describeFrequency } from "@/lib/recurring-helpers";
 import { createAppointmentCore, cancelAppointmentCore } from "@/actions/appointments";
 import { joinWaitlistCore, cancelWaitlistEntryCore } from "@/actions/waitlist";
 import { createNotification } from "@/lib/notifications";
 import { sendRecurringRequestAlertToShop, sendRecurringApproved, sendRecurringRejected } from "@/lib/whatsapp";
 import { logAudit } from "@/lib/audit";
-import { notifyRecurringScheduledByShop } from "@/lib/shop-booking-notices";
+import { notifyAppointmentScheduledByShop, notifyRecurringScheduledByShop } from "@/lib/shop-booking-notices";
 import { formatDate, formatTime } from "@/lib/utils";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
@@ -278,6 +278,13 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
     const startDate = dateOnly(params.startDate);
     if (startDate.getTime() < dateOnly(shopNow()).getTime()) {
       return actionError(new Error("A data de início não pode estar no passado."));
+    }
+    // Começa hoje, mas num horário que já passou: a 1ª ocorrência viraria um "conflito" falso.
+    if (startDate.getTime() === dateOnly(shopNow()).getTime()) {
+      const firstStart = timeOnDate(startDate, params.startTime);
+      if (firstStart.getTime() < shopNow().getTime() - 60_000) {
+        return actionError(new Error("O horário de início já passou hoje. Escolha um horário mais tarde ou comece em outro dia."));
+      }
     }
 
     const isStaffCreated = !!params.createdByUserId;
@@ -591,29 +598,54 @@ export async function generateProgressiveOccurrences() {
 }
 
 async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
-  const count = await prisma.recurringAppointmentOccurrence.count({ where: { recurringAppointmentId: series.id } });
-  const horizonDate = addMonthsForHorizon(dateOnly(shopNow()));
+  const today = dateOnly(shopNow());
+  const horizonDate = addMonthsForHorizon(today);
+
+  // Ponto de partida = a última data da grade já gerada (generatedUntil), NUNCA a contagem de linhas: editar
+  // "desta e das próximas" cria linhas substitutas, e contar linhas fazia a geração pular semanas e parar de crescer.
+  let cursor = series.generatedUntil;
+  if (!cursor) {
+    const last = await prisma.recurringAppointmentOccurrence.aggregate({ where: { recurringAppointmentId: series.id }, _max: { scheduledDate: true } });
+    cursor = last._max.scheduledDate;
+  }
+  const startIndex = cursor ? firstIndexAfter(series.startDate, series.frequencyUnit, series.intervalValue, cursor) : 0;
 
   const dates = generateOccurrenceDates({
     startDate: series.startDate,
     frequencyUnit: series.frequencyUnit,
     intervalValue: series.intervalValue,
-    startIndex: count,
+    startIndex,
     horizonDate,
   });
 
   if (dates.length === 0) return { generated: 0, confirmed: 0, conflicts: 0 };
 
+  // Número da próxima ocorrência: segue o maior já usado (as linhas substitutas de uma edição também contam).
+  const maxRow = await prisma.recurringAppointmentOccurrence.aggregate({ where: { recurringAppointmentId: series.id }, _max: { occurrenceNumber: true } });
+  let nextNumber = (maxRow._max.occurrenceNumber ?? 0) + 1;
+
+  let generated = 0;
   let confirmed = 0;
   let conflicts = 0;
-  for (const { occurrenceIndex, date } of dates) {
+  for (const { date } of dates) {
+    // Dia que já passou (série pausada por muito tempo, agendador que ficou desligado…): não existe marcar horário
+    // no passado — pula em silêncio em vez de criar um "conflito" falso e avisar a administração à toa.
+    if (date.getTime() < today.getTime()) continue;
+
     const window = occurrenceWindow(date, series.startTime, series.service.durationMinutes);
+    // Esta data já tem linha na série (outra execução ao mesmo tempo, ou uma ocorrência remarcada pra cá)? Não duplica.
+    const already = await prisma.recurringAppointmentOccurrence.findFirst({
+      where: { recurringAppointmentId: series.id, scheduledDate: window.scheduledDate },
+      select: { id: true },
+    });
+    if (already) continue;
+
     let occ;
     try {
       occ = await prisma.recurringAppointmentOccurrence.create({
         data: {
           recurringAppointmentId: series.id,
-          occurrenceNumber: occurrenceIndex + 1,
+          occurrenceNumber: nextNumber++,
           scheduledDate: window.scheduledDate,
           scheduledStartTime: window.scheduledStartTime,
           scheduledEndTime: window.scheduledEndTime,
@@ -625,18 +657,20 @@ async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
       // execução concorrente já gerou esta ocorrência. Idempotente, segue.
       continue;
     }
+    generated++;
     // Série criada pela equipe segue valendo nos meses seguintes mesmo em feriado/folga.
     const result = await materializeOccurrence(occ, series, true, Boolean(series.createdByUserId));
     if (result === "CONFIRMED") confirmed++;
     else conflicts++;
   }
 
+  // O cursor avança até a última data da grade processada (inclusive as que já tinham passado e foram puladas).
   await prisma.recurringAppointment.update({
     where: { id: series.id },
     data: { generatedUntil: dates[dates.length - 1].date },
   });
 
-  return { generated: dates.length, confirmed, conflicts };
+  return { generated, confirmed, conflicts };
 }
 
 // ---------------------------------------------------------------------------
@@ -713,8 +747,9 @@ export async function editOccurrenceCore(params: {
       return actionError(new Error("Esta ocorrência já não está mais ativa."));
     }
 
+    // Remarcação: o cliente não recebe "horário cancelado" — recebe o aviso do horário novo (abaixo).
     if (occurrence.appointmentId) {
-      await cancelAppointmentCore(occurrence.appointmentId, params.companyId, params.actorUserId);
+      await cancelAppointmentCore(occurrence.appointmentId, params.companyId, params.actorUserId, { silent: true });
     }
     if (occurrence.waitlistEntryId) {
       await cancelWaitlistEntryCore(occurrence.waitlistEntryId, params.companyId, params.actorCustomerId);
@@ -735,6 +770,15 @@ export async function editOccurrenceCore(params: {
     });
 
     const result = await materializeOccurrence(updated, series, true, Boolean(params.actorUserId));
+    // A equipe remarcou: avisa o cliente UMA vez, com o novo dia e horário (nunca derruba a edição).
+    if (result === "CONFIRMED" && params.actorUserId) {
+      const moved = await prisma.recurringAppointmentOccurrence.findUnique({ where: { id: occurrence.id }, select: { appointmentId: true } });
+      if (moved?.appointmentId) {
+        await notifyAppointmentScheduledByShop(moved.appointmentId, params.companyId).catch((error) => {
+          console.error("[whatsapp] falha ao avisar o cliente da remarcação:", error);
+        });
+      }
+    }
     await logAudit({
       companyId: params.companyId,
       userId: params.actorUserId,
@@ -798,7 +842,8 @@ export async function editFutureOccurrencesCore(params: {
 
     let regenerated = 0;
     for (const occ of affected) {
-      if (occ.appointmentId) await cancelAppointmentCore(occ.appointmentId, params.companyId, params.actorUserId);
+      // Remarcação em lote: nada de uma mensagem "cancelado" por data (eram dezenas) — o aviso é um só, no fim.
+      if (occ.appointmentId) await cancelAppointmentCore(occ.appointmentId, params.companyId, params.actorUserId, { silent: true });
       if (occ.waitlistEntryId) await cancelWaitlistEntryCore(occ.waitlistEntryId, params.companyId, null);
       await prisma.recurringAppointmentOccurrence.update({ where: { id: occ.id }, data: { status: "SKIPPED" } });
 
@@ -818,6 +863,12 @@ export async function editFutureOccurrencesCore(params: {
     }
 
     await prisma.recurringAppointment.update({ where: { id: series.id }, data: { startTime: params.newStartTime } });
+    // O cliente recebe UMA mensagem com as datas e o horário novo (a mesma do "marcou a recorrência"), se a equipe fez a troca.
+    if (regenerated > 0 && params.actorUserId) {
+      await notifyRecurringScheduledByShop(series.id, params.companyId).catch((error) => {
+        console.error("[whatsapp] falha ao avisar o cliente da mudança de horário da recorrência:", error);
+      });
+    }
     await logAudit({
       companyId: params.companyId,
       userId: params.actorUserId,

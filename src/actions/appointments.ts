@@ -418,7 +418,13 @@ export async function cancelAppointmentAsCustomerAction(appointmentId: string): 
  * recorrente (src/lib/recurring-engine.ts) — mesmo fluxo normal de
  * cancelamento, incluindo o gatilho automático da lista de espera.
  */
-export async function cancelAppointmentCore(appointmentId: string, companyId: string, byUserId: string | null) {
+export async function cancelAppointmentCore(
+  appointmentId: string,
+  companyId: string,
+  byUserId: string | null,
+  /** `silent`: remarcação interna (a mesma vaga do cliente muda de horário) — não avisa o cliente nem a administração de "cancelado". */
+  options?: { silent?: boolean }
+) {
   const appt = await loadAppointmentContext(appointmentId, companyId);
   if (!appt) throw new Error("Agendamento não encontrado.");
 
@@ -440,16 +446,18 @@ export async function cancelAppointmentCore(appointmentId: string, companyId: st
     await logAudit({ companyId, userId: byUserId, action: "recurring_occurrence_cancelled", entityType: "appointment", entityId: appointmentId, appointmentId });
   }
 
-  await createNotification({
-    companyId,
-    title: "Agendamento cancelado",
-    message: `Agendamento de ${appointmentClientName(appt)} em ${formatDate(appt.appointmentDate)} foi cancelado.`,
-    type: "APPOINTMENT_CANCELLED",
-    relatedEntityType: "appointment",
-    relatedEntityId: appointmentId,
-  });
+  if (!options?.silent) {
+    await createNotification({
+      companyId,
+      title: "Agendamento cancelado",
+      message: `Agendamento de ${appointmentClientName(appt)} em ${formatDate(appt.appointmentDate)} foi cancelado.`,
+      type: "APPOINTMENT_CANCELLED",
+      relatedEntityType: "appointment",
+      relatedEntityId: appointmentId,
+    });
+  }
 
-  if (appt.customer) {
+  if (appt.customer && !options?.silent) {
     await sendAppointmentCancellation(companyId, appt.customer.whatsapp, appt.customer.id, {
       customerName: appt.customer.fullName,
       date: formatDate(appt.appointmentDate),
