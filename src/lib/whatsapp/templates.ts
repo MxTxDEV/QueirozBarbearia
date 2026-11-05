@@ -90,6 +90,16 @@ export function recurringRejectedVars(d: { customerName: string; companyName?: s
   return { nome: d.customerName, barbearia: d.companyName, servico: d.serviceName, motivo: d.reason ? `Motivo: ${d.reason}` : "" };
 }
 
+export function recurringCancelledVars(d: { customerName: string; companyName?: string; serviceName: string; barberName: string; cancelledCount: number }): Vars {
+  return {
+    nome: d.customerName,
+    barbearia: d.companyName,
+    servico: d.serviceName,
+    barbeiro: d.barberName,
+    desmarcados: d.cancelledCount === 0 ? "" : d.cancelledCount === 1 ? "O próximo horário dela foi desmarcado." : `Os ${d.cancelledCount} próximos horários dela foram desmarcados.`,
+  };
+}
+
 export function recurringBookedVars(d: {
   customerName: string;
   companyName: string;
@@ -218,5 +228,5 @@ Acesse o painel para analisar.`;
 export function otpTemplate(code: string, companyName: string) {
   return `Seu código de acesso ${companyName} é: ${code}
 
-Válido por 5 minutos. Não compartilhe este código.`;
+Válido por 10 minutos. Não compartilhe este código.`;
 }

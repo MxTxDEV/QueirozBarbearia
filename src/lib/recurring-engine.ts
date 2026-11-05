@@ -5,11 +5,11 @@ import type { Barber, Customer, RecurringAppointment, RecurringAppointmentOccurr
 import { dateOnly, timeOnDate } from "@/lib/availability";
 import { resolveBreak } from "@/lib/availability-helpers";
 import { closuresFor } from "@/lib/day-marks";
-import { generateOccurrenceDates, firstIndexAfter, RECURRING_GENERATION_HORIZON_MONTHS, describeFrequency } from "@/lib/recurring-helpers";
+import { generateOccurrenceDates, firstIndexAfter, MAX_SERIES_DATES, RECURRING_GENERATION_HORIZON_MONTHS, describeSeries } from "@/lib/recurring-helpers";
 import { createAppointmentCore, cancelAppointmentCore } from "@/actions/appointments";
 import { joinWaitlistCore, cancelWaitlistEntryCore } from "@/actions/waitlist";
 import { createNotification } from "@/lib/notifications";
-import { sendRecurringRequestAlertToShop, sendRecurringApproved, sendRecurringRejected } from "@/lib/whatsapp";
+import { sendRecurringRequestAlertToShop, sendRecurringApproved, sendRecurringRejected, sendRecurringCancelled } from "@/lib/whatsapp";
 import { logAudit } from "@/lib/audit";
 import { notifyAppointmentScheduledByShop, notifyRecurringScheduledByShop } from "@/lib/shop-booking-notices";
 import { formatDate, formatTime } from "@/lib/utils";
@@ -158,7 +158,8 @@ async function materializeOccurrence(
       startTimeIso: occurrence.scheduledStartTime.toISOString(),
     },
     series.companyId,
-    { allowOutsideHours: staffOverride }
+    // quiet: cada data de uma recorrência NÃO gera um aviso de "novo agendamento" (eram dezenas de avisos iguais).
+    { allowOutsideHours: staffOverride, quiet: true }
   );
 
   if (created.ok) {
@@ -252,6 +253,13 @@ export type CreateRecurringParams = {
   occurrencesLimit?: number | null;
   /** Presente = criado por staff em nome do cliente → aprovação implícita (ver nota em createRecurringAppointmentCore). Ausente = solicitado pelo próprio cliente → PENDING_APPROVAL. */
   createdByUserId?: string | null;
+  /**
+   * Datas já definidas (a tela mostra a prévia, a barbearia tira as que estão ocupadas ou escolhe à mão).
+   * Presente: a recorrência tem exatamente estas datas (em ordem, sem repetir) e `startDate` é ignorada.
+   */
+  dates?: Date[];
+  /** As datas foram escolhidas uma a uma (sem intervalo fixo). */
+  manualDates?: boolean;
 };
 
 /**
@@ -275,7 +283,10 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
     if (!barber) return actionError(new Error("Barbeiro indisponível."));
     if (!service) return actionError(new Error("Serviço indisponível."));
 
-    const startDate = dateOnly(params.startDate);
+    // Datas já definidas (prévia da tela / escolha manual): a série tem exatamente elas; a 1ª é o início.
+    const explicitDates = params.dates && params.dates.length > 0 ? [...params.dates].map((d) => dateOnly(d)).sort((a, b) => a.getTime() - b.getTime()) : null;
+    if (explicitDates && explicitDates.length > MAX_SERIES_DATES) return actionError(new Error(`No máximo ${MAX_SERIES_DATES} datas por recorrência.`));
+    const startDate = explicitDates ? explicitDates[0] : dateOnly(params.startDate);
     if (startDate.getTime() < dateOnly(shopNow()).getTime()) {
       return actionError(new Error("A data de início não pode estar no passado."));
     }
@@ -300,8 +311,10 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
         startTime: params.startTime,
         frequencyUnit: params.frequencyUnit,
         intervalValue: params.intervalValue,
-        endDate: params.endDate ? dateOnly(params.endDate) : null,
-        occurrencesLimit: params.occurrencesLimit ?? null,
+        manualDates: params.manualDates === true,
+        // Com a lista de datas a série é FINITA: acaba na última data (nada de geração sem fim).
+        endDate: explicitDates ? explicitDates[explicitDates.length - 1] : params.endDate ? dateOnly(params.endDate) : null,
+        occurrencesLimit: explicitDates ? explicitDates.length : (params.occurrencesLimit ?? null),
         status,
         createdByUserId: params.createdByUserId ?? null,
         ...(isStaffCreated ? { approvedByUserId: params.createdByUserId, approvedAt: new Date() } : {}),
@@ -311,14 +324,16 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
     const isOpenEnded = !series.occurrencesLimit && !series.endDate;
     const horizonDate = isOpenEnded ? addMonthsForHorizon(startDate) : null;
 
-    const dates = generateOccurrenceDates({
-      startDate,
-      frequencyUnit: series.frequencyUnit,
-      intervalValue: series.intervalValue,
-      endDate: series.endDate,
-      occurrencesLimit: series.occurrencesLimit,
-      horizonDate,
-    });
+    const dates = explicitDates
+      ? explicitDates.map((date, occurrenceIndex) => ({ occurrenceIndex, date }))
+      : generateOccurrenceDates({
+          startDate,
+          frequencyUnit: series.frequencyUnit,
+          intervalValue: series.intervalValue,
+          endDate: series.endDate,
+          occurrencesLimit: series.occurrencesLimit,
+          horizonDate,
+        });
 
     await createOccurrenceRows(series, dates, service.durationMinutes);
 
@@ -355,7 +370,8 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
         orderBy: { occurrenceNumber: "asc" },
       });
       for (const occ of pending) {
-        await materializeOccurrence(occ, fullSeries, true, isStaffCreated);
+        // Conflito NÃO entra sozinho na lista de espera do cliente: ele nunca pediu isso (e receberia ofertas de vaga).
+        await materializeOccurrence(occ, fullSeries, false, isStaffCreated);
       }
       // Marcou o horário e a recorrência de uma vez: o cliente recebe UMA mensagem na hora com as datas.
       await notifyRecurringScheduledByShop(series.id, params.companyId).catch((error) => {
@@ -365,7 +381,7 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
       await createNotification({
         companyId: params.companyId,
         title: "🔁 Nova solicitação de recorrência",
-        message: `${customer.fullName} solicitou recorrência de ${service.name} com ${barber.name} — ${describeFrequency(series.frequencyUnit, series.intervalValue)}.`,
+        message: `${customer.fullName} solicitou recorrência de ${service.name} com ${barber.name} — ${describeSeries(series)}.`,
         type: "RECURRING_REQUEST",
         relatedEntityType: "recurring_appointment",
         relatedEntityId: series.id,
@@ -375,7 +391,7 @@ export async function createRecurringAppointmentCore(params: CreateRecurringPara
         serviceName: service.name,
         barberName: barber.name,
         time: params.startTime,
-        frequencyLabel: describeFrequency(series.frequencyUnit, series.intervalValue),
+        frequencyLabel: describeSeries(series),
         startDate: formatDate(startDate),
         occurrencesLabel: series.occurrencesLimit
           ? `Quantidade: ${series.occurrencesLimit} ocorrências`
@@ -494,7 +510,7 @@ export async function approveRecurringAppointmentCore(params: {
       customerName: series.customer.fullName,
       serviceName: series.service.name,
       barberName: series.barber.name,
-      frequencyLabel: describeFrequency(series.frequencyUnit, series.intervalValue),
+      frequencyLabel: describeSeries(series),
       confirmedCount,
       conflictCount: conflictCount + waitingListCount,
     });
@@ -659,7 +675,7 @@ async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
     }
     generated++;
     // Série criada pela equipe segue valendo nos meses seguintes mesmo em feriado/folga.
-    const result = await materializeOccurrence(occ, series, true, Boolean(series.createdByUserId));
+    const result = await materializeOccurrence(occ, series, false, Boolean(series.createdByUserId));
     if (result === "CONFIRMED") confirmed++;
     else conflicts++;
   }
@@ -769,7 +785,7 @@ export async function editOccurrenceCore(params: {
       },
     });
 
-    const result = await materializeOccurrence(updated, series, true, Boolean(params.actorUserId));
+    const result = await materializeOccurrence(updated, series, false, Boolean(params.actorUserId));
     // A equipe remarcou: avisa o cliente UMA vez, com o novo dia e horário (nunca derruba a edição).
     if (result === "CONFIRMED" && params.actorUserId) {
       const moved = await prisma.recurringAppointmentOccurrence.findUnique({ where: { id: occurrence.id }, select: { appointmentId: true } });
@@ -858,7 +874,7 @@ export async function editFutureOccurrencesCore(params: {
           status: "PENDING",
         },
       });
-      await materializeOccurrence(replacement, series, true, Boolean(params.actorUserId));
+      await materializeOccurrence(replacement, series, false, Boolean(params.actorUserId));
       regenerated++;
     }
 
@@ -961,7 +977,7 @@ export async function cancelRecurringAppointmentCore(params: {
   try {
     const series = await prisma.recurringAppointment.findFirst({
       where: { id: params.recurringAppointmentId, companyId: params.companyId },
-      include: { customer: true, occurrences: true },
+      include: { customer: true, occurrences: true, service: true, barber: true },
     });
     if (!series) return actionError(new Error("Recorrência não encontrada."));
     if (params.actorCustomerId && series.customerId !== params.actorCustomerId) {
@@ -969,6 +985,7 @@ export async function cancelRecurringAppointmentCore(params: {
     }
     if (series.status === "CANCELLED") return actionError(new Error("Esta recorrência já está cancelada."));
 
+    const previousStatus = series.status;
     const claimed = await prisma.recurringAppointment.updateMany({
       where: { id: series.id, status: { in: ["PENDING_APPROVAL", "ACTIVE", "PAUSED"] } },
       data: { status: "CANCELLED", cancelledAt: new Date() },
@@ -988,10 +1005,23 @@ export async function cancelRecurringAppointmentCore(params: {
         await prisma.recurringAppointmentOccurrence.update({ where: { id: occ.id }, data: { status: "CANCELLED" } });
       }
       if (params.alsoCancelFutureAppointments && occ.status === "CONFIRMED" && occ.appointmentId && occ.scheduledStartTime > now) {
-        await cancelAppointmentCore(occ.appointmentId, params.companyId, params.actorUserId);
+        // Silencioso: o cliente recebe UMA mensagem da recorrência cancelada (abaixo), não uma por horário desmarcado.
+        await cancelAppointmentCore(occ.appointmentId, params.companyId, params.actorUserId, { silent: true });
         await prisma.recurringAppointmentOccurrence.update({ where: { id: occ.id }, data: { status: "CANCELLED" } });
         appointmentsCancelled++;
       }
+    }
+
+    // Quem cancela é a barbearia (não o próprio cliente) e a recorrência já estava valendo: avisa o cliente uma vez.
+    if (params.actorUserId && !params.actorCustomerId && (previousStatus === "ACTIVE" || previousStatus === "PAUSED")) {
+      await sendRecurringCancelled(params.companyId, series.customer.whatsapp, series.customerId, {
+        customerName: series.customer.fullName,
+        serviceName: series.service.name,
+        barberName: series.barber.name,
+        cancelledCount: appointmentsCancelled,
+      }).catch((error) => {
+        console.error("[whatsapp] falha ao avisar o cliente do cancelamento da recorrência:", error);
+      });
     }
 
     await logAudit({

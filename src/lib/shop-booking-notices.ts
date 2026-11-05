@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { describeFrequency } from "@/lib/recurring-helpers";
+import { describeSeries } from "@/lib/recurring-helpers";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { sendAppointmentScheduledByShop, sendRecurringScheduledByShop } from "@/lib/whatsapp";
 import { confirmationUrlFor } from "@/lib/confirmation-link";
@@ -69,7 +69,7 @@ export async function notifyRecurringScheduledByShop(seriesId: string, companyId
     companyName: series.company.name,
     serviceName: series.service.name,
     barberName: series.barber.name,
-    frequencyLabel: describeFrequency(series.frequencyUnit, series.intervalValue),
+    frequencyLabel: describeSeries(series),
     dates: shown.map((o) => o.scheduledStartTime),
     moreCount: booked.length - shown.length,
     conflictCount,

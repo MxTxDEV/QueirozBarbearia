@@ -35,15 +35,21 @@ export async function requireCustomerContext(slug: string): Promise<CurrentCusto
   return customer;
 }
 
-export function isCustomerProfileIncomplete(customer: Pick<CurrentCustomer, "email" | "birthDate">) {
-  return !customer.email || !customer.birthDate;
+/** Nome que o cadastro automático usa até o cliente informar o dele. */
+export const PLACEHOLDER_CUSTOMER_NAME = "Cliente";
+
+/**
+ * Só o NOME é obrigatório para agendar (e-mail e data de nascimento são opcionais e ficam no
+ * perfil). Antes exigia os três e travava o cliente numa tela de cadastro longa depois do login.
+ */
+export function isCustomerProfileIncomplete(customer: Pick<CurrentCustomer, "fullName">) {
+  const name = customer.fullName.trim();
+  return name.length < 2 || name === PLACEHOLDER_CUSTOMER_NAME;
 }
 
 /**
- * Como requireCustomerContext, mas também exige cadastro completo (nome,
- * e-mail e data de nascimento). Usado em toda página do portal exceto a
- * própria /portal/[company]/profile, para forçar a conclusão do cadastro
- * antes de liberar o restante do portal.
+ * Como requireCustomerContext, mas também exige o nome do cliente. Usado em toda página do portal
+ * exceto a própria /portal/[company]/profile.
  */
 export async function requireCompleteCustomerProfile(slug: string): Promise<CurrentCustomer> {
   const customer = await requireCustomerContext(slug);

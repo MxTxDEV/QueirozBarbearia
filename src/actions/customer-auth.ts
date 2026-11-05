@@ -11,6 +11,7 @@ import {
   verifyCustomerOtp,
 } from "@/lib/customer-auth";
 import { sendCustomerOtp } from "@/lib/whatsapp";
+import { isCustomerProfileIncomplete, PLACEHOLDER_CUSTOMER_NAME } from "@/lib/require-customer";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
 const requestSchema = z.object({
@@ -43,11 +44,17 @@ export async function requestCustomerOtpAction(
     const customer = await prisma.customer.upsert({
       where: { companyId_whatsapp: { companyId: company.id, whatsapp } },
       update: {},
-      create: { companyId: company.id, fullName: "Cliente", whatsapp },
+      create: { companyId: company.id, fullName: PLACEHOLDER_CUSTOMER_NAME, whatsapp },
     });
 
     const code = await createCustomerOtp(customer.id);
-    await sendCustomerOtp(company.id, whatsapp, customer.id, code, company.name);
+    // Código pedido há instantes: o anterior continua valendo, não manda outro (e não dá erro).
+    if (code) {
+      const sent = await sendCustomerOtp(company.id, whatsapp, customer.id, code, company.name);
+      if (!sent.ok) {
+        return actionError(new Error("Não conseguimos enviar o código pelo WhatsApp agora. Confira o número e tente de novo em instantes."));
+      }
+    }
 
     return actionSuccess({ customerId: customer.id, whatsapp });
   } catch (error) {
@@ -63,6 +70,7 @@ const verifySchema = z.object({
 
 export async function verifyCustomerOtpAction(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   let companySlug = "";
+  let destination = "";
   try {
     const data = verifySchema.parse({
       customerId: formData.get("customerId"),
@@ -75,11 +83,14 @@ export async function verifyCustomerOtpAction(_prev: ActionResult | undefined, f
     if (!valid) return actionError(new Error("Código inválido ou expirado."));
 
     await createCustomerSession(data.customerId);
+    const customer = await prisma.customer.findUnique({ where: { id: data.customerId }, select: { fullName: true } });
+    // Primeira vez: só falta o nome. Quem já tem cadastro cai direto na tela de agendar.
+    destination = customer && !isCustomerProfileIncomplete(customer) ? `/portal/${companySlug}/book` : `/portal/${companySlug}/profile`;
   } catch (error) {
     return actionError(error);
   }
 
-  redirect(`/portal/${companySlug}/dashboard`);
+  redirect(destination);
 }
 
 export async function logoutCustomerAction(companySlug: string) {

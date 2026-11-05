@@ -19,7 +19,7 @@ export async function getCustomerNextAppointment(customerId: string, companyId: 
 const withDetails = {
   barber: true,
   services: true,
-  recurringOccurrence: { include: { recurringAppointment: { select: { id: true, frequencyUnit: true, intervalValue: true, status: true } } } },
+  recurringOccurrence: { include: { recurringAppointment: { select: { id: true, frequencyUnit: true, intervalValue: true, manualDates: true, status: true } } } },
 } as const;
 
 export async function listCustomerAppointments(customerId: string, companyId: string) {

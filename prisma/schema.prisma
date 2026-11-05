@@ -692,6 +692,10 @@ model RecurringAppointment {
   frequencyUnit RecurringFrequencyUnit @map("frequency_unit")
   intervalValue Int                    @map("interval_value")
 
+  // true = a barbearia escolheu as datas uma a uma (não segue um intervalo): frequencyUnit/intervalValue
+  // ficam só por compatibilidade e a tela mostra "Datas escolhidas".
+  manualDates Boolean @default(false) @map("manual_dates")
+
   // Condição de término: quantidade OU data, o que vier primeiro (Regra 10).
   // Nenhum dos dois preenchido = sem data final (geração progressiva).
   endDate          DateTime? @map("end_date") @db.Date

@@ -168,7 +168,7 @@ export function AdminBookingForm({
     setError(null);
     if (useRecurring) {
       if (!recurrence?.valid) {
-        setError("Confira a recorrência: escolha até quando repetir.");
+        setError(recurrence?.checking ? "Aguarde a conferência da agenda." : "Confira a recorrência: precisa haver ao menos uma data livre.");
         return;
       }
       startTransition(async () => {
@@ -176,12 +176,12 @@ export function AdminBookingForm({
           customerId,
           barberId,
           serviceId: serviceIds[0],
-          startDate: date,
+          startDate: recurrence.dates[0],
           startTime: selectedSlot.label,
           frequencyUnit: recurrence.frequencyUnit,
           intervalValue: recurrence.intervalValue,
-          endDate: recurrence.endDate,
-          occurrencesLimit: recurrence.occurrencesLimit,
+          dates: recurrence.dates,
+          manualDates: recurrence.manualDates,
         });
         if (!result.ok) {
           setError(result.error);
@@ -463,10 +463,10 @@ export function AdminBookingForm({
             {recurringBlockedReason && <p className="text-xs text-foreground-muted">{recurringBlockedReason}</p>}
             {useRecurring && (
               <>
-                <RecurrenceFields startDate={date} onChange={setRecurrence} />
+                <RecurrenceFields startDate={date} barberId={barberId} serviceId={serviceIds[0] ?? ""} startTime={selectedSlot?.label ?? ""} onChange={setRecurrence} />
                 <p className="text-xs text-foreground-muted">
-                  Como foi você quem criou, a recorrência já nasce ativa: os horários são confirmados na hora (quem estiver indisponível fica marcado
-                  como conflito, sem derrubar o resto).
+                  Como foi você quem criou, a recorrência já nasce ativa: os horários são confirmados na hora. Datas em que o barbeiro já tem outro
+                  compromisso ficam de fora (aparecem com aviso) e o cliente recebe uma única mensagem com as datas.
                 </p>
               </>
             )}

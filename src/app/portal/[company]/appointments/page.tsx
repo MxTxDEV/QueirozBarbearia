@@ -2,7 +2,7 @@ import { requireCompleteCustomerProfile } from "@/lib/require-customer";
 import Link from "next/link";
 import { getCustomerAgenda } from "@/lib/data/portal";
 import { listRecurringAppointmentsForCustomer } from "@/lib/data/recurring";
-import { describeFrequency } from "@/lib/recurring-helpers";
+import { describeSeries } from "@/lib/recurring-helpers";
 import { listActiveWaitlistEntriesForCustomer } from "@/lib/data/waitlist";
 import { formatDate, formatTime, formatWhatsappDisplay } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -107,7 +107,7 @@ export default async function PortalAppointmentsPage({
                 <div>
                   <p className="font-medium text-foreground">{s.service.name}</p>
                   <p className="text-sm text-foreground-muted">
-                    {describeFrequency(s.frequencyUnit, s.intervalValue)} às {s.startTime} · {s.barber.name}
+                    {describeSeries(s)} às {s.startTime} · {s.barber.name}
                   </p>
                 </div>
                 <Badge variant={RECURRING_STATUS_VARIANT[s.status]}>{RECURRING_STATUS_LABEL[s.status]}</Badge>

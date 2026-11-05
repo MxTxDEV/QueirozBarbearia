@@ -37,7 +37,7 @@ import {
 import type { AppointmentStatus } from "@prisma/client";
 import { requireAdminContext } from "@/lib/require-admin";
 import { appointmentClientName } from "@/lib/appointment-client";
-import { describeFrequency } from "@/lib/recurring-helpers";
+import { describeSeries } from "@/lib/recurring-helpers";
 import { MiniCalendar } from "./calendar/mini-calendar";
 import { DayMarkButton } from "./calendar/day-mark-dialog";
 import { listDayMarksInRange, listUpcomingDayMarks, type DayMarkRow } from "@/lib/data/day-marks";
@@ -334,10 +334,7 @@ export default async function AppointmentsPage({
     recurring: appt.recurringOccurrence
       ? {
           seriesId: appt.recurringOccurrence.recurringAppointmentId,
-          label: describeFrequency(
-            appt.recurringOccurrence.recurringAppointment.frequencyUnit,
-            appt.recurringOccurrence.recurringAppointment.intervalValue
-          ),
+          label: describeSeries(appt.recurringOccurrence.recurringAppointment),
         }
       : null,
     barberName: appt.barber.name,

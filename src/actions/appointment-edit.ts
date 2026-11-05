@@ -5,9 +5,9 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext, type CompanyUser } from "@/lib/require-admin";
-import { hasSchedulingConflict, OUTSIDE_HOURS_END, OUTSIDE_HOURS_START } from "@/lib/availability";
+import { hasSchedulingConflict } from "@/lib/availability";
+import { explainSchedulingConflict } from "@/lib/conflict-explain";
 import { shopNow } from "@/lib/shop-time";
-import { appointmentClientName } from "@/lib/appointment-client";
 import { logAudit } from "@/lib/audit";
 import { formatTime } from "@/lib/utils";
 import { toNumber } from "@/lib/serialize";
@@ -21,9 +21,6 @@ import {
   toTimeInput,
 } from "@/lib/appointment-edit";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
-
-/** Quem ocupa a agenda do barbeiro (mesma lista de availability.ts). */
-const BUSY_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED"] as const;
 
 class EditError extends Error {}
 
@@ -131,40 +128,6 @@ export async function getAppointmentEditDataAction(appointmentId: string): Promi
   } catch (error) {
     return actionError(error);
   }
-}
-
-type DbClient = Pick<typeof prisma, "appointment" | "barberBlock" | "waitlistEntry" | "barberWorkingHour" | "barberTimeOff" | "barberBreakOverride" | "barber" | "calendarDayMark">;
-
-/** Por que o horário não serve — texto para o usuário (o veredito em si vem de hasSchedulingConflict). */
-async function explainConflict(
-  client: DbClient,
-  params: { barberId: string; day: Date; startTime: Date; endTime: Date; excludeAppointmentId: string }
-): Promise<string> {
-  const other = await client.appointment.findFirst({
-    where: {
-      barberId: params.barberId,
-      appointmentDate: params.day,
-      status: { in: [...BUSY_STATUSES] },
-      id: { not: params.excludeAppointmentId },
-      startTime: { lt: params.endTime },
-      endTime: { gt: params.startTime },
-    },
-    include: { customer: { select: { fullName: true } }, barber: { select: { name: true } } },
-    orderBy: { startTime: "asc" },
-  });
-  if (other) {
-    return `Já existe outro agendamento nesse horário: ${appointmentClientName(other)}, das ${formatTime(other.startTime)} às ${formatTime(other.endTime)}, com ${other.barber.name}.`;
-  }
-  const block = await client.barberBlock.findFirst({
-    where: { barberId: params.barberId, date: params.day, startTime: { lt: params.endTime }, endTime: { gt: params.startTime } },
-  });
-  if (block) return "O barbeiro tem um bloqueio de agenda nesse período.";
-  const startLabel = formatTime(params.startTime);
-  const endLabel = formatTime(params.endTime);
-  if (startLabel < OUTSIDE_HOURS_START || endLabel > OUTSIDE_HOURS_END || endLabel === "00:00") {
-    return `O atendimento precisa ficar entre ${OUTSIDE_HOURS_START} e ${OUTSIDE_HOURS_END}.`;
-  }
-  return "Esse horário está reservado para uma vaga da lista de espera.";
 }
 
 type EditPlan = {
@@ -329,7 +292,7 @@ export async function checkAppointmentEditAction(
         allowOutsideHours: true,
       });
       if (conflict) {
-        const message = await explainConflict(prisma, {
+        const message = await explainSchedulingConflict(prisma, {
           barberId: plan.data.barberId,
           day: plan.times.appointmentDate,
           startTime: plan.times.startTime,
@@ -369,7 +332,7 @@ export async function updateAppointmentAction(input: EditAppointmentInput): Prom
           );
           if (conflict) {
             throw new EditError(
-              await explainConflict(tx, { barberId: data.barberId, day: times.appointmentDate, startTime: times.startTime, endTime: times.endTime, excludeAppointmentId: appt.id })
+              await explainSchedulingConflict(tx, { barberId: data.barberId, day: times.appointmentDate, startTime: times.startTime, endTime: times.endTime, excludeAppointmentId: appt.id })
             );
           }
         }

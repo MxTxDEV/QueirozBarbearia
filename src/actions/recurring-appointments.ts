@@ -5,6 +5,9 @@ import { revalidatePath } from "next/cache";
 import { requireAdminContext } from "@/lib/require-admin";
 import { getCurrentCustomer } from "@/lib/customer-auth";
 import { dateOnly } from "@/lib/availability";
+import { MAX_SERIES_DATES, parseDateList } from "@/lib/recurring-helpers";
+import { shopNow } from "@/lib/shop-time";
+import { previewRecurringDates, type DatePreview } from "@/lib/recurring-preview";
 import {
   createRecurringAppointmentCore,
   approveRecurringAppointmentCore,
@@ -52,6 +55,10 @@ export type CreateRecurringAppointmentInput = z.infer<typeof createRecurringSche
 
 const createRecurringAsAdminSchema = createRecurringSchema.extend({
   customerId: z.string().min(1, "Selecione um cliente."),
+  /** Datas já definidas na tela (prévia / escolha manual). Presente: a recorrência tem exatamente estas datas. */
+  dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.")).max(MAX_SERIES_DATES, `No máximo ${MAX_SERIES_DATES} datas por recorrência.`).optional(),
+  /** As datas foram escolhidas uma a uma (sem intervalo fixo). */
+  manualDates: z.boolean().optional(),
 });
 
 /** Admin/barbeiro cria em nome do cliente — aprovação implícita (ver nota em createRecurringAppointmentCore). */
@@ -61,6 +68,12 @@ export async function createRecurringAppointmentAsAdminAction(
   const user = await requireAdminContext();
   try {
     const data = createRecurringAsAdminSchema.parse(input);
+    let dates: Date[] | undefined;
+    if (data.dates && data.dates.length > 0) {
+      const parsed = parseDateList(data.dates, dateOnly(shopNow()));
+      if (!parsed.ok) return actionError(new Error(parsed.error));
+      dates = parsed.dates;
+    }
     const result = await createRecurringAppointmentCore({
       companyId: user.companyId,
       customerId: data.customerId,
@@ -73,9 +86,33 @@ export async function createRecurringAppointmentAsAdminAction(
       endDate: data.endDate ? dateOnly(new Date(`${data.endDate}T00:00:00.000Z`)) : null,
       occurrencesLimit: data.occurrencesLimit ?? null,
       createdByUserId: user.id,
+      dates,
+      manualDates: data.manualDates === true,
     });
     if (result.ok) revalidateRecurring();
     return result;
+  } catch (error) {
+    return actionError(error);
+  }
+}
+
+const previewSchema = z.object({
+  barberId: z.string().min(1),
+  serviceId: z.string().min(1),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Horário inválido."),
+  dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(MAX_SERIES_DATES),
+});
+
+/**
+ * Antes de criar: cada data da recorrência está livre para esse barbeiro nesse horário? (só leitura)
+ * A tela mostra as ocupadas, que ficam de fora da recorrência, em vez de criar "conflitos" depois.
+ */
+export async function previewRecurringDatesAction(input: z.infer<typeof previewSchema>): Promise<ActionResult<{ items: DatePreview[] }>> {
+  const user = await requireAdminContext();
+  try {
+    const data = previewSchema.parse(input);
+    const items = await previewRecurringDates({ companyId: user.companyId, ...data });
+    return { ok: true, data: { items } };
   } catch (error) {
     return actionError(error);
   }

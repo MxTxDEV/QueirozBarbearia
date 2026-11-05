@@ -60,6 +60,8 @@ export async function createAppointmentCore(
     allowOutsideHours?: boolean;
     /** Portal do cliente: o horário tem que estar na grade que a barbearia escolheu (45 em 45 min, etc.). */
     customerGrid?: CustomerSlotConfig;
+    /** Marcação em lote (datas de uma recorrência): sem um aviso de "novo agendamento" por data — a equipe já sabe o que está criando. */
+    quiet?: boolean;
   }
 ): Promise<ActionResult<{ id: string }>> {
   try {
@@ -164,24 +166,26 @@ export async function createAppointmentCore(
       metadata: { customerId: customer?.id ?? null, walkInName: data.walkInName ?? null, barberId: barber.id, totalPrice: toNumber(totalPrice) },
     });
 
-    await createNotification({
-      companyId,
-      title: "🔔 Novo agendamento",
-      message: `${clientName} solicitou horário com ${barber.name} em ${formatDate(appointmentDate)} às ${formatTime(startTime)}.`,
-      type: "NEW_APPOINTMENT",
-      relatedEntityType: "appointment",
-      relatedEntityId: appointment.id,
-    });
+    if (!options?.quiet) {
+      await createNotification({
+        companyId,
+        title: "🔔 Novo agendamento",
+        message: `${clientName} solicitou horário com ${barber.name} em ${formatDate(appointmentDate)} às ${formatTime(startTime)}.`,
+        type: "NEW_APPOINTMENT",
+        relatedEntityType: "appointment",
+        relatedEntityId: appointment.id,
+      });
 
-    await sendNewAppointmentAlertToShop(companyId, {
-      customerName: clientName,
-      date: formatDate(appointmentDate),
-      time: formatTime(startTime),
-      barberName: barber.name,
-      services: services.map((s) => s.name),
-      totalPrice: totalPrice.toFixed(2),
-      status: "Aguardando confirmação",
-    });
+      await sendNewAppointmentAlertToShop(companyId, {
+        customerName: clientName,
+        date: formatDate(appointmentDate),
+        time: formatTime(startTime),
+        barberName: barber.name,
+        services: services.map((s) => s.name),
+        totalPrice: totalPrice.toFixed(2),
+        status: "Aguardando confirmação",
+      });
+    }
 
     revalidatePath("/admin/appointments");
     revalidatePath("/portal/[company]", "layout");

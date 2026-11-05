@@ -15,7 +15,7 @@ export default async function PortalProfilePage({ params }: { params: Promise<{ 
       {incomplete && (
         <Card className="border-warning/30 bg-warning/10">
           <CardContent className="text-sm text-warning">
-            Complete seu cadastro (nome, e-mail e data de nascimento) para continuar usando o portal.
+            Falta só o seu nome para você agendar. É um cadastro único — da próxima vez você já entra direto.
           </CardContent>
         </Card>
       )}
@@ -31,6 +31,7 @@ export default async function PortalProfilePage({ params }: { params: Promise<{ 
               email: customer.email ?? undefined,
               birthDate: customer.birthDate ? customer.birthDate.toISOString().slice(0, 10) : undefined,
             }}
+            companySlug={slug}
           />
         </CardContent>
       </Card>

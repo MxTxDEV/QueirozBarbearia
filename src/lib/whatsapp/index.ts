@@ -16,6 +16,7 @@ import {
   waitlistVars,
   recurringApprovedVars,
   recurringRejectedVars,
+  recurringCancelledVars,
   recurringBookedVars,
   morningVars,
   appointmentConfirmationTemplate,
@@ -265,6 +266,16 @@ export async function sendRecurringApproved(
   data: { customerName: string; serviceName: string; barberName: string; frequencyLabel: string; confirmedCount: number; conflictCount: number }
 ) {
   return sendAutomated({ companyId, kind: "RECURRING_APPROVED", phone, customerId, vars: recurringApprovedVars(data) });
+}
+
+/** A barbearia cancelou a recorrência: UMA mensagem (não uma por horário desmarcado). */
+export async function sendRecurringCancelled(
+  companyId: string,
+  phone: string,
+  customerId: string,
+  data: { customerName: string; serviceName: string; barberName: string; cancelledCount: number }
+) {
+  return sendAutomated({ companyId, kind: "RECURRING_CANCELLED", phone, customerId, vars: recurringCancelledVars(data) });
 }
 
 export async function sendRecurringRejected(

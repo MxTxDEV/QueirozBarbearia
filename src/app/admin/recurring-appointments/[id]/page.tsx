@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAdminContext } from "@/lib/require-admin";
 import { getRecurringAppointmentDetail } from "@/lib/data/recurring";
 import { previewSeriesOccurrences } from "@/lib/recurring-engine";
-import { describeFrequency } from "@/lib/recurring-helpers";
+import { describeSeries } from "@/lib/recurring-helpers";
 import { formatDate, formatTime } from "@/lib/utils";
 import { RECURRING_STATUS_LABEL, RECURRING_STATUS_VARIANT, RECURRING_OCCURRENCE_STATUS_LABEL, RECURRING_OCCURRENCE_STATUS_VARIANT } from "@/lib/labels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export default async function RecurringAppointmentDetailPage({ params }: { param
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{series.customer.fullName}</h1>
           <p className="text-sm text-foreground-muted">
-            {series.service.name} com {series.barber.name} — {describeFrequency(series.frequencyUnit, series.intervalValue)} às{" "}
+            {series.service.name} com {series.barber.name} — {describeSeries(series)} às{" "}
             {series.startTime}
           </p>
         </div>

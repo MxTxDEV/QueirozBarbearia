@@ -2,7 +2,7 @@ import { requireCompleteCustomerProfile } from "@/lib/require-customer";
 import { listRecurringAppointmentsForCustomer } from "@/lib/data/recurring";
 import { formatDate, formatTime } from "@/lib/utils";
 import { RECURRING_STATUS_LABEL, RECURRING_STATUS_VARIANT } from "@/lib/labels";
-import { describeFrequency } from "@/lib/recurring-helpers";
+import { describeSeries } from "@/lib/recurring-helpers";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RecurringSeriesActions } from "./recurring-series-actions";
@@ -38,7 +38,7 @@ export default async function PortalRecurringAppointmentsPage({ params }: { para
                 </div>
                 <p className="text-sm text-foreground-muted">Barbeiro: {s.barber.name}</p>
                 <p className="text-sm text-foreground-muted">
-                  {describeFrequency(s.frequencyUnit, s.intervalValue)} às {s.startTime}
+                  {describeSeries(s)} às {s.startTime}
                 </p>
                 {s.status === "PENDING_APPROVAL" && (
                   <p className="text-sm text-warning">

@@ -1,12 +1,13 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
 const CUSTOMER_SESSION_COOKIE = "customer_session_token";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 90; // 90 dias
-const OTP_TTL_SECONDS = 60 * 5; // 5 minutos
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 365; // 1 ano: o cliente entra uma vez e não precisa repetir
+const OTP_TTL_SECONDS = 60 * 10; // 10 minutos
+const OTP_ACTIVE_CODES = 3; // códigos recentes ainda válidos (um reenvio não invalida o anterior que chegou atrasado)
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_REQUEST_COOLDOWN_SECONDS = 30;
 
@@ -23,51 +24,62 @@ function hashToken(token: string) {
 /**
  * Gera e persiste um código OTP para login do cliente via WhatsApp. O código
  * é sempre aleatório — nunca previsível, mesmo em desenvolvimento — para não
- * depender de NODE_ENV estar correto no ambiente de deploy (já vimos esse
- * valor vir mal configurado pelo provedor de hospedagem). Em desenvolvimento,
- * o provedor mock já loga a mensagem inteira (com o código) no console — ver
- * `src/lib/whatsapp/mock-provider.ts`.
+ * depender de NODE_ENV estar correto no ambiente de deploy.
  *
- * Aplica um cooldown entre solicitações e invalida qualquer OTP anterior
- * ainda válido, para que só exista um código ativo por cliente — isso limita
- * o total de tentativas de força bruta possíveis por janela de tempo (ver
- * `OTP_MAX_ATTEMPTS` em `verifyCustomerOtp`).
+ * Se um código foi pedido há instantes (duplo clique, ou o cliente voltou à tela),
+ * devolve `null`: o código anterior continua valendo e NÃO se manda outra mensagem
+ * — antes isso virava um erro "aguarde" e o cliente achava que o login tinha falhado.
+ * Os últimos códigos continuam valendo juntos (ver `verifyCustomerOtp`), então um
+ * reenvio nunca "queima" o código que chegou atrasado. A força bruta é limitada por
+ * `OTP_MAX_ATTEMPTS` em cada código e pelo cooldown entre pedidos.
  */
-export async function createCustomerOtp(customerId: string) {
+export async function createCustomerOtp(customerId: string): Promise<string | null> {
   const recent = await prisma.customerOtp.findFirst({
-    where: { customerId, createdAt: { gt: new Date(Date.now() - OTP_REQUEST_COOLDOWN_SECONDS * 1000) } },
+    where: { customerId, consumedAt: null, createdAt: { gt: new Date(Date.now() - OTP_REQUEST_COOLDOWN_SECONDS * 1000) } },
     orderBy: { createdAt: "desc" },
   });
-  if (recent) throw new Error("Aguarde um momento antes de solicitar um novo código.");
+  if (recent) return null;
 
   const code = String(crypto.randomInt(100000, 999999));
   const codeHash = hashToken(code);
   const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000);
-
-  await prisma.customerOtp.updateMany({
-    where: { customerId, consumedAt: null },
-    data: { consumedAt: new Date() },
-  });
   await prisma.customerOtp.create({ data: { customerId, codeHash, expiresAt } });
   return code;
 }
 
-/** Verifica o código informado, com limite de tentativas por OTP gerado para impedir força bruta. */
+/** Verifica o código informado entre os códigos recentes ainda válidos, com limite de tentativas para impedir força bruta. */
 export async function verifyCustomerOtp(customerId: string, code: string) {
-  const otp = await prisma.customerOtp.findFirst({
-    where: { customerId, consumedAt: null, expiresAt: { gt: new Date() } },
+  const otps = await prisma.customerOtp.findMany({
+    where: { customerId, consumedAt: null, expiresAt: { gt: new Date() }, attempts: { lt: OTP_MAX_ATTEMPTS } },
     orderBy: { createdAt: "desc" },
+    take: OTP_ACTIVE_CODES,
   });
-  if (!otp || otp.attempts >= OTP_MAX_ATTEMPTS) return false;
+  if (otps.length === 0) return false;
 
-  const codeHash = hashToken(code);
-  if (codeHash !== otp.codeHash) {
-    await prisma.customerOtp.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+  const codeHash = hashToken(code.trim());
+  const match = otps.find((otp) => otp.codeHash === codeHash);
+  if (!match) {
+    await prisma.customerOtp.updateMany({ where: { id: { in: otps.map((o) => o.id) } }, data: { attempts: { increment: 1 } } });
     return false;
   }
 
-  await prisma.customerOtp.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
+  await prisma.customerOtp.updateMany({ where: { customerId, consumedAt: null }, data: { consumedAt: new Date() } });
   return true;
+}
+
+/**
+ * O cookie só pode ser `secure` se o acesso for por HTTPS de verdade. Atrás do proxy do Coolify o
+ * NODE_ENV pode dizer "production" com o site em HTTP — o navegador então descartava o cookie e o
+ * cliente caía na tela de login de novo a cada página. Olha o protocolo real (x-forwarded-proto).
+ */
+async function cookieShouldBeSecure() {
+  try {
+    const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0]?.trim();
+    if (proto) return proto === "https";
+  } catch {
+    // fora de uma requisição
+  }
+  return process.env.NODE_ENV === "production";
 }
 
 export async function createCustomerSession(customerId: string) {
@@ -88,7 +100,7 @@ export async function createCustomerSession(customerId: string) {
   const cookieStore = await cookies();
   cookieStore.set(CUSTOMER_SESSION_COOKIE, jwt, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: await cookieShouldBeSecure(),
     sameSite: "lax",
     path: "/",
     expires: expiresAt,

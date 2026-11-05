@@ -1,6 +1,6 @@
 import { Repeat } from "lucide-react";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
-import { describeFrequency } from "@/lib/recurring-helpers";
+import { describeSeries } from "@/lib/recurring-helpers";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +26,7 @@ export function PortalAppointmentCard({ appt, actionable }: { appt: Appt; action
             {series && (
               <Badge variant="accent">
                 <Repeat className="mr-1 inline h-3 w-3" />
-                Recorrência · {describeFrequency(series.frequencyUnit, series.intervalValue)}
+                Recorrência · {describeSeries(series)}
               </Badge>
             )}
             <Badge variant={APPOINTMENT_STATUS_VARIANT[appt.status]}>{APPOINTMENT_STATUS_LABEL[appt.status]}</Badge>

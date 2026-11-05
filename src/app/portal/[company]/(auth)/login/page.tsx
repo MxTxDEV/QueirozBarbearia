@@ -9,7 +9,7 @@ export default async function PortalLoginPage({ params }: { params: Promise<{ co
   const company = await resolvePortalCompany(slug);
 
   const customer = await getCurrentCustomer();
-  if (customer && customer.companyId === company.id) redirect(`/portal/${slug}/dashboard`);
+  if (customer && customer.companyId === company.id) redirect(`/portal/${slug}/book`);
 
   return (
     <Card>

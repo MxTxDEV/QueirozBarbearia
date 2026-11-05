@@ -20,6 +20,7 @@ export const AUTOMATION_KINDS = [
   "WAITLIST_OFFER",
   "RECURRING_APPROVED",
   "RECURRING_REJECTED",
+  "RECURRING_CANCELLED",
 ] as const;
 export type AutomationKind = (typeof AUTOMATION_KINDS)[number];
 
@@ -311,6 +312,22 @@ Sua solicitação de recorrência para {servico} não pôde ser confirmada pelo 
 
 Você pode agendar normalmente ou solicitar uma nova recorrência.`,
   },
+  RECURRING_CANCELLED: {
+    label: "Recorrência cancelada",
+    when: "Quando a barbearia cancela a recorrência do cliente — uma única mensagem, mesmo que vários horários tenham sido desmarcados.",
+    group: "special",
+    variables: [
+      NOME, BARBEARIA, SERVICO, BARBEIRO,
+      { key: "desmarcados", label: "Quantos horários foram desmarcados (vazio se nenhum)", example: "Os 8 próximos horários dela foram desmarcados." },
+    ],
+    defaultTemplate: `Olá, {nome}! 💈
+
+A sua recorrência de {servico} com {barbeiro} na {barbearia} foi cancelada.
+
+{desmarcados}
+
+Se quiser agendar de novo, é só nos chamar por aqui.`,
+  },
 };
 
 /** Disponível em TODAS as mensagens: o link de divulgação da barbearia (onde o cliente agenda). */
@@ -448,6 +465,7 @@ export const DEFAULT_RULES: DefaultRule[] = [
   { key: "WAITLIST_OFFER", kind: "WAITLIST_OFFER", name: "Vaga da lista de espera", sortOrder: 0 },
   { key: "RECURRING_APPROVED", kind: "RECURRING_APPROVED", name: "Recorrência aprovada", sortOrder: 0 },
   { key: "RECURRING_REJECTED", kind: "RECURRING_REJECTED", name: "Recorrência recusada", sortOrder: 0 },
+  { key: "RECURRING_CANCELLED", kind: "RECURRING_CANCELLED", name: "Recorrência cancelada", sortOrder: 0 },
 ];
 
 // ---------------------------------------------------------------------------

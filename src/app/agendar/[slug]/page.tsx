@@ -106,7 +106,7 @@ export default async function CompanyBookingLandingPage({ params }: Props) {
           )}
         </div>
 
-        <Link href={`/portal/${company.slug}/login`} className="mt-8 block">
+        <Link href={`/portal/${company.slug}/book`} className="mt-8 block">
           <Button size="lg" className="w-full">
             <CalendarPlus className="h-5 w-5" /> Agendar horário
           </Button>

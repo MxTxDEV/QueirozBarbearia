@@ -6,6 +6,11 @@ import {
   nthOccurrenceDate,
   generateOccurrenceDates,
   firstIndexAfter,
+  buildSeriesDates,
+  parseDateList,
+  twoYearsLastDay,
+  describeSeries,
+  MAX_SERIES_DATES,
   describeFrequency,
   RECURRING_FREQUENCY_PRESETS,
 } from "@/lib/recurring-helpers";
@@ -307,4 +312,68 @@ describe("geração progressiva sem pular nem repetir datas", () => {
       expect(got.slice(0, 40)).toEqual(all);
     }
   });
+});
+
+describe("recorrência por 2 anos (não infinita)", () => {
+  it("último dia = exatamente 2 anos depois do início (exclusive)", () => {
+    expect(iso(twoYearsLastDay(D(2026, 11, 13)))).toBe("2028-11-12");
+    expect(iso(twoYearsLastDay(D(2026, 2, 28)))).toBe("2028-02-27");
+    expect(iso(twoYearsLastDay(D(2026, 1, 31)))).toBe("2028-01-30");
+  });
+  it("semanal: 105 datas (as duas pontas dos 104 intervalos), da 1ª à última semana dos 2 anos", () => {
+    const { dates, truncated } = buildSeriesDates({ startDate: D(2026, 11, 13), frequencyUnit: "WEEKS", intervalValue: 1, end: { mode: "twoYears" } });
+    expect(truncated).toBe(false);
+    expect(dates).toHaveLength(105);
+    expect(iso(dates[0])).toBe("2026-11-13");
+    expect(iso(dates[104])).toBe("2028-11-10");
+  });
+  it("a cada 14 e a cada 15 dias: sem passar de 2 anos", () => {
+    for (const interval of [14, 15]) {
+      const { dates } = buildSeriesDates({ startDate: D(2026, 11, 18), frequencyUnit: "DAYS", intervalValue: interval, end: { mode: "twoYears" } });
+      const last = iso(dates[dates.length - 1]);
+      expect(last <= "2028-11-17").toBe(true);
+      expect(iso(nthOccurrenceDate(D(2026, 11, 18), "DAYS", interval, dates.length)) > "2028-11-17").toBe(true);
+      for (let i = 1; i < dates.length; i++) expect((dates[i].getTime() - dates[i - 1].getTime()) / 86400000).toBe(interval);
+    }
+  });
+  it("mensal: 24 datas, dia 31 volta ao 31 quando o mês tem", () => {
+    const { dates } = buildSeriesDates({ startDate: D(2026, 12, 31), frequencyUnit: "MONTHS", intervalValue: 1, end: { mode: "twoYears" } });
+    expect(dates).toHaveLength(24);
+    expect(iso(dates[2])).toBe("2027-02-28");
+    expect(iso(dates[3])).toBe("2027-03-31");
+  });
+  it("intervalo muito curto passa do máximo e avisa (truncated)", () => {
+    const r = buildSeriesDates({ startDate: D(2026, 11, 13), frequencyUnit: "DAYS", intervalValue: 1, end: { mode: "twoYears" } });
+    expect(r.truncated).toBe(true);
+    expect(r.dates).toHaveLength(MAX_SERIES_DATES);
+  });
+  it("por quantidade e por data final", () => {
+    expect(buildSeriesDates({ startDate: D(2026, 11, 13), frequencyUnit: "WEEKS", intervalValue: 2, end: { mode: "count", count: 5 } }).dates).toHaveLength(5);
+    const byDate = buildSeriesDates({ startDate: D(2026, 11, 13), frequencyUnit: "DAYS", intervalValue: 14, end: { mode: "date", endDate: D(2027, 1, 31) } });
+    expect(iso(byDate.dates[byDate.dates.length - 1])).toBe("2027-01-22"); // 13/11 + 14×6; a próxima (05/02) passa de 31/01
+  });
+});
+
+describe("parseDateList — datas escolhidas à mão", () => {
+  const today = D(2026, 11, 5);
+  it("ordena, tira repetidas e devolve datas", () => {
+    const r = parseDateList(["2026-12-10", "2026-11-20", "2026-12-10"], today);
+    expect(r.ok && r.dates.map(iso)).toEqual(["2026-11-20", "2026-12-10"]);
+  });
+  it("recusa formato inválido, data inexistente, passado e lista vazia", () => {
+    expect(parseDateList(["10/12/2026"], today).ok).toBe(false);
+    expect(parseDateList(["2026-02-31"], today).ok).toBe(false);
+    expect(parseDateList(["2026-11-04"], today).ok).toBe(false);
+    expect(parseDateList([], today).ok).toBe(false);
+  });
+  it("hoje é válido", () => expect(parseDateList(["2026-11-05"], today).ok).toBe(true));
+  it("passa de 200 datas: recusa", () => {
+    const many = Array.from({ length: MAX_SERIES_DATES + 1 }, (_, i) => iso(addUtcDays(D(2026, 11, 6), i)));
+    expect(parseDateList(many, today).ok).toBe(false);
+  });
+});
+
+describe("describeSeries", () => {
+  it("datas escolhidas à mão", () => expect(describeSeries({ frequencyUnit: "DAYS", intervalValue: 1, manualDates: true })).toBe("Datas escolhidas"));
+  it("segue a frequência quando não é manual", () => expect(describeSeries({ frequencyUnit: "DAYS", intervalValue: 14, manualDates: false })).toBe("A cada 14 dias"));
 });

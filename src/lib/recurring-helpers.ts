@@ -17,6 +17,11 @@ export const RECURRING_GENERATION_HORIZON_MONTHS = 3;
 /** Trava de segurança contra geração desenfreada — nunca deveria ser atingida em uso normal. */
 const MAX_OCCURRENCES_PER_GENERATION = 400;
 
+/** Quanto tempo a barbearia marca de uma vez quando escolhe "por 2 anos" (não é infinito: acaba no fim desse prazo). */
+export const RECURRING_SPAN_MONTHS = 24;
+/** Máximo de datas de uma recorrência (por segurança: cada data vira um agendamento). */
+export const MAX_SERIES_DATES = 200;
+
 export function addUtcDays(date: Date, days: number): Date {
   const d = new Date(date.getTime());
   d.setUTCDate(d.getUTCDate() + days);
@@ -156,4 +161,70 @@ export function describeFrequency(unit: RecurringFrequencyUnit, interval: number
   if (preset) return preset.label;
   if (interval === 1) return `Toda(o) ${UNIT_LABEL_SINGULAR[unit]}`;
   return `A cada ${interval} ${UNIT_LABEL_PLURAL[unit]}`;
+}
+
+
+// ---------------------------------------------------------------------------
+// Datas da recorrência escolhidas na criação (tela da barbearia)
+// ---------------------------------------------------------------------------
+
+export type SeriesEnd =
+  | { mode: "count"; count: number }
+  | { mode: "date"; endDate: Date }
+  /** "Marcar 2 anos seguidos": da data de início até 2 anos depois (acaba — não é infinito). */
+  | { mode: "twoYears" };
+
+/** Último dia da recorrência "por 2 anos": exatamente 2 anos depois do início (exclusive). */
+export function twoYearsLastDay(startDate: Date): Date {
+  return addUtcDays(addUtcMonthsClamped(startDate, RECURRING_SPAN_MONTHS), -1);
+}
+
+/**
+ * Datas de uma recorrência segundo "até quando": quantidade, data final ou 2 anos. `truncated` = passaria do
+ * máximo de datas (MAX_SERIES_DATES) — a tela avisa para escolher um prazo menor.
+ */
+export function buildSeriesDates(params: { startDate: Date; frequencyUnit: RecurringFrequencyUnit; intervalValue: number; end: SeriesEnd }): {
+  dates: Date[];
+  truncated: boolean;
+} {
+  const { startDate, frequencyUnit, intervalValue, end } = params;
+  const found = generateOccurrenceDates({
+    startDate,
+    frequencyUnit,
+    intervalValue,
+    occurrencesLimit: end.mode === "count" ? Math.min(end.count, MAX_SERIES_DATES + 1) : null,
+    endDate: end.mode === "date" ? end.endDate : end.mode === "twoYears" ? twoYearsLastDay(startDate) : null,
+    maxCount: MAX_SERIES_DATES + 1,
+  }).map((r) => r.date);
+  const truncated = found.length > MAX_SERIES_DATES;
+  return { dates: truncated ? found.slice(0, MAX_SERIES_DATES) : found, truncated };
+}
+
+/**
+ * Lista de datas "AAAA-MM-DD" (escolhidas à mão ou vindas da prévia) → datas válidas, sem repetir, em ordem.
+ * Recusa data inexistente (ex: 31/02), anterior a `notBefore` ou lista maior que o máximo.
+ */
+export function parseDateList(list: string[], notBefore: Date): { ok: true; dates: Date[] } | { ok: false; error: string } {
+  const seen = new Set<string>();
+  const dates: Date[] = [];
+  for (const raw of list) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { ok: false, error: `Data inválida: ${raw}.` };
+    const [y, m, d] = raw.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return { ok: false, error: `Data inexistente: ${raw}.` };
+    if (date.getTime() < notBefore.getTime()) return { ok: false, error: "Há uma data que já passou. Tire-a da lista." };
+    if (!seen.has(raw)) {
+      seen.add(raw);
+      dates.push(date);
+    }
+  }
+  if (dates.length === 0) return { ok: false, error: "Escolha ao menos uma data." };
+  if (dates.length > MAX_SERIES_DATES) return { ok: false, error: `No máximo ${MAX_SERIES_DATES} datas por recorrência.` };
+  dates.sort((a, b) => a.getTime() - b.getTime());
+  return { ok: true, dates };
+}
+
+/** Texto da frequência de uma série: "Datas escolhidas" quando a barbearia marcou uma a uma. */
+export function describeSeries(series: { frequencyUnit: RecurringFrequencyUnit; intervalValue: number; manualDates?: boolean | null }): string {
+  return series.manualDates ? "Datas escolhidas" : describeFrequency(series.frequencyUnit, series.intervalValue);
 }

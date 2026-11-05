@@ -4,7 +4,7 @@ import { requireAdminContext } from "@/lib/require-admin";
 import { listRecurringAppointmentsForAdmin } from "@/lib/data/recurring";
 import { formatDate, formatTime } from "@/lib/utils";
 import { RECURRING_STATUS_LABEL, RECURRING_STATUS_VARIANT } from "@/lib/labels";
-import { describeFrequency } from "@/lib/recurring-helpers";
+import { describeSeries } from "@/lib/recurring-helpers";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,7 @@ export default async function AdminRecurringAppointmentsPage({
                 <TableRow key={s.id}>
                   <TableCell className="font-medium text-foreground">{s.customer.fullName}</TableCell>
                   <TableCell className="text-foreground-muted">{s.service.name}</TableCell>
-                  <TableCell className="text-foreground-muted">{describeFrequency(s.frequencyUnit, s.intervalValue)}</TableCell>
+                  <TableCell className="text-foreground-muted">{describeSeries(s)}</TableCell>
                   <TableCell className="text-foreground-muted">{s.startTime}</TableCell>
                   <TableCell className="text-foreground-muted">
                     {s.occurrences[0] ? `${formatDate(s.occurrences[0].scheduledDate)} ${formatTime(s.occurrences[0].scheduledStartTime)}` : "—"}

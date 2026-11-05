@@ -2,7 +2,7 @@ import { shopNow } from "@/lib/shop-time";
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { describeFrequency } from "@/lib/recurring-helpers";
+import { describeSeries } from "@/lib/recurring-helpers";
 import { sendWithRule } from "@/lib/whatsapp";
 import { ensureAutomations, getCustomerSegments } from "@/lib/whatsapp/automations";
 import { hhmmToMinutes, pickRule } from "@/lib/whatsapp/automation-defs";
@@ -112,7 +112,7 @@ export async function sendMonthlyRecurrenceNotices(options: { limit?: number; sp
         group = {
           serviceName: series.service.name,
           barberName: series.barber.name,
-          frequencyLabel: describeFrequency(series.frequencyUnit, series.intervalValue),
+          frequencyLabel: describeSeries(series),
           dates: [],
         };
         entry.series.set(series.id, group);
