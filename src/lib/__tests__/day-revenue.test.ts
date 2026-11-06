@@ -2,17 +2,18 @@ import { describe, expect, it } from "vitest";
 import { sumDayRevenue } from "../day-revenue";
 
 describe("sumDayRevenue", () => {
-  it("usa o valor pago quando já pago e o do serviço quando ainda não; ignora cancelados e faltas", () => {
+  it("soma só o que já foi pago; ignora não pagos, cancelados e faltas", () => {
     const r = sumDayRevenue([
-      { status: "COMPLETED", value: 40, paid: 45 },
-      { status: "CONFIRMED", value: 35.5 },
-      { status: "PENDING", value: 20, paid: null },
-      { status: "CANCELLED", value: 100 },
-      { status: "NO_SHOW", value: 50 },
+      { status: "COMPLETED", paid: 45 },
+      { status: "COMPLETED", paid: 30.5 },
+      { status: "CONFIRMED" },
+      { status: "PENDING", paid: null },
+      { status: "CANCELLED", paid: 100 },
+      { status: "NO_SHOW", paid: 50 },
     ]);
-    expect(r).toEqual({ total: 100.5, received: 45, count: 3 });
+    expect(r).toEqual({ received: 75.5, count: 2 });
   });
   it("dia vazio", () => {
-    expect(sumDayRevenue([])).toEqual({ total: 0, received: 0, count: 0 });
+    expect(sumDayRevenue([])).toEqual({ received: 0, count: 0 });
   });
 });

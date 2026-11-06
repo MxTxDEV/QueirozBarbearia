@@ -2,23 +2,19 @@
 const NOT_REVENUE = new Set(["CANCELLED", "NO_SHOW"]);
 
 export type DayRevenue = {
-  /** Previsto do dia: o valor pago quando já foi pago, senão o valor do serviço (cancelados/faltas não entram). */
-  total: number;
-  /** Já recebido: soma dos pagamentos confirmados. */
+  /** Faturamento do dia: só o que já foi pago (pagamento confirmado). */
   received: number;
+  /** Quantos atendimentos já foram pagos. */
   count: number;
 };
 
-export function sumDayRevenue(items: { status: string; value: number; paid?: number | null }[]): DayRevenue {
-  let total = 0;
+export function sumDayRevenue(items: { status: string; paid?: number | null }[]): DayRevenue {
   let received = 0;
   let count = 0;
   for (const item of items) {
-    if (NOT_REVENUE.has(item.status)) continue;
+    if (NOT_REVENUE.has(item.status) || item.paid == null) continue;
+    received += item.paid;
     count++;
-    const paid = item.paid ?? null;
-    total += paid ?? item.value;
-    if (paid !== null) received += paid;
   }
-  return { total: Math.round(total * 100) / 100, received: Math.round(received * 100) / 100, count };
+  return { received: Math.round(received * 100) / 100, count };
 }

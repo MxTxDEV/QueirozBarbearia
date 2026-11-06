@@ -164,13 +164,9 @@ export function AppointmentBlock({
             {data.timeLabel} {data.customerName}
           </span>
           {data.notes && dense && <span className="truncate font-normal italic text-foreground-muted">· {data.notes}</span>}
-          {data.paidValue !== null && !cancelled ? (
+          {data.paidValue !== null && !cancelled && (
             <span className={cn("ml-auto shrink-0 pl-1 font-bold tabular-nums text-success", canResize && dense && "mr-6")} title="Valor pago">
               ✓ {formatCurrency(data.paidValue)}
-            </span>
-          ) : (
-            <span className={cn("ml-auto shrink-0 pl-1 font-semibold tabular-nums text-foreground-muted", canResize && dense && "mr-6")} title="Valor do serviço (ainda não pago)">
-              {data.price}
             </span>
           )}
         </p>

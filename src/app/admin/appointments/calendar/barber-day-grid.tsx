@@ -161,14 +161,14 @@ export function BarberDayGrid({
           <div className="w-14 shrink-0" />
           {barbers.map((barber) => {
             const revenue = sumDayRevenue(
-              appointments.filter((a) => a.barberId === barber.id).map((a) => ({ status: a.block.status, value: a.block.priceValue, paid: a.block.paidValue }))
+              appointments.filter((a) => a.barberId === barber.id).map((a) => ({ status: a.block.status, paid: a.block.paidValue }))
             );
             return (
               <div key={barber.id} className="flex-1 border-l px-2 py-3 text-center">
                 <p className="text-[11px] uppercase tracking-wide text-foreground-muted">Faturamento do dia</p>
                 <p className="text-lg font-semibold tabular-nums text-success">{formatCurrency(revenue.received)}</p>
                 <p className="text-[11px] text-foreground-muted">
-                  recebido · previsto {formatCurrency(revenue.total)} · {revenue.count} {revenue.count === 1 ? "atendimento" : "atendimentos"}
+                  {revenue.count} {revenue.count === 1 ? "atendimento pago" : "atendimentos pagos"}
                 </p>
               </div>
             );
@@ -177,11 +177,10 @@ export function BarberDayGrid({
         {barbers.length > 1 && (
           <p className="border-t px-2 py-2 text-right text-sm text-foreground-muted">
             {(() => {
-              const all = sumDayRevenue(appointments.map((a) => ({ status: a.block.status, value: a.block.priceValue, paid: a.block.paidValue })));
+              const all = sumDayRevenue(appointments.map((a) => ({ status: a.block.status, paid: a.block.paidValue })));
               return (
                 <>
-                  Total do dia: <span className="font-semibold tabular-nums text-success">{formatCurrency(all.received)}</span> recebido · previsto{" "}
-                  {formatCurrency(all.total)}
+                  Total do dia: <span className="font-semibold tabular-nums text-success">{formatCurrency(all.received)}</span>
                 </>
               );
             })()}
