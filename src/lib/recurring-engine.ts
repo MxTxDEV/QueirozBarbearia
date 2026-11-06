@@ -613,29 +613,12 @@ export async function generateProgressiveOccurrences() {
   return { seriesChecked: openSeries.length, seriesProcessed, occurrencesGenerated, confirmed, conflicts };
 }
 
-async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
+/**
+ * Cria as linhas de ocorrência para as datas dadas e já tenta agendar cada uma. Pula dias que já passaram e
+ * datas que a série já tem (idempotente: rodar duas vezes nunca duplica).
+ */
+async function createAndMaterializeDates(series: SeriesWithRelations, dates: { date: Date }[]) {
   const today = dateOnly(shopNow());
-  const horizonDate = addMonthsForHorizon(today);
-
-  // Ponto de partida = a última data da grade já gerada (generatedUntil), NUNCA a contagem de linhas: editar
-  // "desta e das próximas" cria linhas substitutas, e contar linhas fazia a geração pular semanas e parar de crescer.
-  let cursor = series.generatedUntil;
-  if (!cursor) {
-    const last = await prisma.recurringAppointmentOccurrence.aggregate({ where: { recurringAppointmentId: series.id }, _max: { scheduledDate: true } });
-    cursor = last._max.scheduledDate;
-  }
-  const startIndex = cursor ? firstIndexAfter(series.startDate, series.frequencyUnit, series.intervalValue, cursor) : 0;
-
-  const dates = generateOccurrenceDates({
-    startDate: series.startDate,
-    frequencyUnit: series.frequencyUnit,
-    intervalValue: series.intervalValue,
-    startIndex,
-    horizonDate,
-  });
-
-  if (dates.length === 0) return { generated: 0, confirmed: 0, conflicts: 0 };
-
   // Número da próxima ocorrência: segue o maior já usado (as linhas substitutas de uma edição também contam).
   const maxRow = await prisma.recurringAppointmentOccurrence.aggregate({ where: { recurringAppointmentId: series.id }, _max: { occurrenceNumber: true } });
   let nextNumber = (maxRow._max.occurrenceNumber ?? 0) + 1;
@@ -680,6 +663,34 @@ async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
     else conflicts++;
   }
 
+  return { generated, confirmed, conflicts };
+}
+
+async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
+  const today = dateOnly(shopNow());
+  const horizonDate = addMonthsForHorizon(today);
+
+  // Ponto de partida = a última data da grade já gerada (generatedUntil), NUNCA a contagem de linhas: editar
+  // "desta e das próximas" cria linhas substitutas, e contar linhas fazia a geração pular semanas e parar de crescer.
+  let cursor = series.generatedUntil;
+  if (!cursor) {
+    const last = await prisma.recurringAppointmentOccurrence.aggregate({ where: { recurringAppointmentId: series.id }, _max: { scheduledDate: true } });
+    cursor = last._max.scheduledDate;
+  }
+  const startIndex = cursor ? firstIndexAfter(series.startDate, series.frequencyUnit, series.intervalValue, cursor) : 0;
+
+  const dates = generateOccurrenceDates({
+    startDate: series.startDate,
+    frequencyUnit: series.frequencyUnit,
+    intervalValue: series.intervalValue,
+    startIndex,
+    horizonDate,
+  });
+
+  if (dates.length === 0) return { generated: 0, confirmed: 0, conflicts: 0 };
+
+  const { generated, confirmed, conflicts } = await createAndMaterializeDates(series, dates);
+
   // O cursor avança até a última data da grade processada (inclusive as que já tinham passado e foram puladas).
   await prisma.recurringAppointment.update({
     where: { id: series.id },
@@ -687,6 +698,111 @@ async function generateProgressiveBatchForSeries(series: SeriesWithRelations) {
   });
 
   return { generated, confirmed, conflicts };
+}
+
+// ---------------------------------------------------------------------------
+// Estender recorrências já cadastradas
+// ---------------------------------------------------------------------------
+
+/** Até quando as recorrências já cadastradas foram estendidas (dezembro do ano que vem). */
+export const RECURRENCE_EXTENSION_TARGET = "2027-12-31";
+
+export type ExtendSeriesResult = {
+  seriesId: string;
+  customer: string;
+  outcome: "extended" | "skipped";
+  reason?: string;
+  generated: number;
+  confirmed: number;
+  conflicts: number;
+  lastDate?: string;
+};
+
+/**
+ * Continua uma recorrência ATIVA com as datas seguintes, seguindo a mesma frequência a partir da última data
+ * que ela já tem (6, 20, 4... segue 18, 1...), até `target`. Não cancela nem mexe no que já existe: só acrescenta.
+ *  • séries de "datas escolhidas" (manualDates) não têm frequência para continuar: ficam como estão;
+ *  • série que já acabou (nenhuma data futura) não é ressuscitada;
+ *  • datas que já passaram são puladas e datas ocupadas por outro cliente viram "conflito" visível (como na geração normal);
+ *  • o cliente não recebe mensagem por estas datas.
+ */
+export async function extendRecurringSeriesUntil(seriesId: string, target: Date): Promise<ExtendSeriesResult> {
+  const series = await prisma.recurringAppointment.findUnique({ where: { id: seriesId }, include: { customer: true, barber: true, service: true } });
+  const base = { seriesId, customer: series?.customer.fullName ?? "?", generated: 0, confirmed: 0, conflicts: 0 };
+  if (!series || series.status !== "ACTIVE") return { ...base, outcome: "skipped", reason: "não está ativa" };
+  if (series.manualDates) return { ...base, outcome: "skipped", reason: "datas escolhidas à mão" };
+
+  const today = dateOnly(shopNow());
+  const isOpenEnded = !series.occurrencesLimit && !series.endDate;
+  const [last, future] = await Promise.all([
+    prisma.recurringAppointmentOccurrence.aggregate({ where: { recurringAppointmentId: series.id }, _max: { scheduledDate: true } }),
+    prisma.recurringAppointmentOccurrence.count({
+      where: { recurringAppointmentId: series.id, scheduledDate: { gte: today }, status: { in: ["PENDING", "CONFIRMED", "CONFLICT", "WAITING_LIST"] } },
+    }),
+  ]);
+  if (!isOpenEnded && future === 0) return { ...base, outcome: "skipped", reason: "já terminou" };
+
+  const cursor = last._max.scheduledDate;
+  const startIndex = cursor ? firstIndexAfter(series.startDate, series.frequencyUnit, series.intervalValue, cursor) : 0;
+  const dates = generateOccurrenceDates({
+    startDate: series.startDate,
+    frequencyUnit: series.frequencyUnit,
+    intervalValue: series.intervalValue,
+    startIndex,
+    endDate: target,
+    maxCount: 400,
+  });
+  if (dates.length === 0) return { ...base, outcome: "skipped", reason: "já vai até a data" };
+
+  const { generated, confirmed, conflicts } = await createAndMaterializeDates(series, dates);
+
+  const lastDate = dates[dates.length - 1];
+  await prisma.recurringAppointment.update({
+    where: { id: series.id },
+    data: isOpenEnded
+      ? { generatedUntil: lastDate.date }
+      : {
+          endDate: lastDate.date,
+          ...(series.occurrencesLimit ? { occurrencesLimit: lastDate.occurrenceIndex + 1 } : {}),
+        },
+  });
+  await logAudit({
+    companyId: series.companyId,
+    action: "recurring_series_extended",
+    entityType: "recurring_appointment",
+    entityId: series.id,
+    metadata: { until: lastDate.date.toISOString().slice(0, 10), generated, confirmed, conflicts },
+  });
+  return { ...base, outcome: "extended", generated, confirmed, conflicts, lastDate: lastDate.date.toISOString().slice(0, 10) };
+}
+
+/**
+ * Estende todas as recorrências ativas (de uma empresa ou de todas) até `target`. Idempotente.
+ */
+export async function extendAllRecurringSeries(options: { target?: string; companyId?: string } = {}) {
+  const target = new Date(`${options.target ?? RECURRENCE_EXTENSION_TARGET}T00:00:00.000Z`);
+  const list = await prisma.recurringAppointment.findMany({
+    where: { status: "ACTIVE", ...(options.companyId ? { companyId: options.companyId } : {}) },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const results: ExtendSeriesResult[] = [];
+  for (const { id } of list) {
+    try {
+      results.push(await extendRecurringSeriesUntil(id, target));
+    } catch (error) {
+      console.error(`[recurring] falha ao estender a série ${id}:`, error);
+      results.push({ seriesId: id, customer: "?", outcome: "skipped", reason: "erro", generated: 0, confirmed: 0, conflicts: 0 });
+    }
+  }
+  return {
+    seriesChecked: list.length,
+    extended: results.filter((r) => r.outcome === "extended").length,
+    generated: results.reduce((n, r) => n + r.generated, 0),
+    confirmed: results.reduce((n, r) => n + r.confirmed, 0),
+    conflicts: results.reduce((n, r) => n + r.conflicts, 0),
+    results,
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import { sendDueAppointmentReminders } from "@/lib/appointment-reminders";
 import { sendMonthlyRecurrenceNotices } from "@/lib/monthly-recurrence-notices";
 import { expireDueWaitlistHolds } from "@/lib/waitlist-engine";
 import { generateProgressiveOccurrences } from "@/lib/recurring-engine";
+import { extendExistingRecurrencesOnce } from "@/lib/recurrence-extension-job";
 import { checkOverdueExpensesAndNotify } from "@/lib/overdue-expenses";
 import { markSchedulerRun } from "@/lib/scheduler-status";
 
@@ -40,6 +41,7 @@ export async function runSchedulerTick(options: { slow: boolean }) {
   await job("reservas vencidas da lista de espera", expireDueWaitlistHolds);
   if (options.slow) {
     await job("ocorrências de recorrência", generateProgressiveOccurrences);
+    await job("estender recorrências já cadastradas (uma vez)", extendExistingRecurrencesOnce);
     await job("despesas vencidas", checkOverdueExpensesAndNotify);
   }
 }

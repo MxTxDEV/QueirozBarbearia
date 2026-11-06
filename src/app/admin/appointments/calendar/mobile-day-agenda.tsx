@@ -4,7 +4,8 @@ import { shopNow } from "@/lib/shop-time";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Lock, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { sumDayRevenue } from "@/lib/day-revenue";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { BlockData } from "./appointment-block";
@@ -219,6 +220,7 @@ export function MobileDayAgenda({
       <DayCarousel date={date} isToday={isToday} items={items} onTouchDrop={onDrop} />
       <DragHint items={items} />
       {dialog}
+      <MobileDayRevenue items={items} />
 
       {newHref && <NewAppointmentLink href={newHref} />}
       {freeSlots && freeSlots.length > 0 && (
@@ -239,6 +241,37 @@ export function MobileDayAgenda({
         </div>
       )}
     </div>
+  );
+}
+
+/** Faturamento do dia por barbeiro (e o total) — fica logo abaixo dos cards, no fim do dia. */
+function MobileDayRevenue({ items }: { items: DayAgendaItem[] }) {
+  if (items.length === 0) return null;
+  const byBarber = new Map<string, DayAgendaItem[]>();
+  for (const item of items) byBarber.set(item.block.barberName, [...(byBarber.get(item.block.barberName) ?? []), item]);
+  const rows = [...byBarber.entries()].map(([name, list]) => ({
+    name,
+    revenue: sumDayRevenue(list.map((i) => ({ status: i.block.status, value: i.block.priceValue }))),
+  }));
+  const total = sumDayRevenue(items.map((i) => ({ status: i.block.status, value: i.block.priceValue }))).total;
+  return (
+    <Card variant="solid" className="space-y-2 p-4" aria-label="Faturamento do dia">
+      <p className="text-xs font-medium uppercase tracking-wide text-foreground-muted">Faturamento do dia</p>
+      {rows.map((row) => (
+        <div key={row.name} className="flex items-baseline justify-between gap-2 text-sm">
+          <span className="text-foreground">
+            {row.name} <span className="text-xs text-foreground-muted">({row.revenue.count})</span>
+          </span>
+          <span className="font-semibold tabular-nums text-success">{formatCurrency(row.revenue.total)}</span>
+        </div>
+      ))}
+      {rows.length > 1 && (
+        <div className="flex items-baseline justify-between gap-2 border-t pt-2 text-sm">
+          <span className="font-medium text-foreground">Total</span>
+          <span className="font-semibold tabular-nums text-success">{formatCurrency(total)}</span>
+        </div>
+      )}
+    </Card>
   );
 }
 

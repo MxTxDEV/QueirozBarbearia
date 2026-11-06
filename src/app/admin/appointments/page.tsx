@@ -346,6 +346,7 @@ export default async function AppointmentsPage({
     clientConfirmedAt: appt.clientConfirmedAt?.toISOString() ?? null,
     markKind: markKindOf(appt),
     price: formatCurrency(appt.totalPrice.toString()),
+    priceValue: Number(appt.totalPrice),
   });
 
   const renderActions = (appt: (typeof appointments)[number]) => (

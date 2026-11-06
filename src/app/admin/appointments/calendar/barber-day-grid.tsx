@@ -7,6 +7,8 @@ import { DraggableBreak } from "./draggable-break";
 import { AppointmentDropZone } from "./appointment-dnd";
 import type { BreakInfo } from "./break-types";
 import { minutesToHHMM, type ClosedSegment } from "@/lib/quick-slots";
+import { sumDayRevenue } from "@/lib/day-revenue";
+import { formatCurrency } from "@/lib/utils";
 
 const HOUR_HEIGHT = 80; // px por hora — mesma escala do TimeGrid, pra ficar consistente entre as visões
 const MIN_COLUMN_WIDTH = 200; // px — abaixo disso os blocos ficam ilegíveis com 2 linhas
@@ -153,6 +155,36 @@ export function BarberDayGrid({
             );
           })}
         </div>
+
+        {/* Faturamento do dia, embaixo da coluna de cada barbeiro */}
+        <div className="flex border-t-2" aria-label="Faturamento do dia">
+          <div className="w-14 shrink-0" />
+          {barbers.map((barber) => {
+            const revenue = sumDayRevenue(
+              appointments.filter((a) => a.barberId === barber.id).map((a) => ({ status: a.block.status, value: a.block.priceValue }))
+            );
+            return (
+              <div key={barber.id} className="flex-1 border-l px-2 py-3 text-center">
+                <p className="text-[11px] uppercase tracking-wide text-foreground-muted">Faturamento do dia</p>
+                <p className="text-lg font-semibold tabular-nums text-success">{formatCurrency(revenue.total)}</p>
+                <p className="text-[11px] text-foreground-muted">
+                  {revenue.count} {revenue.count === 1 ? "atendimento" : "atendimentos"}
+                  {revenue.done > 0 && revenue.done !== revenue.total ? ` · concluído ${formatCurrency(revenue.done)}` : ""}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        {barbers.length > 1 && (
+          <p className="border-t px-2 py-2 text-right text-sm text-foreground-muted">
+            Total do dia:{" "}
+            <span className="font-semibold tabular-nums text-success">
+              {formatCurrency(
+                sumDayRevenue(appointments.map((a) => ({ status: a.block.status, value: a.block.priceValue }))).total
+              )}
+            </span>
+          </p>
+        )}
       </div>
     </div>
   );

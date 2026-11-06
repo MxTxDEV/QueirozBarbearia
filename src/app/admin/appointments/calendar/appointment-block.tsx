@@ -38,6 +38,8 @@ export type BlockData = {
   /** Duração em minutos — usada pra desenhar o "fantasma" ao arrastar pra outro horário. */
   durationMin: number;
   price: string;
+  /** Valor numérico (para somar o faturamento do dia). */
+  priceValue: number;
   /** Quando o cliente confirmou pelo link do WhatsApp (ISO); nulo = ainda não confirmou. */
   clientConfirmedAt?: string | null;
   /** Dia marcado (feriado/folga/fora de expediente) que atinge este agendamento: pinta só o bloco dele. */
@@ -160,6 +162,7 @@ export function AppointmentBlock({
             {data.timeLabel} {data.customerName}
           </span>
           {data.notes && dense && <span className="truncate font-normal italic text-foreground-muted">· {data.notes}</span>}
+          <span className={cn("ml-auto shrink-0 pl-1 font-semibold tabular-nums", canResize && dense && "mr-6", cancelled ? "text-foreground-muted" : "text-success")}>{data.price}</span>
         </p>
         {!compact && !dense && (
           <p className="truncate text-[10px] text-foreground-muted">
