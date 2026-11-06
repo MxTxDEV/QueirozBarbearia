@@ -1,29 +1,24 @@
-import { formatCurrency } from "@/lib/utils";
-
 /** Agendamentos cancelados ou com falta não entram no faturamento do dia. */
 const NOT_REVENUE = new Set(["CANCELLED", "NO_SHOW"]);
 
 export type DayRevenue = {
-  /** Soma dos agendamentos do dia (pendentes, confirmados e concluídos). */
+  /** Previsto do dia: o valor pago quando já foi pago, senão o valor do serviço (cancelados/faltas não entram). */
   total: number;
-  /** Parte já concluída (atendimento feito). */
-  done: number;
+  /** Já recebido: soma dos pagamentos confirmados. */
+  received: number;
   count: number;
 };
 
-export function sumDayRevenue(items: { status: string; value: number }[]): DayRevenue {
+export function sumDayRevenue(items: { status: string; value: number; paid?: number | null }[]): DayRevenue {
   let total = 0;
-  let done = 0;
+  let received = 0;
   let count = 0;
   for (const item of items) {
     if (NOT_REVENUE.has(item.status)) continue;
-    total += item.value;
     count++;
-    if (item.status === "COMPLETED") done += item.value;
+    const paid = item.paid ?? null;
+    total += paid ?? item.value;
+    if (paid !== null) received += paid;
   }
-  return { total: Math.round(total * 100) / 100, done: Math.round(done * 100) / 100, count };
-}
-
-export function revenueLabel(revenue: DayRevenue) {
-  return formatCurrency(revenue.total);
+  return { total: Math.round(total * 100) / 100, received: Math.round(received * 100) / 100, count };
 }

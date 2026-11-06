@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { BadgeCheck, Pencil, Repeat, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import { updateAppointmentNotesAction } from "@/actions/appointments";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { MARK_COLOR, MARK_LABEL, type MarkKind } from "@/lib/day-marks";
 import { ResizeConfirmDialog, isMovableStatus, useAppointmentSwapDnd } from "./appointment-dnd";
 
@@ -40,6 +40,8 @@ export type BlockData = {
   price: string;
   /** Valor numérico (para somar o faturamento do dia). */
   priceValue: number;
+  /** Soma dos pagamentos confirmados (nulo = ainda não pago). */
+  paidValue: number | null;
   /** Quando o cliente confirmou pelo link do WhatsApp (ISO); nulo = ainda não confirmou. */
   clientConfirmedAt?: string | null;
   /** Dia marcado (feriado/folga/fora de expediente) que atinge este agendamento: pinta só o bloco dele. */
@@ -162,7 +164,15 @@ export function AppointmentBlock({
             {data.timeLabel} {data.customerName}
           </span>
           {data.notes && dense && <span className="truncate font-normal italic text-foreground-muted">· {data.notes}</span>}
-          <span className={cn("ml-auto shrink-0 pl-1 font-semibold tabular-nums", canResize && dense && "mr-6", cancelled ? "text-foreground-muted" : "text-success")}>{data.price}</span>
+          {data.paidValue !== null && !cancelled ? (
+            <span className={cn("ml-auto shrink-0 pl-1 font-bold tabular-nums text-success", canResize && dense && "mr-6")} title="Valor pago">
+              ✓ {formatCurrency(data.paidValue)}
+            </span>
+          ) : (
+            <span className={cn("ml-auto shrink-0 pl-1 font-semibold tabular-nums text-foreground-muted", canResize && dense && "mr-6")} title="Valor do serviço (ainda não pago)">
+              {data.price}
+            </span>
+          )}
         </p>
         {!compact && !dense && (
           <p className="truncate text-[10px] text-foreground-muted">
@@ -238,6 +248,7 @@ export function AppointmentBlock({
               <Row label="Serviços" value={data.services} />
               <Row label="Barbeiro" value={data.barberName} />
               <Row label="Valor" value={data.price} />
+              {data.paidValue !== null && <Row label="Pago" value={formatCurrency(data.paidValue)} />}
               <Row label="Status" value={data.statusLabel} />
               {data.markKind && <Row label="Dia" value={MARK_LABEL[data.markKind]} />}
               {(data.status === "PENDING" || data.status === "CONFIRMED") && (

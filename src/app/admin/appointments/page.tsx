@@ -347,6 +347,7 @@ export default async function AppointmentsPage({
     markKind: markKindOf(appt),
     price: formatCurrency(appt.totalPrice.toString()),
     priceValue: Number(appt.totalPrice),
+    paidValue: appt.payments.length > 0 ? appt.payments.reduce((sum, pay) => sum + Number(pay.amount), 0) : null,
   });
 
   const renderActions = (appt: (typeof appointments)[number]) => (

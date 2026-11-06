@@ -251,9 +251,9 @@ function MobileDayRevenue({ items }: { items: DayAgendaItem[] }) {
   for (const item of items) byBarber.set(item.block.barberName, [...(byBarber.get(item.block.barberName) ?? []), item]);
   const rows = [...byBarber.entries()].map(([name, list]) => ({
     name,
-    revenue: sumDayRevenue(list.map((i) => ({ status: i.block.status, value: i.block.priceValue }))),
+    revenue: sumDayRevenue(list.map((i) => ({ status: i.block.status, value: i.block.priceValue, paid: i.block.paidValue }))),
   }));
-  const total = sumDayRevenue(items.map((i) => ({ status: i.block.status, value: i.block.priceValue }))).total;
+  const all = sumDayRevenue(items.map((i) => ({ status: i.block.status, value: i.block.priceValue, paid: i.block.paidValue })));
   return (
     <Card variant="solid" className="space-y-2 p-4" aria-label="Faturamento do dia">
       <p className="text-xs font-medium uppercase tracking-wide text-foreground-muted">Faturamento do dia</p>
@@ -262,13 +262,19 @@ function MobileDayRevenue({ items }: { items: DayAgendaItem[] }) {
           <span className="text-foreground">
             {row.name} <span className="text-xs text-foreground-muted">({row.revenue.count})</span>
           </span>
-          <span className="font-semibold tabular-nums text-success">{formatCurrency(row.revenue.total)}</span>
+          <span className="text-right">
+            <span className="font-semibold tabular-nums text-success">{formatCurrency(row.revenue.received)}</span>
+            <span className="block text-[11px] text-foreground-muted">previsto {formatCurrency(row.revenue.total)}</span>
+          </span>
         </div>
       ))}
       {rows.length > 1 && (
         <div className="flex items-baseline justify-between gap-2 border-t pt-2 text-sm">
           <span className="font-medium text-foreground">Total</span>
-          <span className="font-semibold tabular-nums text-success">{formatCurrency(total)}</span>
+          <span className="text-right">
+            <span className="font-semibold tabular-nums text-success">{formatCurrency(all.received)}</span>
+            <span className="block text-[11px] text-foreground-muted">previsto {formatCurrency(all.total)}</span>
+          </span>
         </div>
       )}
     </Card>
