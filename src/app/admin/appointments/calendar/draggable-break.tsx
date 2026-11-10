@@ -100,9 +100,9 @@ export function DraggableBreak({
           backgroundImage: "repeating-linear-gradient(135deg, var(--border-glass) 0 1px, transparent 1px 9px)",
         }}
         className={cn(
-          "absolute inset-x-0 z-[5] flex select-none items-center justify-center overflow-hidden text-foreground-muted/80",
+          "absolute inset-x-0 flex select-none items-center justify-center overflow-hidden text-foreground-muted/80",
           "cursor-grab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60",
-          dragging && "cursor-grabbing shadow-lg",
+          dragging && "z-[5] cursor-grabbing shadow-lg",
           moved && !blocked && "ring-2 ring-secondary",
           blocked && "ring-2 ring-danger",
           !dragging && !moved && "transition-[top] duration-150"
