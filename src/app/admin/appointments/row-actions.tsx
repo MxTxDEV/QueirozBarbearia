@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgeDollarSign } from "lucide-react";
+import { BadgeDollarSign, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +114,13 @@ export function AppointmentRowActions({
         </Link>
       )}
       {status === "COMPLETED" && hasPayment && <Badge variant="success">{paidLabel(paymentMethods ?? [])}</Badge>}
+      {status === "COMPLETED" && hasPayment && (
+        <Link href={`/admin/appointments/${id}/payment/edit`}>
+          <Button size="sm" variant="outline">
+            <Pencil className="h-4 w-4" /> Editar pagamento
+          </Button>
+        </Link>
+      )}
     </div>
   );
 }
