@@ -81,6 +81,7 @@ export function AppointmentBlock({
   resize?: ResizeConfig;
 }) {
   const [open, setOpen] = useState(false);
+  const blockRouter = useRouter();
   // Esticar pela bolinha: enquanto arrasta (ou espera a confirmação) o bloco mostra a duração nova.
   const [resizing, setResizing] = useState(false);
   const [previewMin, setPreviewMin] = useState<number | null>(null);
@@ -165,9 +166,24 @@ export function AppointmentBlock({
           </span>
           {data.notes && dense && <span className="truncate font-normal italic text-foreground-muted">· {data.notes}</span>}
           {data.paidValue !== null && !cancelled && (
-            <span className={cn("ml-auto shrink-0 pl-1 font-bold tabular-nums text-success", canResize && dense && "mr-6")} title="Valor pago">
+            <button
+              type="button"
+              draggable={false}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                blockRouter.push(`/admin/appointments/${data.id}/payment/edit`);
+              }}
+              onKeyDown={(event) => event.stopPropagation()}
+              className={cn(
+                "ml-auto flex shrink-0 items-center gap-0.5 rounded pl-1 font-bold tabular-nums text-success hover:bg-success/15 hover:underline",
+                canResize && dense && "mr-6"
+              )}
+              title="Valor pago — clique para alterar"
+            >
               ✓ {formatCurrency(data.paidValue)}
-            </span>
+              <Pencil className="h-2.5 w-2.5 opacity-70" aria-hidden />
+            </button>
           )}
         </p>
         {!compact && !dense && (

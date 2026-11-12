@@ -190,6 +190,9 @@ export async function updateAppointmentPaymentsAction(
     });
     if (!appointment) return actionError(new Error("Agendamento não encontrado."));
     if (appointment.payments.length === 0) return actionError(new Error("Este agendamento ainda não tem pagamento registrado."));
+    if (user.role === "BARBER" && appointment.barberId !== user.barberId) {
+      return actionError(new Error("Você só pode alterar o pagamento dos seus próprios atendimentos."));
+    }
 
     const ledger = await prisma.financialTransaction.findMany({
       where: { companyId: user.companyId, appointmentId, type: "INCOME", status: "PAID" },

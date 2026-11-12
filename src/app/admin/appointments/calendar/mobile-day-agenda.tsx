@@ -3,7 +3,7 @@
 import { shopNow } from "@/lib/shop-time";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Lock, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Pencil, Plus } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { sumDayRevenue } from "@/lib/day-revenue";
 import { Card } from "@/components/ui/card";
@@ -138,7 +138,9 @@ function DayCarousel({
               </div>
               <div className="flex items-center justify-between gap-2 pt-1">
                 {item.block.paidValue !== null && !cancelled ? (
-                  <p className="text-sm font-bold text-success">✓ {formatCurrency(item.block.paidValue)}</p>
+                  <Link href={`/admin/appointments/${item.block.id}/payment/edit`} className="flex items-center gap-1 text-sm font-bold text-success" title="Alterar o valor pago">
+                    ✓ {formatCurrency(item.block.paidValue)} <Pencil className="h-3 w-3 opacity-70" aria-hidden />
+                  </Link>
                 ) : (
                   <span />
                 )}

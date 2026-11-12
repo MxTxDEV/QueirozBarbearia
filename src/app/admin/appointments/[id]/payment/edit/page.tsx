@@ -13,6 +13,7 @@ export default async function EditPaymentPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const appointment = await getAppointmentDetail(id, user.companyId);
   if (!appointment || appointment.payments.length === 0) notFound();
+  if (user.role === "BARBER" && appointment.barberId !== user.barberId) notFound();
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
