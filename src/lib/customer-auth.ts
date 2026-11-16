@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import crypto from "crypto";
@@ -138,7 +139,10 @@ export type CurrentCustomer = {
   birthDate: Date | null;
 };
 
-export async function getCurrentCustomer(): Promise<CurrentCustomer | null> {
+/** Memoizado por requisição (layout + página chamam as duas). */
+export const getCurrentCustomer = cache(loadCurrentCustomer);
+
+async function loadCurrentCustomer(): Promise<CurrentCustomer | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value;
   if (!token) return null;

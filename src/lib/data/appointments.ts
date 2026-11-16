@@ -36,6 +36,9 @@ export function rangeToDates(range: AppointmentRangeFilter): { from?: Date; to?:
   return {};
 }
 
+/** Teto de linhas da Lista: milhares de linhas deixavam a tela (e o servidor) lentos. A busca traz uma a mais para saber se cortou. */
+export const LIST_LIMIT = 300;
+
 export async function listAppointments(
   companyId: string,
   filters: {
@@ -61,10 +64,7 @@ export async function listAppointments(
     where,
     orderBy: { startTime: "asc" },
     include: { customer: true, barber: true, services: true, payments: true, recurringOccurrence: { include: { recurringAppointment: { select: { frequencyUnit: true, intervalValue: true, manualDates: true } } } } },
-    // range: "all" não tem filtro de data (from/to indefinidos acima) — sem
-    // teto isso é uma query sem limite numa empresa antiga. Stopgap até a
-    // tela ganhar paginação de verdade; os demais ranges já são limitados por data.
-    ...(!from && !to ? { take: 1000 } : {}),
+    take: LIST_LIMIT + 1,
   });
 }
 

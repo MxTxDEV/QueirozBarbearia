@@ -1,7 +1,7 @@
 import { shopNow } from "@/lib/shop-time";
 import Link from "next/link";
 import { CalendarDays, List, Plus, Repeat } from "lucide-react";
-import { getAppointmentDayCounts, listAppointments, listAppointmentsInRange, type AppointmentRangeFilter } from "@/lib/data/appointments";
+import { getAppointmentDayCounts, LIST_LIMIT, listAppointments, listAppointmentsInRange, type AppointmentRangeFilter } from "@/lib/data/appointments";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate, formatTime, formatWhatsappDisplay } from "@/lib/utils";
 import { APPOINTMENT_STATUS_LABEL, APPOINTMENT_STATUS_VARIANT } from "@/lib/labels";
@@ -166,7 +166,7 @@ export default async function AppointmentsPage({
   }
 
   const canMarkDays = user.role === "ADMIN";
-  const [appointments, barbers, mobileDayAppointments, miniCounts, rangeMarks, miniMarks, upcomingMarks] = await Promise.all([
+  const [fetchedAppointments, barbers, mobileDayAppointments, miniCounts, rangeMarks, miniMarks, upcomingMarks] = await Promise.all([
     isCalendar
       ? listAppointmentsInRange(user.companyId, { from, to, barberId, status, customerQuery: sp.q })
       : listAppointments(user.companyId, { range, barberId, status, customerQuery: sp.q }),
@@ -182,6 +182,9 @@ export default async function AppointmentsPage({
     isCalendar ? listDayMarksInRange(user.companyId, miniGridStart, addDays(miniGridStart, 42)) : Promise.resolve([] as DayMarkRow[]),
     canMarkDays ? listUpcomingDayMarks(user.companyId) : Promise.resolve([] as DayMarkRow[]),
   ]);
+  // Lista: mostra no máximo LIST_LIMIT linhas (a busca trouxe uma a mais só para saber que existem outras).
+  const listTruncated = !isCalendar && fetchedAppointments.length > LIST_LIMIT;
+  const appointments = listTruncated ? fetchedAppointments.slice(0, LIST_LIMIT) : fetchedAppointments;
   const groupMarks = (rows: DayMarkRow[]) => {
     const byDay: Record<string, DayMarkRow[]> = {};
     for (const row of rows) (byDay[row.date] ??= []).push(row);
@@ -389,7 +392,9 @@ export default async function AppointmentsPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Agendamentos</h1>
-          <p className="text-sm text-foreground-muted">{appointments.length} agendamento(s) no período</p>
+          <p className="text-sm text-foreground-muted">
+            {listTruncated ? `Mostrando os primeiros ${LIST_LIMIT} agendamentos — escolha um período menor ou filtre para ver os demais` : `${appointments.length} agendamento(s) no período`}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex items-center gap-1 rounded-full border p-1">

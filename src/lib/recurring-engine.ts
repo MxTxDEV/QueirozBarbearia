@@ -148,7 +148,9 @@ async function materializeOccurrence(
   series: SeriesWithRelations,
   enrollConflictsInWaitlist: boolean,
   /** Quem manda é a equipe (série criada por ela, ou edição feita por ela): vale mesmo em feriado, folga ou fora do expediente. */
-  staffOverride = false
+  staffOverride = false,
+  /** false = não avisa a administração a cada conflito (quem chama manda um aviso só, resumido). */
+  notifyConflict = true
 ): Promise<MaterializeResult> {
   const created = await createAppointmentCore(
     {
@@ -225,14 +227,16 @@ async function materializeOccurrence(
     entityId: occurrence.id,
     metadata: { conflictReason, waitlisted: false },
   });
-  await createNotification({
-    companyId: series.companyId,
-    title: "⚠️ Conflito em recorrência",
-    message: `A ocorrência de ${series.customer.fullName} em ${formatDate(occurrence.scheduledDate)} às ${formatTime(occurrence.scheduledStartTime)} ficou indisponível.`,
-    type: "RECURRING_OCCURRENCE_CONFLICT",
-    relatedEntityType: "recurring_appointment_occurrence",
-    relatedEntityId: occurrence.id,
-  });
+  if (notifyConflict) {
+    await createNotification({
+      companyId: series.companyId,
+      title: "⚠️ Conflito em recorrência",
+      message: `A ocorrência de ${series.customer.fullName} em ${formatDate(occurrence.scheduledDate)} às ${formatTime(occurrence.scheduledStartTime)} ficou indisponível.`,
+      type: "RECURRING_OCCURRENCE_CONFLICT",
+      relatedEntityType: "recurring_appointment_occurrence",
+      relatedEntityId: occurrence.id,
+    });
+  }
   return "CONFLICT";
 }
 
@@ -617,7 +621,7 @@ export async function generateProgressiveOccurrences() {
  * Cria as linhas de ocorrência para as datas dadas e já tenta agendar cada uma. Pula dias que já passaram e
  * datas que a série já tem (idempotente: rodar duas vezes nunca duplica).
  */
-async function createAndMaterializeDates(series: SeriesWithRelations, dates: { date: Date }[]) {
+async function createAndMaterializeDates(series: SeriesWithRelations, dates: { date: Date }[], options: { notifyConflict?: boolean } = {}) {
   const today = dateOnly(shopNow());
   // Número da próxima ocorrência: segue o maior já usado (as linhas substitutas de uma edição também contam).
   const maxRow = await prisma.recurringAppointmentOccurrence.aggregate({ where: { recurringAppointmentId: series.id }, _max: { occurrenceNumber: true } });
@@ -658,7 +662,7 @@ async function createAndMaterializeDates(series: SeriesWithRelations, dates: { d
     }
     generated++;
     // Série criada pela equipe segue valendo nos meses seguintes mesmo em feriado/folga.
-    const result = await materializeOccurrence(occ, series, false, Boolean(series.createdByUserId));
+    const result = await materializeOccurrence(occ, series, false, Boolean(series.createdByUserId), options.notifyConflict ?? true);
     if (result === "CONFIRMED") confirmed++;
     else conflicts++;
   }
@@ -754,7 +758,18 @@ export async function extendRecurringSeriesUntil(seriesId: string, target: Date)
   });
   if (dates.length === 0) return { ...base, outcome: "skipped", reason: "já vai até a data" };
 
-  const { generated, confirmed, conflicts } = await createAndMaterializeDates(series, dates);
+  const { generated, confirmed, conflicts } = await createAndMaterializeDates(series, dates, { notifyConflict: false });
+  // Um aviso só por recorrência (e não um por data em conflito, que enchia o sino de notificações).
+  if (conflicts > 0) {
+    await createNotification({
+      companyId: series.companyId,
+      title: "⚠️ Datas em conflito em recorrência",
+      message: `Ao estender a recorrência de ${series.customer.fullName}, ${conflicts} ${conflicts === 1 ? "data ficou" : "datas ficaram"} indisponível(is). Veja em Recorrências.`,
+      type: "RECURRING_OCCURRENCE_CONFLICT",
+      relatedEntityType: "recurring_appointment",
+      relatedEntityId: series.id,
+    });
+  }
 
   const lastDate = dates[dates.length - 1];
   await prisma.recurringAppointment.update({
@@ -790,6 +805,8 @@ export async function extendAllRecurringSeries(options: { target?: string; compa
   for (const { id } of list) {
     try {
       results.push(await extendRecurringSeriesUntil(id, target));
+      // Respira entre as séries: o servidor continua atendendo as telas enquanto isto roda.
+      await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (error) {
       console.error(`[recurring] falha ao estender a série ${id}:`, error);
       results.push({ seriesId: id, customer: "?", outcome: "skipped", reason: "erro", generated: 0, confirmed: 0, conflicts: 0 });

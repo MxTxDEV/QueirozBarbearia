@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
@@ -153,7 +154,13 @@ export type CurrentUser = {
   impersonatedBy: { id: string; name: string } | null;
 };
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+/**
+ * Usuário logado. Memoizado por requisição (React `cache`): o layout, a página e as ações chamam isto várias
+ * vezes na mesma requisição e cada chamada eram ~4 consultas ao banco — agora é uma só.
+ */
+export const getCurrentUser = cache(loadCurrentUser);
+
+async function loadCurrentUser(): Promise<CurrentUser | null> {
   const cookieStore = await cookies();
   const impersonationToken = cookieStore.get(IMPERSONATION_COOKIE)?.value;
   const token = impersonationToken ?? cookieStore.get(SESSION_COOKIE)?.value;

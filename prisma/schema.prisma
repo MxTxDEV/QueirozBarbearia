@@ -594,6 +594,7 @@ model Appointment {
 
   @@index([companyId])
   @@index([barberId, appointmentDate])
+  @@index([companyId, appointmentDate])
   @@index([customerId])
   @@index([status])
   @@index([status, startTime])
@@ -1081,6 +1082,7 @@ model Notification {
   user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([companyId, read])
+  @@index([companyId, createdAt])
   @@index([userId, read])
   @@map("notifications")
 }
@@ -1101,6 +1103,7 @@ model WhatsappMessage {
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([companyId, createdAt])
   @@index([customerId])
   @@map("whatsapp_messages")
 }

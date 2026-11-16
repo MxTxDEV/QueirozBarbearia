@@ -6,7 +6,7 @@ import { Bell } from "lucide-react";
 import { cn, formatDate, formatTime } from "@/lib/utils";
 import { getNotificationsSnapshotAction } from "@/actions/notifications";
 
-const POLL_INTERVAL_MS = 15000;
+const POLL_INTERVAL_MS = 30000;
 
 export type BellNotification = {
   id: string;
@@ -46,6 +46,7 @@ export function NotificationsBell({
   // agendamento) sem precisar recarregar a página.
   useEffect(() => {
     const id = setInterval(async () => {
+      if (document.visibilityState !== "visible") return; // aba escondida não precisa consultar
       try {
         const snapshot = await getNotificationsSnapshotAction();
         setNotifications(snapshot.notifications);
