@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { Montserrat, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
@@ -28,11 +29,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Queiroz Barbearia | Agendamento online",
-  description: "Agende seu horário na Queiroz Barbearia. Gestão completa com iCortes.",
-  manifest: "/manifest.json",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  // metadataBase: sem ele a imagem de pré-visualização do link (logo da barbearia no WhatsApp) não resolve para o endereço público.
+  const base = await getAppBaseUrl().catch(() => null);
+  return {
+    ...(base ? { metadataBase: new URL(base) } : {}),
+    title: "Queiroz Barbearia | Agendamento online",
+    description: "Agende seu horário na Queiroz Barbearia. Gestão completa com iCortes.",
+    manifest: "/manifest.json",
+  };
+}
 
 export const viewport = {
   themeColor: "#080b0b",
