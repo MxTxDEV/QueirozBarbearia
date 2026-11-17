@@ -14,6 +14,7 @@ import {
   markNoShowAction,
 } from "@/actions/appointments";
 import type { AppointmentStatus } from "@prisma/client";
+import type { ActionResult } from "@/lib/action-helpers";
 import { EditAppointmentButton } from "./edit-appointment-button";
 import { paidLabel } from "@/lib/payment-labels";
 
@@ -39,11 +40,13 @@ export function AppointmentRowActions({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  function run(action: (id: string) => Promise<void>, successMessage: string) {
+  function run(action: (id: string) => Promise<ActionResult>, successMessage: string) {
     startTransition(async () => {
       try {
-        await action(id);
-        toast.success(successMessage);
+        const result = await action(id);
+        if (result.ok) toast.success(successMessage);
+        else toast.error(result.error);
+        router.refresh();
       } catch (error) {
         toast.error(errorMessage(error));
       }
@@ -54,7 +57,12 @@ export function AppointmentRowActions({
   function completeAndCharge() {
     startTransition(async () => {
       try {
-        await completeAppointmentAction(id);
+        const result = await completeAppointmentAction(id);
+        if (!result.ok) {
+          toast.error(result.error);
+          router.refresh();
+          return;
+        }
         toast.success("Atendimento concluído — registre o pagamento.");
         router.push(`/admin/appointments/${id}/payment`);
       } catch (error) {

@@ -358,10 +358,16 @@ async function loadAppointmentContext(appointmentId: string, companyId: string) 
   });
 }
 
-export async function confirmAppointmentAction(appointmentId: string) {
+export async function confirmAppointmentAction(appointmentId: string): Promise<ActionResult> {
+  try {
   const user = await requireAdminContext();
   const appt = await loadAppointmentContext(appointmentId, user.companyId);
-  if (!appt) throw new Error("Agendamento não encontrado.");
+  if (!appt) return actionError(new Error("Agendamento não encontrado."));
+  if (appt.status !== "PENDING") {
+    // Já confirmado (duplo clique / tela desatualizada): nada a fazer. Concluído/cancelado: avisa.
+    if (appt.status === "CONFIRMED") return actionSuccess();
+    return actionError(new Error("Este agendamento não está mais pendente."));
+  }
 
   await prisma.appointment.updateMany({
     where: { id: appointmentId, companyId: user.companyId },
@@ -393,12 +399,28 @@ export async function confirmAppointmentAction(appointmentId: string) {
 
   revalidatePath("/admin/appointments");
   revalidatePath("/portal/[company]", "layout");
+  return actionSuccess();
+  } catch (error) {
+    return actionError(error);
+  }
 }
 
-export async function cancelAppointmentAdminAction(appointmentId: string, formData?: FormData) {
-  const user = await requireAdminContext();
-  await cancelAppointmentCore(appointmentId, user.companyId, user.id);
+export async function cancelAppointmentAdminAction(appointmentId: string, formData?: FormData): Promise<ActionResult> {
   void formData;
+  try {
+    const user = await requireAdminContext();
+    const current = await prisma.appointment.findFirst({ where: { id: appointmentId, companyId: user.companyId }, select: { status: true } });
+    if (!current) return actionError(new Error("Agendamento não encontrado."));
+    // Duplo clique / tela desatualizada: já cancelado não cancela (nem avisa o cliente) de novo.
+    if (current.status === "CANCELLED") return actionSuccess();
+    if (current.status !== "PENDING" && current.status !== "CONFIRMED") {
+      return actionError(new Error("Só dá pra cancelar um agendamento pendente ou confirmado."));
+    }
+    await cancelAppointmentCore(appointmentId, user.companyId, user.id);
+    return actionSuccess();
+  } catch (error) {
+    return actionError(error);
+  }
 }
 
 export async function cancelAppointmentAsCustomerAction(appointmentId: string): Promise<ActionResult> {
@@ -486,25 +508,45 @@ export async function cancelAppointmentCore(
  * é "confirmado" por ninguém, e o cliente que chegou no horário pode ser atendido sem passo extra.
  * Concluído, cancelado e "não compareceu" não voltam a ser concluídos.
  */
-export async function completeAppointmentAction(appointmentId: string) {
-  const user = await requireAdminContext();
-  const now = new Date();
-  const result = await prisma.appointment.updateMany({
-    where: { id: appointmentId, companyId: user.companyId, status: { in: ["PENDING", "CONFIRMED"] } },
-    data: { status: "COMPLETED", completedAt: now },
-  });
-  if (result.count === 0) throw new Error("Só dá pra concluir um agendamento pendente ou confirmado.");
-  await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_completed", entityType: "appointment", entityId: appointmentId, appointmentId });
-  revalidatePath("/admin/appointments");
+export async function completeAppointmentAction(appointmentId: string): Promise<ActionResult> {
+  try {
+    const user = await requireAdminContext();
+    const result = await prisma.appointment.updateMany({
+      where: { id: appointmentId, companyId: user.companyId, status: { in: ["PENDING", "CONFIRMED"] } },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+    if (result.count === 0) {
+      // Duplo clique, outra aba ou tela desatualizada: se já estava concluído, está tudo certo — segue para o pagamento.
+      const current = await prisma.appointment.findFirst({ where: { id: appointmentId, companyId: user.companyId }, select: { status: true } });
+      if (!current) return actionError(new Error("Agendamento não encontrado."));
+      if (current.status === "COMPLETED") return actionSuccess();
+      return actionError(new Error(current.status === "CANCELLED" ? "Este agendamento foi cancelado." : "Este cliente foi marcado como não compareceu."));
+    }
+    await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_completed", entityType: "appointment", entityId: appointmentId, appointmentId });
+    revalidatePath("/admin/appointments");
+    return actionSuccess();
+  } catch (error) {
+    return actionError(error);
+  }
 }
 
-export async function markNoShowAction(appointmentId: string) {
-  const user = await requireAdminContext();
-  const result = await prisma.appointment.updateMany({
-    where: { id: appointmentId, companyId: user.companyId, status: { in: ["PENDING", "CONFIRMED"] } },
-    data: { status: "NO_SHOW" },
-  });
-  if (result.count === 0) throw new Error("Só dá pra marcar falta em um agendamento pendente ou confirmado.");
-  await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_no_show", entityType: "appointment", entityId: appointmentId, appointmentId });
-  revalidatePath("/admin/appointments");
+export async function markNoShowAction(appointmentId: string): Promise<ActionResult> {
+  try {
+    const user = await requireAdminContext();
+    const result = await prisma.appointment.updateMany({
+      where: { id: appointmentId, companyId: user.companyId, status: { in: ["PENDING", "CONFIRMED"] } },
+      data: { status: "NO_SHOW" },
+    });
+    if (result.count === 0) {
+      const current = await prisma.appointment.findFirst({ where: { id: appointmentId, companyId: user.companyId }, select: { status: true } });
+      if (!current) return actionError(new Error("Agendamento não encontrado."));
+      if (current.status === "NO_SHOW") return actionSuccess();
+      return actionError(new Error("Só dá pra marcar falta em um agendamento pendente ou confirmado."));
+    }
+    await logAudit({ companyId: user.companyId, userId: user.id, action: "appointment_no_show", entityType: "appointment", entityId: appointmentId, appointmentId });
+    revalidatePath("/admin/appointments");
+    return actionSuccess();
+  } catch (error) {
+    return actionError(error);
+  }
 }

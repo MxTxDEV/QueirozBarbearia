@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getAppointmentDetail } from "@/lib/data/appointments";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -14,6 +14,8 @@ export default async function RegisterPaymentPage({ params }: { params: Promise<
   const { id } = await params;
   const appointment = await getAppointmentDetail(id, user.companyId);
   if (!appointment) notFound();
+  // Já tem pagamento (tela antiga / duplo clique): vai para a edição do pagamento em vez de um formulário que recusaria.
+  if (appointment.payments.length > 0) redirect(`/admin/appointments/${id}/payment/edit`);
   const services = await prisma.service.findMany({ where: { companyId: user.companyId, active: true }, orderBy: { name: "asc" } });
 
   return (
