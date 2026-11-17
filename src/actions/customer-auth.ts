@@ -11,6 +11,7 @@ import {
   verifyCustomerOtp,
 } from "@/lib/customer-auth";
 import { sendCustomerOtp } from "@/lib/whatsapp";
+import { findAndLinkCustomerByPhone } from "@/lib/customer-link";
 import { isCustomerProfileIncomplete, PLACEHOLDER_CUSTOMER_NAME } from "@/lib/require-customer";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
 
@@ -41,11 +42,16 @@ export async function requestCustomerOtpAction(
     const company = await prisma.company.findUnique({ where: { slug: data.companySlug }, select: { id: true, name: true, status: true } });
     if (!company || company.status !== "ACTIVE") return actionError(new Error("Empresa não encontrada ou indisponível."));
 
-    const customer = await prisma.customer.upsert({
-      where: { companyId_whatsapp: { companyId: company.id, whatsapp } },
-      update: {},
-      create: { companyId: company.id, fullName: PLACEHOLDER_CUSTOMER_NAME, whatsapp },
-    });
+    // Acha o cadastro que a barbearia já tem (inclusive com o celular escrito com/sem o 9) e junta os repetidos:
+    // é isso que faz o cliente ver no app os horários e recorrências que a barbearia marcou.
+    const linked = await findAndLinkCustomerByPhone(company.id, whatsapp);
+    const customer =
+      linked ??
+      (await prisma.customer.upsert({
+        where: { companyId_whatsapp: { companyId: company.id, whatsapp } },
+        update: {},
+        create: { companyId: company.id, fullName: PLACEHOLDER_CUSTOMER_NAME, whatsapp },
+      }));
 
     const code = await createCustomerOtp(customer.id);
     // Código pedido há instantes: o anterior continua valendo, não manda outro (e não dá erro).

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCurrency, formatDuration, normalizeWhatsapp, formatWhatsappDisplay, weekdayName, firstName } from "@/lib/utils";
+import { formatCurrency, formatDuration, normalizeWhatsapp, formatWhatsappDisplay, weekdayName, firstName, phoneVariants } from "@/lib/utils";
 
 describe("formatCurrency", () => {
   it("formats a number as BRL", () => {
@@ -84,5 +84,15 @@ describe("firstName", () => {
     expect(firstName("")).toBe("");
     expect(firstName(undefined)).toBe("");
     expect(firstName(null)).toBe("");
+  });
+});
+
+describe("phoneVariants", () => {
+  it("celular com 9 também vale sem o 9, e vice-versa", () => {
+    expect(phoneVariants("+5531997001234").sort()).toEqual(["+553197001234", "+5531997001234"].sort());
+    expect(phoneVariants("+553197001234").sort()).toEqual(["+553197001234", "+5531997001234"].sort());
+  });
+  it("fixo (10 dígitos começando em 2-5) não ganha 9", () => {
+    expect(phoneVariants("+553133221100")).toEqual(["+553133221100"]);
   });
 });

@@ -67,6 +67,16 @@ export function normalizeWhatsapp(raw: string): string | null {
   return `+55${national}`;
 }
 
+/** Formas equivalentes do mesmo celular: +55DD9XXXXXXXX e +55DDXXXXXXXX (sem o 9). */
+export function phoneVariants(whatsapp: string): string[] {
+  const digits = whatsapp.replace(/\D/g, "");
+  const national = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
+  const out = new Set<string>([`+55${national}`]);
+  if (national.length === 11 && national[2] === "9") out.add(`+55${national.slice(0, 2)}${national.slice(3)}`);
+  if (national.length === 10 && /[6-9]/.test(national[2])) out.add(`+55${national.slice(0, 2)}9${national.slice(2)}`);
+  return [...out];
+}
+
 export function formatWhatsappDisplay(e164: string) {
   const digits = e164.replace(/\D/g, "").replace(/^55/, "");
   const ddd = digits.slice(0, 2);

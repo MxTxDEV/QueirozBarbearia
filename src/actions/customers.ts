@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext, requireAdminOnly } from "@/lib/require-admin";
+import { findAndLinkCustomerByPhone } from "@/lib/customer-link";
 import { normalizeWhatsapp } from "@/lib/utils";
 import { sendWhatsapp } from "@/lib/whatsapp";
 import { actionError, actionSuccess, type ActionResult } from "@/lib/action-helpers";
@@ -33,8 +34,9 @@ export async function createCustomerAction(_prev: ActionResult | undefined, form
     const whatsapp = normalizeWhatsapp(parsed.whatsapp);
     if (!whatsapp) return actionError(new Error("Número de WhatsApp inválido. Use o formato (DD) 9XXXX-XXXX."));
 
-    const existing = await prisma.customer.findUnique({ where: { companyId_whatsapp: { companyId: user.companyId, whatsapp } } });
-    if (existing) return actionError(new Error("Já existe um cliente cadastrado com este WhatsApp."));
+    // Compara também a forma do celular com/sem o 9 — senão cadastra duas vezes o mesmo cliente.
+    const existing = await findAndLinkCustomerByPhone(user.companyId, whatsapp);
+    if (existing) return actionError(new Error(`Já existe um cliente cadastrado com este WhatsApp: ${existing.fullName}.`));
 
     const created = await prisma.customer.create({
       data: {
@@ -75,7 +77,7 @@ export async function quickCreateCustomerAction(input: { fullName: string; whats
     const whatsapp = normalizeWhatsapp(parsed.whatsapp);
     if (!whatsapp) return actionError(new Error("Número de WhatsApp inválido. Use o formato (DD) 9XXXX-XXXX."));
 
-    const existing = await prisma.customer.findUnique({ where: { companyId_whatsapp: { companyId: user.companyId, whatsapp } } });
+    const existing = await findAndLinkCustomerByPhone(user.companyId, whatsapp);
     if (existing) {
       return actionSuccess({ id: existing.id, fullName: existing.fullName, whatsapp: existing.whatsapp, alreadyExisted: true });
     }
